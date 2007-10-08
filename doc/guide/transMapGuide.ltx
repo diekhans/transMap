@@ -1,0 +1,61 @@
+% http://www.sanger.ac.uk/Software/analysis/projector/
+
+
+The TransMap process produces cross-species mRNA alignments by combining the
+results of two alignment methods that are optimized for different tasks.
+Alignments of cDNA sequences to their cognate genome are done using
+BLAT\cite{}. BLAT is designed to align transcripts of at least 95\% identity
+to DNA sequences, producing intron-spanning alignments of the full cDNA.
+TransMap projects the cDNA to genome alignments through BLASTZ\cite{}
+cross-species genomic alignments to a target species genome.  BLASTZ is a
+highly-sensitive aligner, optimized for aligning diverged, orthologous
+genomic sequences.
+
+For this analysis, BLAT alignments of mouse RefSeq\cite{} mRNAs to their cognate
+genome were obtained from the UCSC Genome Browser Database\cite{}.  These
+alignments, along with the coding sequence annotations associated with the
+mRNAs, provide annotations of gene structure in the genome.  BLASTZ chained
+alignments of source genome (mouse) to the target genome (human or dog) are
+used to project the mouse mRNA alignments to the target genome.  UCSC
+alignment nets\cite{} are used to select syntenic alignments chains for use in
+the mappings.  This filter step removes paralogous alignments, with the
+exception of those causes by tandem duplication.
+
+The TransMap cDNA alignments will show the results of evolutionary change in
+the genes and hence will not be realistic gene models for the target organism.
+A set of heuristic corrections are applied to attempt to compensated for
+insertions, deletions, and the movement of splice sites and start and stop
+codons.  This results in a prediction of an orthologous gene in the targer
+species.  The prediction is then evaluated to determine if it forms a valid
+gene model.  While there is some risk of the evolutionary corrections masking
+a change resulting in a pseudogene, the comparison with the out-group TransMap
+gene predictions makes it unlikely that a false-positive human-specific 
+pseudogene will be predicted.
+
+
+
+
+This algorithm, known as TransMap and illustrated in Figure 1,
+results in predictions of orthologous gene structures in the target organism.
+
+
+
+.  BLAT
+
+ from RefSeq to the
+    mouser genome were obtained from the UCSC Genome Browser Database . 
+
+Since the alignments 
+optimized for different alignment problems.
+BLAT alignments
+
+
+
+
+- mRNA BLAT alignments to mouse
+- blastz alignment chain selection
+- mapping of alignment and CDS
+
+
+- evolutionary correction and scoring
+

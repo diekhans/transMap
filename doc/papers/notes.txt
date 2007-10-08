@@ -1,0 +1,30 @@
+
+TM paper ideas
+
+why:
+   - alignments optimized for different tasks
+   - preexisting alignments and annotationss
+   
+uses:
+   - cross species cDNA alignmest
+   - haplotype mapping
+   - protein->cDNA->genome mappoing
+
+
+progs:
+   pslTransMap
+   bedTransMap
+
+error cases:
+   - tandem duplications
+   - misaligned splices sites due to BLASTZ not being transcript aware
+   - blastz chaining problems
+   - blat mismatch problems
+   - chaining and netting problems.
+   - definition of synteny.
+
+conversion to gene predictions:
+
+
+
+examples:

@@ -1,0 +1,219 @@
+\section{Cross-species Gene Ortholog Mapping}
+\label{sec:transMap}
+
+We have been developing a methodology for mapping mRNA alignments
+between different organisms using the UCSC cross-species alignment
+chains and nets. This method, known as \TransMap, uses the
+transitive relationship between alignments, as shown in Figure
+\ref{fig:transMapAlgo}, to project cDNA alignments from one species
+to another. \TransMap has been a useful tool in making multi-exon
+picks for MGC RT-PCR clone rescue.  It's relative immunity to
+retroposed pseudogenes will be of value for predicting single-exon
+genes.
+
+\subsection*{Direct Ortholog Mapping}
+Due to the high sensitivity and syntentic filtering of the
+cross-species alignment, \TransMap provides precise, base-level
+predictions of the location and structure of genes in the target
+organism.  Also, unlike many computational gene predictors and
+protein-translation alignment algorithms, \TransMap does a good job
+of predicting the UTR regions of genes as well as the protein coding
+regions.  This is illustrated in Figure \ref{fig:transMapVsBlat}.
+This method also finds known orthologs better than \BLASTP
+alignments of the protein products, with fewer paralogs being
+mistaken for orthologs.
+
+The mapping process starts with alignments of cDNAs to the source
+genome (i.e., mouse cDNAs aligned to the mouse genome, human cDNAs
+aligned to the human genome), although computational gene predictions
+on the source genome could also be used by treating them as
+predicted mRNAs. \BLASTZ \cite{SCHWETAL03} chained
+alignments \cite{KENTETAL03} of the source genome to the target
+genome are used to do the mapping between species.  A subset of the
+chains, identified as syntenic by the alignment
+nets \cite{KENTETAL03} are selected.  This works very well in regions
+where there have been no recent duplications.  Different
+methodologies for selecting chains will be developed to map genes to
+possible paralogs that have arisen from primate-specific
+duplications.
+
+Using the above methods, the \TransMap algorithm projects the source
+alignments onto the target genome, resulting in a set of mapped cDNA
+alignments. Since there can be multiple syntenic alignment chains,
+giving multiple mappings of a source cDNA, the mapped alignments are
+filtered to keep only the one that maps the largest fraction of
+the cDNA.
+
+The projected alignments are converted to gene predictions on the
+target genome.  Simply mapping the CDS bounds to the target genome
+often provides a useful prediction.  Insertions in the target genome
+or deletions in the source genome are common, resulting in gaps in
+the alignment, as shown in the example in Figure
+\ref{fig:transMapIndels}.  Short gaps in UTR or indels in the coding
+region that are multiples of three are easily closed. Other
+evolutionary changes are more difficult to interpret. This is the
+point where the improved \Ex method described above will interface
+with \TransMap.
+
+A particular weakness of the \TransMap method is its handling of
+compensated frame-shifts. These can occur during the evolution of a
+gene, e.g., when a single base is inserted at one point in an exon,
+and another base is deleted downstream in the same or a subsequent
+exon, so that the frame is restored. This causes the intervening
+region to be frame shifted in one species or one clade relative to
+the other out-group species.  It is rare to have this happen over a
+long section of the protein, because the intermediate gene form
+after only one of the changes and/or the final form after both
+changes usually confers a fairly large decrease in fitness to the
+organism. Hence, the changes are not likely to become fixed in the
+population. However, compensating frame shifts over short segments,
+especially near the 3$'$ end, turn out to be more common than we
+expected in mammalian gene evolution (and an interesting topic for
+further scientific investigation). The new \Ex algorithm, described
+above, is designed to model these and other evolutionary events that
+make cross-species mapping problematic for \TransMap.
+
+
+An additional area where \TransMap + \Ex will be a valuable tool in
+completing the MGC gene set is the validation of 5$'$ ORF
+completeness.  Determining if the actual start codon of a transcript
+has been annotated can be difficult if there is insufficient
+transcript evidence available for the 5$'$ UTR of a gene. If an
+ortholog can be mapped from another organism, it can provide a
+prediction of upstream regions that can be searched for possible
+start codons. Figure \ref{fig:transMapUpstreamStart} shows an
+example of a mapped ortholog that identifies what we (the WUStL and
+UCSC groups) believe may be an MGC clone with an incorrect start
+codon. The other possibility is that it is an alternative, shorter
+isoform. In cases like this where the longer version is
+substantially longer, it would be prudent to attempt to clone it or
+synthesize it for the MGC collection.
+
+\begin{figure}
+\centering
+% chr10:5,530,635-5,531,587
+\includegraphics[width=6in]{transMapAligns.pdf}
+\caption{Example of a human gene prediction using the \TransMap
+algorithm. An alignment of a mouse mRNA to the genome is mapped
+using chained BLASTZ alignments of the mouse genome to the human
+genome, resulting in a prediction of the alignment of the mRNA to
+the human genome. This example shows a deletion between each intron
+going from mouse to human, and an insertion in the second exon.}
+\label{fig:transMapAlgo}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=6in]{transMapVsBlat.pdf}
+\caption{Alignments of mouse CALML4 (RefSeq NM\_020036 and related
+mRNAs) to human produced by \TransMap. The mouse genes show a
+near-identical structure to the mRNA \BLAT \cite{KENT02} alignments
+of human CALML5 (RefSeq NM\_017422 and MGC BC039172).  Two codons
+have been deleted from the mouse CDS. The {\em Non-Human RefSeq
+Genes} and {\em Non-Human mRNAs from GenBank} show the
+protein-translated \BLAT alignments of the same set of mouse mRNAs.
+These alignments fail to predict the CDS in human due low
+conservation of the protein, despite the structural conservation. An
+alignment of the mouse and human proteins has 50\% identity, with
+62.9\% base identity of the CDS.  The net tracks on the browser (not shown)
+further indicate that the neighboring landmarks are present in the same
+order and orientation between the mouse CALML4 gene and the human
+CALML5 gene. Thus, we conclude that these are misleadingly identified
+as different members of the CALML family, when they are actually
+orthologs. This illustrates another benefit of identifying human
+genes in their proper evolutionary context.}
+\label{fig:transMapVsBlat}
+\end{figure}
+
+\begin{figure}
+\centering
+%chr10:64,234,546-64,236,466
+\includegraphics[width=6in]{transMapIndels.pdf}
+\caption{Four single- exon mouse genes mapped to human showing
+indels in both the CDS and UTR.  Note that the different start codon
+locations are a disagreement on the annotation of the CDS start in
+mouse.} \label{fig:transMapIndels}
+\end{figure}
+
+\begin{figure}
+\centering
+% chr1:44,440,497-44,490,515
+\includegraphics[width=6in]{transMapUpstreamStart.pdf}
+\caption{BC001072 and BC004456 are human MGC clones identified by
+WUStL as potentially 5$'$ truncated, with a downstream methionine
+annotated as the start codon. The mapped mouse gene NM\_080469
+supports this analysis, suggesting that there are four additional
+CDS exons. Note that the gene is on the opposite strand, so the 5
+end is on the right.} \label{fig:transMapUpstreamStart}
+\end{figure}
+
+
+\subsection*{Gene Mapping Using Reconstructed Ancestral Genomes}
+Mapping genes over the evolutionary distance from mouse and to human
+results in gene predictions showing numerous evolutionary changes.
+For more complex changes, it is often difficult to determine the
+structure of the ortholog. Unfortunately, only a small number of
+full-ORF mRNAs exist for organisms closer to human than mouse. This
+has motivated us to explore other comparative genomics strategies to
+improve the quality of human gene predictions. An effort is under
+way by UCSC and collaborators to reconstruct the genome of the
+boreoeutherian ancestor, the common ancestor of most placental
+mammals. It was shown recently that megabase scale regions of the
+genome from the common ancestor of most placental mammals can be
+inferred with accuracy up to 98\%, given the genome sequences of
+sufficiently many living mammals (Blanchette et al., 2004).
+Currently, genomes of 11 species are used in a genome-wide
+reconstruction of the boreoeutherian ancestor. These species are
+shown in Figure \ref{fig:ancestorTree}. The
+base-level accurate reconstruction of the evolutionary history of
+entire mammalian genomes will open up exciting new possibilities for
+comparative genomics. For the first time we will be able to study
+the evolution of genes in their chromosomal context in detail, on a
+genome-wide basis. Such studies may eventually pinpoint most of the
+key evolutionary events in the differentiation of mammalian
+lineages.
+
+
+While the ancestral genome reconstruction project will be the
+subject of a separate proposal, this project can be leveraged by MGC
+through our group. The reconstructed genomes of species ancestral to
+human will provide a valuable tool in improving the \TransMap + \Ex
+method of making MGC human gene predictions based on known genes
+from other mammalian species, especially mouse. Mouse genes will be
+mapped up the reconstruction tree to the genome of the
+euarchontoglire common ancestor of human and mouse. Via individual
+\TransMap alignments and through the MCMC sampling strategy of \Ex, each level
+of mapping will produce a set of gene predictions for the immediate
+ancestor genome. This set of predictions can then be mapped to the
+next higher ancestor until the common ancestor is reached. The
+common ancestor predictions are then mapped down the tree to human.
+This is illustrated in Figure \ref{fig:transMapAncestor}. In the
+full model, \TransMap actually becomes part of the MCMC
+sampling method of \Ex. This process incorporates the information
+from all of the genomes that were used in constructing the
+euarchontoglire ancestor to produce the human predictions. At each
+mapping step through the evolutionary tree, the evolutionary changes
+in gene structure are simpler than the total changes between human
+and mouse, making them easier to resolve and resulting in a more
+accurate final mapping.
+
+
+\begin{figure}
+\centering \subfigure[{Partial Phylogenetic tree for boreoeutherian
+ancestor reconstruction (many more species will be added)}]{
+\label{fig:ancestorTree}
+\includegraphics[width=3in]{ancestorTree.pdf}
+} \subfigure[{Mapping of genes from mouse to human using ancestor reconstruction}]{
+\label{fig:transMapAncestor}
+\includegraphics[width=3in]{transMapAncestor.pdf}
+} \caption{Mapping of genes from mouse to human using the
+euarchontoglires sub-tree of the boreoeutherian ancestor
+reconstruction. Mouse genes, defined by cDNA alignments to the mouse
+genome, are mapped using the \TransMap algorithm to the common
+ancestor of mouse and rat, resulting in a set of rodent gene
+predictions. The rodent genes are then mapped up the tree to the
+next ancestor closer to human, producing another set of gene
+predictions for the glire ancestor. This is repeated, moving down
+the tree once the common ancestor between mouse and human is
+reached.} \label{fig:ancestorMapping}
+\end{figure}
