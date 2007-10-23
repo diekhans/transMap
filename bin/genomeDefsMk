@@ -1,0 +1,201 @@
+#!/usr/bin/env python
+
+import sys, os, string
+myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
+sys.path.append(myBinDir + "/../extern/pycbio/lib")
+sys.path.append(myBinDir + "/../lib/py")
+from optparse import OptionParser
+import glob,re
+from pycbio.sys.fileOps import prLine, prRowv, prRow, prsErr
+from pycbio.sys import procOps, setOps, fileOps
+from pycbio.sys.MultiDict import MultiDict
+from pycbio.sys.Pipeline import Pipeline
+from pycbio.tsv.TSVReader import TSVReader
+from pycbio.sys.Enumeration import Enumeration
+from transMap.GenomeDefs import GenomeDefs,CDnaTypes,ChainDir
+
+class CmdOpts(object):
+    usage = """%prog [options] pickleOut
+    Combine data from dbDb database on hgwdev, with Genbank track information from
+    /cluster/data/genbank/etc/genbank.conf to build a pickled version of transMap.GenomeDefs.
+     """
+
+    def __init__(self):
+        parser = OptionParser(usage=CmdOpts.usage)
+        parser.add_option("--includeClade", dest="includeClades", action="append", default=None,
+                          help="include only specified clades (maybe repeated)")
+        parser.add_option("--excludeClade", dest="excludeClades", action="append", default=None,
+                          help="exclude specified clades (maybe repeated)")
+        (opts, args) = parser.parse_args()
+        if len(args) != 1:
+            parser.error("wrong number of arguments")
+        (self.pickleOut) = args
+        self.__dict__.update(opts.__dict__)
+        if self.includeClades != None:
+            self.includeClades = set(self.includeClades)
+        if self.excludeClades != None:
+            self.excludeClades = set(self.excludeClades)
+
+class DbInfoTbl(dict):
+    """table of row data from dbDb and genomeClade, indexed by db.  Columns
+       are: db comonName scientificName clade
+    """
+
+    def __init__(self, includeClades=None, excludeClades=None):
+        cmd = ["hgw-sql", "-e", "select dd.name as db, dd.organism as common, dd.scientificName as scientific, gc.clade from dbDb dd, genomeClade gc where dd.genome=gc.genome", "hgcentraltest"]
+        pin = Pipeline(cmd, 'r')
+        for row in TSVReader("<sql query>", inFh=pin):
+            if (((includeClades == None) or (row.clade in includeClades))
+                and ((excludeClades == None or (row.clade not in excludeClades)))):
+                self[row.db] = row
+
+    def dump(self, fh):
+        prRowv(fh, "DbInfoTbl")
+        for di in self.itervalues():
+            prRowv(fh, "", di)
+
+
+class Conf(object):
+    """configuration of genbank for a genome or the defaults.
+    handles on/off/defaulted"""
+    __slots__ = ("db", "on", "off")
+    def __init__(self, db):
+        self.db = db
+        self.on = set()
+        self.off = set()
+
+    def __str__(self):
+        return self.db + "\ton:" + setOps.setJoin(self.on,",") + "\toff:" + setOps.setJoin(self.off,",")
+
+    def getEnabled(self, dflt):
+        return frozenset(self.on | dflt.on.difference(self.off))
+
+class CDnaInfoTbl(dict):
+    "table of db to set of CDnaTypes, table from genbank.conf"
+
+    def __init__(self):
+        "build from genbank.conf"
+        confTbl = self.__loadGenbankConf()
+        dflt = confTbl["default"]
+        for conf in confTbl.itervalues():
+            if conf != dflt:
+                self[conf.db] = conf.getEnabled(dflt)
+
+    def dump(self, fh):
+        prRowv(fh, "CDnaInfoTbl")
+        for db in self.iterkeys():
+            prRowv(fh, "", db, setOps.setJoin(self[db]))
+
+    # parse a genbank conf line  1                2                  3                     4                  5
+    gbConfParseRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
+
+    def __loadGenbankConf(self):
+        "build dict of Conf objects"
+        confTbl = dict()
+        for line in fileOps.iterLines("/cluster/data/genbank/etc/genbank.conf"):
+            line = line.strip()
+            parsed = self.gbConfParseRe.match(line)
+            if parsed != None:
+                self.__processConf(confTbl, parsed, line)
+        return confTbl
+            
+    def __processConf(self, confTbl, parsed, line):
+        "add or update a Conf object given a parsed line"
+        db = parsed.group(1)
+        cdna = None
+        if parsed.group(2) == "refseq":
+            cdna = CDnaTypes.refSeq
+        elif parsed.group(2) == "genbank":
+            if parsed.group(3) == "mrna":
+                cdna = CDnaTypes.mrna
+            elif parsed.group(3) == "est":
+                cdna = CDnaTypes.splicedEst
+        state = None
+        if parsed.group(5) == "yes":
+            state = True
+        elif parsed.group(5) == "no":
+            state = False
+        if (cdna == None) or (state == None):
+            raise Exception("can't parse genbank.conf line: "+line)
+        conf = confTbl.get(db)
+        if conf == None:
+            conf = confTbl[db] = Conf(db)
+        if state:
+            conf.on.add(cdna)
+        else:
+            conf.off.add(cdna)
+
+class Chain(object):
+    "entry for a chain"
+    __slots__ = ("srcDb", "destDb", "dir")
+    def __init__(self, srcDb, destDb, dir):
+        self.srcDb = srcDb
+        self.destDb = destDb
+        self.dir = dir
+
+    def __str__(self):
+        if self.dir == ChainDir.fwd:
+            return self.srcDb + " ==> " + self.destDb
+        else:
+            return self.srcDb + " <== " + self.destDb
+
+class ChainTbl(list):
+    "table of Chain objects between assemblies"
+    def __init__(self, dbInfoTbl):
+        # entries are dicts for the srcDb, linked to Chain objects
+        self.bySrcDb = dict()
+        for row in dbInfoTbl.itervalues():
+            self.__addChains(row.db, dbInfoTbl)
+
+        # add reverse chains, if they don't exist
+        for chain in self:
+            if not self.haveChain(chain.destDb, chain.srcDb):
+                self.__addChain(chain.destDb, chain.srcDb, ChainDir.rev)
+            
+    def __parseDestDb(self, path):
+        "parse destDb out of path to chain file"
+        # /cluster/data/hg18/bed/blastz.canFam2/axtChain/hg18.canFam2.all.chain.gz 
+        return os.path.basename(path).split('.')[1]
+
+    def getChain(self, srcDb, destDb):
+        forSrcDb = self.bySrcDb.get(srcDb)
+        if forSrcDb != None:
+            chain = forSrcDb.get(destDb)
+            if chain != None:
+                return chain
+        return None
+
+    def haveChain(self, srcDb, destDb):
+        return self.getChain(srcDb, destDb) != None
+
+    def __addChains(self, srcDb, dbInfoTbl):
+        "add chains from srcDb to destDbs in dbInfoTbl"
+        for chains in glob.glob("/cluster/data/" + srcDb + "/bed/blastz.*/axtChain/" + srcDb + ".*.all.chain.gz"):
+            destDb = self.__parseDestDb(chains)
+            if destDb in dbInfoTbl:
+                self.__addChain(srcDb, destDb, ChainDir.fwd)
+
+    def __addChain(self, srcDb, destDb, dir):
+        "add a srcDb, destDb chain, if it doesn't already exist"
+        forSrcDb = self.bySrcDb.get(srcDb)
+        if forSrcDb == None:
+            forSrcDb = self.bySrcDb[srcDb] = dict()
+        chain = forSrcDb.get(destDb)
+        if chain == None:
+            chain = forSrcDb[destDb] = Chain(srcDb, destDb, dir)
+            self.append(chain)
+        else:
+            assert(chain.dir == dir)
+
+    def dump(self, fh):
+        prRowv(fh, "ChainTbl")
+        for chain in self:
+            prRowv(fh, "", chain)
+
+opts = CmdOpts()
+dbInfoTbl = DbInfoTbl(opts.includeClades, opts.excludeClades)
+#dbInfoTbl.dump(sys.stdout)
+#cdnaInfoTbl = CDnaInfoTbl()
+#cdnaInfoTbl.dump(sys.stdout)
+chainTbl = ChainTbl(dbInfoTbl)
+chainTbl.dump(sys.stdout)
