@@ -1,4 +1,6 @@
-"ExRun rule to create to map alignments from one genome to another using pslMap"
+"""ExRun rule class to create to map alignments from one genome to another using
+pslMap
+"""
 
 from pycbio.exrun.ExRun import CmdRule
 from transMap.GenomeDefs import ChainSelect

@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 
-import sys, os, string
+import sys, os, string, cPickle
 myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
 sys.path.append(myBinDir + "/../extern/pycbio/lib")
 sys.path.append(myBinDir + "/../lib/py")
 from optparse import OptionParser
 import glob,re
-from pycbio.sys.fileOps import prLine, prRowv, prRow, prsErr
-from pycbio.sys import procOps, setOps, fileOps
-from pycbio.sys.MultiDict import MultiDict
+from pycbio.sys.fileOps import prRowv
+from pycbio.sys import setOps, fileOps
 from pycbio.sys.Pipeline import Pipeline
 from pycbio.tsv.TSVReader import TSVReader
-from pycbio.sys.Enumeration import Enumeration
 from transMap.GenomeDefs import GenomeDefs,CDnaTypes,ChainDir
 
 class CmdOpts(object):
@@ -26,10 +24,12 @@ class CmdOpts(object):
                           help="include only specified clades (maybe repeated)")
         parser.add_option("--excludeClade", dest="excludeClades", action="append", default=None,
                           help="exclude specified clades (maybe repeated)")
+        parser.add_option("--debug", dest="debug", action="store_true", default=False,
+                          help="print debugging information")
         (opts, args) = parser.parse_args()
         if len(args) != 1:
             parser.error("wrong number of arguments")
-        (self.pickleOut) = args
+        (self.pickleOut,) = args
         self.__dict__.update(opts.__dict__)
         if self.includeClades != None:
             self.includeClades = set(self.includeClades)
@@ -86,18 +86,31 @@ class CDnaInfoTbl(dict):
         for db in self.iterkeys():
             prRowv(fh, "", db, setOps.setJoin(self[db]))
 
-    # parse a genbank conf line  1                2                  3                     4                  5
-    gbConfParseRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
+    # parse clusterGenome line, used so we find entries that all all defaults
+    parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.clusterGenome\s*=")
+
+    # parse a cDNA line        1                2                  3                     4                  5
+    parseCDnaRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
 
     def __loadGenbankConf(self):
         "build dict of Conf objects"
         confTbl = dict()
         for line in fileOps.iterLines("/cluster/data/genbank/etc/genbank.conf"):
             line = line.strip()
-            parsed = self.gbConfParseRe.match(line)
+            parsed = self.parseGenomeRe.match(line)
+            if parsed != None:
+                self.__obtainConf(parsed.group(1), confTbl)
+            parsed = self.parseCDnaRe.match(line)
             if parsed != None:
                 self.__processConf(confTbl, parsed, line)
         return confTbl
+
+    def __obtainConf(self, db, confTbl):
+        "get a Conf entry, creating if it doesn't exist"
+        conf = confTbl.get(db)
+        if conf == None:
+            conf = confTbl[db] = Conf(db)
+        return conf
             
     def __processConf(self, confTbl, parsed, line):
         "add or update a Conf object given a parsed line"
@@ -117,9 +130,7 @@ class CDnaInfoTbl(dict):
             state = False
         if (cdna == None) or (state == None):
             raise Exception("can't parse genbank.conf line: "+line)
-        conf = confTbl.get(db)
-        if conf == None:
-            conf = confTbl[db] = Conf(db)
+        conf = self.__obtainConf(db, confTbl)
         if state:
             conf.on.add(cdna)
         else:
@@ -192,10 +203,56 @@ class ChainTbl(list):
         for chain in self:
             prRowv(fh, "", chain)
 
+def getSrcDbs(dbInfoTbl, cdnaInfoTbl):
+    "get list of databses in info table with cDNAs to map"
+    srcDbs = set()
+    for db in cdnaInfoTbl.iterkeys():
+        if db in dbInfoTbl:
+            srcDbs.add(db)
+    return srcDbs
+
+def getDestDbsChains(dbInfoTbl, srcDbs, chainTbl):
+    "get dbs that can be mapped from srcDbs and associatd chains"
+    destDbs = set()
+    chains = set()
+    for ch in chainTbl:
+        if (ch.srcDb in srcDbs) and (ch.destDb in dbInfoTbl):
+            destDbs.add(ch.destDb)
+            chains.add(ch)
+    return (destDbs, chains)
+
+def buildGenomeDefs(dbInfoTbl, cdnaInfoTbl, chainTbl):
+    srcDbs = getSrcDbs(dbInfoTbl, cdnaInfoTbl)
+    destDbs, chains = getDestDbsChains(dbInfoTbl, srcDbs, chainTbl)
+    defs = GenomeDefs()
+    for db in srcDbs:
+        dbi = dbInfoTbl[db]
+        defs.addGenomeDb(dbi.db, dbi.clade, cdnaInfoTbl[db])
+    empty = frozenset()
+    for db in destDbs:
+        if db not in srcDbs:
+            dbi = dbInfoTbl[db]
+            defs.addGenomeDb(dbi.db, dbi.clade, empty)
+    for ch in chains:
+        defs.addChains(ch.srcDb, ch.destDb, ch.dir)
+    defs.finish()
+    return defs
+
 opts = CmdOpts()
 dbInfoTbl = DbInfoTbl(opts.includeClades, opts.excludeClades)
-#dbInfoTbl.dump(sys.stdout)
-#cdnaInfoTbl = CDnaInfoTbl()
-#cdnaInfoTbl.dump(sys.stdout)
+if opts.debug:
+    dbInfoTbl.dump(sys.stderr)
+cdnaInfoTbl = CDnaInfoTbl()
+if opts.debug:
+    cdnaInfoTbl.dump(sys.stderr)
 chainTbl = ChainTbl(dbInfoTbl)
-chainTbl.dump(sys.stdout)
+if opts.debug:
+    chainTbl.dump(sys.stderr)
+
+defs = buildGenomeDefs(dbInfoTbl, cdnaInfoTbl, chainTbl)
+if opts.debug:
+    defs.dump(sys.stderr)
+
+fh = open(opts.pickleOut, "w")
+cPickle.dump(defs, fh)
+fh.close()
