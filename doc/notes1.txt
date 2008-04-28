@@ -1,0 +1,18 @@
+2007-12-07
+
+
+hgFixed tables:
+
+    transMapSrcInfo{RefSeq,MRna, Est, Ucsc}
+       srcId
+       srcDb
+       srcType
+       chrom
+       chromStart
+       chromEnd
+       strand
+       gene
+    transMapSrcSeq{RefSeq,MRna, Est, Ucsc}
+                             
+    
+transMap
