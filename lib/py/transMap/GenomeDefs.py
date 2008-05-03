@@ -39,6 +39,10 @@ class Chains(object):
             sym = " <== "
         return self.srcDb.db + sym + self.destDb.db
 
+    def getDb(self, useSrcDb):
+        "get db by useSrcDb"
+        return self.srcDb if useSrcDb else self.destDb
+
     def dump(self, fh):
         prRowv(fh, str(self), self.bzdir)
 
@@ -112,6 +116,7 @@ class Chains(object):
     def haveChainNet(self):
         return self.haveChainFile() and self.haveNetFile()
 
+    @staticmethod
     def sortCmp(a, b):
         d = cmp(a.srcDb.dbOrg, b.srcDb.dbOrg)
         if d == 0:
@@ -121,9 +126,6 @@ class Chains(object):
                 if d == 0:
                     d = cmp(a.destDb.dbNum, b.destDb.dbNum)
         return d
-        
-        
-    sortCmp = staticmethod(sortCmp)
         
 class OrgDbMap(MultiDict):
     "map of dbOrg to list of GenomeDb, sorted newest to oldest"
@@ -138,15 +140,18 @@ class OrgDbMap(MultiDict):
             ent.sort(lambda a,b: -cmp(a.dbNum,b.dbNum))
 
 class OrgDbChainMap(MultiDict):
-    "map of dbOrg to list of Chains, sorted newest to oldest"
+    """map of dbOrg to list of Chains, sorted newest to oldest, can be keyed and
+    sorted by srcDb or destDb"""
 
-    def __init__(self, srcDbIndexed):
+    def __init__(self, db, srcDbIndexed):
+        self.db = db
         self.srcDbIndexed = srcDbIndexed
 
     def add(self, chains):
         "add a new database"
-        db = chains.srcDb if self.srcDbIndexed else chains.destDb
-        MultiDict.add(self, db.dbOrg, chains)
+        assert(chains.getDb(not self.srcDbIndexed) == self.db)
+        dbOrg = chains.srcDb.dbOrg if self.srcDbIndexed else chains.destDb.dbOrg
+        MultiDict.add(self, dbOrg, chains)
 
     def sort(self):
         "sort all entries"
@@ -155,6 +160,20 @@ class OrgDbChainMap(MultiDict):
                 ent.sort(lambda a,b: -cmp(a.srcDb.dbNum,b.srcDb.dbNum))
             else:
                 ent.sort(lambda a,b: -cmp(a.destDb.dbNum,b.destDb.dbNum))
+
+    def getChains(self, db2):
+        "get the chain to indexed db"
+        assert(isinstance(db2, GenomeDb))
+        dbOrgChains = self.get(db2.dbOrg)
+        if dbOrgChains != None:
+            for chains in dbOrgChains:
+                if chains.getDb(self.srcDbIndexed) == db2:
+                    return chains
+        raise Exception("no chains with srcDb \""
+                        + (db2.db if self.srcDbIndexed else self.db.db )
+                        + "\" and destDb of \""
+                        + (self.db.db if self.srcDbIndexed else db2.db)
+                        + "\" when querying for \"" + db2.db + "\"")
 
 class GenomeDb(object):
     "All information about a genome database"
@@ -171,8 +190,8 @@ class GenomeDb(object):
         self.clade = clade
         self.cdnaTypes = frozenset(cdnaTypes) if (cdnaTypes != None) else None
         # chains to/from this databases, list by dbOrg, sorted newest to oldest
-        self.srcDbs = OrgDbChainMap(True)
-        self.destDbs = OrgDbChainMap(False)
+        self.srcDbs = OrgDbChainMap(self, True)
+        self.destDbs = OrgDbChainMap(self, False)
 
     def finish(self):
         "complete object"
@@ -275,6 +294,7 @@ class GenomeDefs(object):
             ch.destDb = self.__mapDbName(ch.destDb)
             ch.srcDb.destDbs.add(ch)
             ch.destDb.srcDbs.add(ch)
+
         self.chains.sort(Chains.sortCmp)
 
     def finish(self):

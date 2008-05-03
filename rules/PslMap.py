@@ -10,7 +10,8 @@ class PslMap(CmdRule):
 
     def __init__(self, tm, chains, cdnaType):
         """chains is GenomeDefs.Chains object"""
-        synFilter = (chains.srcDb.clade == chains.destDb.clade)
+        #synFilter = (chains.srcDb.clade == chains.destDb.clade)
+        synFilter = True  # alway synfilter
 
         # input
         chainsFile = tm.exrun.getFile(chains.getChainFile())

@@ -25,7 +25,7 @@ class CDnaAligns(CmdRule):
         psl = tm.getSrcPsl(srcDb, cdnaType)
         cmd1 = mkGbGetSeqsCmd(tm, srcDb, cdnaType,
                               ("intronPsl" if (cdnaType == CDnaTypes.splicedEst) else "psl"))
-        cmd2 = ("bin/pslQueryUniq",)
+        cmd2 = ("pslQueryUniq",)
         CmdRule.__init__(self, Cmd((cmd1, cmd2), stdout=psl))
 
 class CDnaAlignStats(CmdRule):
@@ -93,7 +93,7 @@ class UcscGenesAligns(CmdRule):
         psl = tm.getSrcPsl(srcDb, CDnaTypes.ucscGenes)
         cds = tm.getSrcCds(srcDb, CDnaTypes.ucscGenes)
         
-        cmd1 = ("hgw-sql", "-Ne",
+        cmd1 = ("hgsql", "-Ne",
                 "select name,chrom,strand,txStart,txEnd,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds from knownGene",
                 srcDb.db)
         cmd2 = ("genePredToFakePsl", srcDb.db, "stdin", OFileRef(psl), OFileRef(cds))
@@ -103,7 +103,7 @@ class UcscGenesSeqs(CmdRule):
     def __init__(self, tm, srcDb):
         self.tm = tm
         fa = tm.getSrcFa(srcDb, CDnaTypes.ucscGenes)
-        cmd1 = ("hgw-sql", "-Ne",
+        cmd1 = ("hgsql", "-Ne",
                 """select concat(">",name,"\n",seq) from knownGeneMrna""",
                 srcDb.db)
         CmdRule.__init__(self, Cmd((cmd1,), stdout=fa))

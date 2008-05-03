@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+
+import sys, os
+myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
+sys.path.append(myBinDir + "/../extern/pycbio/lib")
+sys.path.append(myBinDir + "/../lib/py")
+from optparse import OptionParser
+from pycbio.sys import fileOps, Pipeline, procOps
+from transMap import GenomeDefs, setup
+
+class CmdOpts(object):
+    usage = """%prog [options] genomeDefsPickle srcDb destDb cdnaType mappedPsl"""
+    def __init__(self):
+        parser = OptionParser(usage=CmdOpts.usage)
+        (opts, args) = parser.parse_args()
+        if len(args) != 5:
+            parser.error("wrong number of arguments")
+        (self.genomeDefsPickle, self.srcDb, self.destDb, self.cdnaType, self.mappedPsl) = args
+        self.cdnaType = GenomeDefs.CDnaTypes(self.cdnaType)
+        self.__dict__.update(opts.__dict__)
+
+
+opts = CmdOpts()
+setup.setTMPDIR()
+
+isParasol = os.environ.get("PARASOL") != None
+if isParasol:
+    os.chdir("..")
+tmpExt = setup.getTmpExt()
+genomeDefs = GenomeDefs.load(opts.genomeDefsPickle)
+
+srcDb = genomeDefs.dbs[opts.srcDb]
+destDb = genomeDefs.dbs[opts.destDb]
+chains = srcDb.destDbs.getChains(destDb)
+
+
+# input
+chainsFile = chains.getChainFile()
+srcPsl = "data/"+chains.srcDb.db+"/"+str(opts.cdnaType)+".psl.bz2"
+srcFa = "data/"+chains.srcDb.db+"/"+str(opts.cdnaType)+".fa.bz2"
+relTargetSeq = "data/" + destDb.db + "/" + destDb.db + ".2bit"
+targetSeq = "/scratch/" + relTargetSeq
+if not os.path.exists(targetSeq):
+    targetSeq = "/cluster/" + relTargetSeq
+if not os.path.exists(targetSeq):
+    raise Exception("can't find genome: " + targetSeq)
+
+# output
+outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]
+mappedPslTmp = opts.mappedPsl + tmpExt
+mapInfo = outPrefix + ".mapinfo"
+
+
+# build cmd
+netFilter = ["netFilter", "-syn", chains.getNetFile()]
+netChainSubset = ["netChainSubset", "-wholeChains", "-verbose=0", "stdin", chains.getChainFile(), "stdout"]
+pslMap = ["pslMap", "-chainMapFile"]
+if chains.orient == GenomeDefs.ChainOrient.rev:
+    pslMap.append("-swapMap")
+pslMap.extend(["-mapInfo="+mapInfo, srcPsl, "stdin", "stdout"])
+# target sort speeds up pslRecalcMatch
+tsort = ["sort","-k","14,14", "-k", "16,16n"]
+pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", "stdin", targetSeq, srcFa, "stdout"]
+
+
+# not using polyA, doesn't seem worth the cost
+# finished targets are more strigent
+if chains.destDb.isFinished():
+    nearBest = "-globalNearBest=0.005"
+else:
+    nearBest = "-globalNearBest=0.01"
+
+qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
+pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=20", "-minCover=0.20", "-bestOverlap",
+                 nearBest, "stdin", "stdout"]
+pslQueryUniq = ["../../bin/pslQueryUniq"]
+bzip2 = ["bzip2", "-c"]
+cmds = [netFilter, netChainSubset, pslMap, tsort, pslRecalcMatch, qsort, pslCDnaFilter, pslQueryUniq, bzip2]
+
+fileOps.ensureFileDir(opts.mappedPsl)
+pl = Pipeline.Procline(cmds, stdin="/dev/null", stdout=mappedPslTmp)
+pl.wait()
+
+procOps.runProc(["bzip2", "-f", mapInfo])
+
+os.rename(mappedPslTmp, opts.mappedPsl)
