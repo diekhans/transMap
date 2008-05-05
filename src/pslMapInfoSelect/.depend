@@ -1,0 +1,4 @@
+${OBJDIR}/mapInfo.o: mapInfo.c
+${OBJDIR}/mapInfo.o: mapInfo.h
+${OBJDIR}/pslMapInfoSelect.o: mapInfo.h
+${OBJDIR}/pslMapInfoSelect.o: pslMapInfoSelect.c
