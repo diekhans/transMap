@@ -79,6 +79,7 @@ cmds = [netFilter, netChainSubset, pslMap, tsort, pslRecalcMatch, qsort, pslCDna
 
 fileOps.ensureFileDir(opts.mappedPsl)
 pl = Pipeline.Procline(cmds, stdin="/dev/null", stdout=mappedPslTmp)
+sys.stderr.write(pl.getDesc() + "\n")
 pl.wait()
 
 procOps.runProc(["bzip2", "-f", mapInfo])

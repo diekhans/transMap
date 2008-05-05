@@ -36,6 +36,10 @@ class TransMap(object):
         path = self.getDataPre(srcDb, cdnaType) + ".polya.bz2"
         return self.exrun.getFile(path)
         
+    def getSrcMeta(self, srcDb, cdnaType):
+        path = self.getDataPre(srcDb, cdnaType) + ".meta.bz2"
+        return self.exrun.getFile(path)
+        
     def getSrcCds(self, srcDb, cdnaType):
         path = self.getDataPre(srcDb, cdnaType) + ".cds.bz2"
         return self.exrun.getFile(path)

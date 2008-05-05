@@ -1,0 +1,57 @@
+#######################################################################
+# vertebrate.2008-04-29  build
+#######################################################################
+2008-04-29:
+
+    # created Makefile to run various python programs, as there are issues
+    # with python exrun
+
+    # generate defs which requires databases access
+    ssh hgwdev
+    make defs
+    # generate data on genbank
+    ssh genbank
+    make data
+    make batchSetup
+    ssh memk
+    # run jobs
+    
+    # problems with start of some fastas being corrupted with binary data.
+    # Traced to bzip2 in pipeline:
+      /cluster/data/genbank/bin/x86_64/gbGetSeqs -db=ornAna1 -get=seq -native -inclVersion -gbRoot=/cluster/data/genbank -accFile=./data/ornAna1/refSeq.seqid.bz2 refseq mrna stdout | bzip2 -c > ./data/ornAna1/refSeq.fa.bz2
+    # fix by creating file, then compressing by hand  
+
+    major hippos:
+    ../../../bin/doRunTransMap  genomeDefs.pickle  hg18  rheMac2  splicedEst  /san/sanvol1/scratch/markd/transMap//rheMac2/hg18/splicedEst.psl.bz2
+    ../../../bin/doRunTransMap  genomeDefs.pickle  hg18  monDom4  splicedEst  /san/sanvol1/scratch/markd/transMap//monDom4/hg18/splicedEst.psl.bz2 
+
+    # copy alignments from san tmp
+    make copyAlns > &log&
+
+    # super long running job crashed
+        ../../../bin/doRunTransMap  genomeDefs.pickle  hg18  rheMac2  splicedEst  /san/sanvol1/scratch/markd/transMap//rheMac2/hg18/splicedEst.psl.bz2
+        pycbio.sys.Pipeline.ProcException: process signaled: 11: pslRecalcMatch -ignoreQUniq stdin /scratch/data/rheMac2/rheMac2.2bit data/hg18/splicedEst.fa.bz2 stdout
+        stdin:9659638: expected 21 or 23 columns, got 11
+       # run this by hand
+
+
+    # created pslMapInfoSelect, use to refilter mapInfo files.
+
+      ####  lessons learned ####
+      - should do pslCDnaFilter before pslRecalcMatch
+      - should filter mapInfo in process of filter alignments.
+
+
+2008-05-03:
+     genome db tables:
+        transMap${cdnatype}Aln
+        transMap${cdnatype}MapInfo
+          - include mapping chain
+     hgFixed tables
+        transMap${cdnatype}SrcInfo
+        transMapSeq
+        transMapExtFile
+     
+
+
+

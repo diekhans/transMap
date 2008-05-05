@@ -6,7 +6,7 @@
 #include "linefile.h"
 #include "dystring.h"
 #include "jksql.h"
-#include "mapInfo.h"
+#include "lib/mapInfo.h"
 
 static char const rcsid[] = "$Id:$";
 

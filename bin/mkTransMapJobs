@@ -19,8 +19,15 @@ class CmdOpts(object):
         (self.genomeDefsPickle, self.jobDir, self.resultsDir) = args
         self.__dict__.update(opts.__dict__)
 
+def getRelOutPsl(chains, cdnaType):
+    return chains.destDb.db + "/" + chains.srcDb.db + "/" + str(cdnaType) + ".psl.bz2"
+
+def haveOutPsl(chains, cdnaType):
+    outPsl = "aligns/" + getRelOutPsl(chains, cdnaType)
+    return os.path.exists(outPsl)
+
 def addMappingJob(fh, binDir, chains, cdnaType, opts):
-    outPsl = opts.resultsDir + "/" + chains.destDb.db + "/" + chains.srcDb.db + "/" + str(cdnaType) + ".psl.bz2"
+    outPsl = opts.resultsDir + getRelOutPsl(chains, cdnaType)
     cmd = ["../"+binDir+"/doRunTransMap", opts.genomeDefsPickle,
            chains.srcDb.db, chains.destDb.db, str(cdnaType),
            "{check out exists "+ outPsl + "}"]
@@ -39,6 +46,7 @@ jobFh = open(jobFileTmp, "w")
 
 for chains in mappings:
     for cdnaType in chains.srcDb.cdnaTypes:
-        addMappingJob(jobFh, myBinDir, chains, cdnaType, opts)
+        if not haveOutPsl(chains, cdnaType):
+            addMappingJob(jobFh, myBinDir, chains, cdnaType, opts)
 jobFh.close()
 os.rename(jobFileTmp, jobFile)
