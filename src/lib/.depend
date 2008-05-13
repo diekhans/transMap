@@ -1,0 +1,2 @@
+${OBJDIR}/mapInfo.o: ../../src/lib/mapInfo.h
+${OBJDIR}/mapInfo.o: mapInfo.c

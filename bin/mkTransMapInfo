@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+import sys, os
+rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
+sys.path.append(rootDir+"/extern/pycbio/lib")
+from optparse import OptionParser
+from pycbio.tsv.TSVReader import TSVReader
+from pycbio.sys import fileOps
+
+class CmdLine(object):
+    usage="""%prog [options] mapInfo1 [mapInfo2 ...]
+
+    convert mapInfo files to the transMapInfo table format
+assumes dir containing files is srcName
+"""
+    def __init__(self):
+        parser = OptionParser(usage=CmdLine.usage)
+        (opts, args) = parser.parse_args()
+        if len(args) < 1:
+            parser.error("wrong number of arguments")
+        self.mapInfos = args
+        self.__dict__.update(opts.__dict__)
+
+def parseSrcDb(fpath):
+    return fpath.split("/")[-2]
+
+def mapInfoCnv(mapInfoFile, outFh):
+    srcDb = parseSrcDb(mapInfoFile)
+    for mi in TSVReader(mapInfoFile):
+        fileOps.prRowv(outFh, mi.mappedQName, srcDb, mi.srcQName, mi.mappingId)
+
+opts = CmdLine()
+for mapInfo in opts.mapInfos:
+    mapInfoCnv(mapInfo, sys.stdout)

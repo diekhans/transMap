@@ -1,5 +1,9 @@
-ROOT = ../..
+ROOT = ../
 include ${ROOT}/src/defs.mk
 
-PROGS = transMapInfoMk
+SUBDIRS = \
+	lib \
+	pslMapInfoSelect \
+	transMapInfoMk
+
 include ${HGTOOLS_ROOT}/build/defRules.mk

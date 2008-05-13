@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+import sys, os
+rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
+sys.path.append(rootDir+"/extern/pycbio/lib")
+from optparse import OptionParser
+from pycbio.hgdata.Psl import PslReader
+from pycbio.sys import fileOps
+
+class CmdLine(object):
+    usage="""%prog [options] psl1 [psl2 ...]
+
+    convert source psl files to the transMapSrc table format
+assumes dir containing files is srcName
+"""
+    def __init__(self):
+        parser = OptionParser(usage=CmdLine.usage)
+        (opts, args) = parser.parse_args()
+        if len(args) < 1:
+            parser.error("wrong number of arguments")
+        self.psls = args
+        self.__dict__.update(opts.__dict__)
+
+def parseSrcDb(fpath):
+    return fpath.split("/")[-2]
+
+def pslCnv(pslFile, outFh):
+    srcDb = parseSrcDb(pslFile)
+    for psl in PslReader(pslFile):
+        fileOps.prRowv(outFh, srcDb, psl.qName, psl.tName, psl.tStart, psl.tEnd, psl.strand)
+
+opts = CmdLine()
+for psl in opts.psls:
+    pslCnv(psl, sys.stdout)

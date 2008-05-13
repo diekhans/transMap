@@ -34,24 +34,14 @@
         stdin:9659638: expected 21 or 23 columns, got 11
        # run this by hand
 
-
     # created pslMapInfoSelect, use to refilter mapInfo files.
 
       ####  lessons learned ####
       - should do pslCDnaFilter before pslRecalcMatch
       - should filter mapInfo in process of filter alignments.
+      - cds file, other meta-data doesn't include version
+      - save raw mapping info file for debugging
+      - save list of chain ids that survive synteny filter
 
-
-2008-05-03:
-     genome db tables:
-        transMap${cdnatype}Aln
-        transMap${cdnatype}MapInfo
-          - include mapping chain
-     hgFixed tables
-        transMap${cdnatype}SrcInfo
-        transMapSeq
-        transMapExtFile
-     
-
-
-
+2008-05-11:
+     make loadTracks

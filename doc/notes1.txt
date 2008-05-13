@@ -16,3 +16,25 @@ hgFixed tables:
                              
     
 transMap
+
+
+
+2008-05-03:
+     genome db tables:
+        transMap${cdnatype}Aln
+        transMap${cdnatype}Info
+          - include mapping chain
+     hgFixed tables
+        transMap${cdnatype}Cds
+        transMap${cdnatype}Src
+        transMapSeq
+        transMapExtFile
+
+     genome db tables:
+        transMapAln${cdnatype}
+        transMapInfo${cdnatype}
+     hgFixed tables
+        transMapSrc${cdnatype}
+        transMapGene${cdnatype}
+        transMapSeq${cdnatype}
+        transMapExtFile${cdnatype}

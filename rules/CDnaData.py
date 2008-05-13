@@ -99,8 +99,9 @@ class UcscGenesAligns(CmdRule):
         cmd1 = ("hgsql", "-Ne",
                 "select name,chrom,strand,txStart,txEnd,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds from knownGene",
                 srcDb.db)
-        cmd2 = ("genePredToFakePsl", srcDb.db, "stdin", OFileRef(psl), OFileRef(cds))
-        CmdRule.__init__(self, Cmd((cmd1, cmd2)))
+        cmd2 = ("genePredToFakePsl", srcDb.db, "stdin", "stdout", OFileRef(cds))
+        cmd3 = ("pslQueryUniq",)
+        CmdRule.__init__(self, Cmd((cmd1, cmd2, cmd3), stdout=psl))
     
 class UcscGenesMeta(CmdRule):
     "obtain meta files for UCSC genes, joining with CDS"

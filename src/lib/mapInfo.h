@@ -18,7 +18,7 @@ struct mapInfo
     char *srcTName;	/* srcTName */
     int srcTStart;	/* srcTStart */
     int srcTEnd;	/* srcTEnd */
-    char *srcStrand;	/* srcStrand */
+    char srcStrand;	/* srcStrand */
     int srcAligned;	/* srcAligned */
     char *mappingQName;	/* mappingQName */
     int mappingQStart;	/* mappingQStart */
@@ -26,7 +26,7 @@ struct mapInfo
     char *mappingTName;	/* mappingTName */
     int mappingTStart;	/* mappingTStart */
     int mappingTEnd;	/* mappingTEnd */
-    char *mappingStrand;	/* mappingStrand */
+    char mappingStrand;	/* mappingStrand */
     char *mappingId;	/* mappingId */
     char *mappedQName;	/* mappedQName */
     int mappedQStart;	/* mappedQStart */
@@ -34,7 +34,7 @@ struct mapInfo
     char *mappedTName;	/* mappedTName */
     int mappedTStart;	/* mappedTStart */
     int mappedTEnd;	/* mappedTEnd */
-    char *mappedStrand;	/* mappedStrand */
+    char mappedStrand;	/* mappedStrand */
     int mappedAligned;	/* mappedAligned */
     int qStartTrunc;	/* qStartTrunc */
     int qEndTrunc;	/* qEndTrunc */

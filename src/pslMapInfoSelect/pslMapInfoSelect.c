@@ -14,7 +14,7 @@ static const char *usageMsg =
 #include "localmem.h"
 #include "psl.h"
 #include "options.h"
-#include "mapInfo.h"
+#include "lib/mapInfo.h"
 
 /* command line options and values */
 static struct optionSpec optionSpecs[] = {
@@ -87,7 +87,7 @@ static struct selectEntry *findSelectEntry(struct hash *selectTbl,
                                            struct mapInfo *mi) {
     char *key = mkSelectKey(mi->mappedQName, mi->mappedQStart, mi->mappedQEnd,
                             mi->mappedTName, mi->mappedTStart, mi->mappedTEnd,
-                            mi->mappedStrand[0]);
+                            mi->mappedStrand);
     return hashFindVal(selectTbl, key);
 }
 
