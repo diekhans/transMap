@@ -6,47 +6,102 @@ sys.path.append(myBinDir + "/../extern/pycbio/lib")
 sys.path.append(myBinDir + "/../lib/py")
 from optparse import OptionParser
 from pycbio.sys import fileOps, Pipeline
-from transMap import GenomeDefs, setup
+from transMap import GenomeDefs, getTmpExt
+from transMap.TransMap import ChromsCache
+from transMap.MappingDefs import MappingDefs
+
+genomePartTargetSize = 100000000
+genomePartMaxPerJob = 5125
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle jobDir resultsDir"""
+    usage = """%prog [options] genomeDefsPickle alignBatchDir filterBatchDir tmpOutDir resultsDir
+     builds two batches, once to do the alignments, the other to filter and combine
+     the results
+     """
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
-        setup.addParseOpts(parser)
+        MappingDefs.addOptions(parser)
         (opts, args) = parser.parse_args()
-        if len(args) != 3:
+        if len(args) != 5:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self.jobDir, self.resultsDir) = args
+        (self.genomeDefsPickle, self.alignBatchDir, self.filterBatchDir, self.tmpOutDir, self.resultsDir) = args
         self.__dict__.update(opts.__dict__)
 
-def getRelOutPsl(chains, cdnaType):
-    return chains.destDb.db + "/" + chains.srcDb.db + "/" + str(cdnaType) + ".psl.bz2"
+class Batch(object):
+    def __init__(self, binDir, batchDir):
+        self.binDir = binDir
+        self.batchFile = batchDir + "/jobs.para"
+        self.batchFileTmp = self.batchFile + getTmpExt()
+        fileOps.ensureDir(batchDir)
+        self.fh = open(self.batchFileTmp, "w")
 
-def haveOutPsl(chains, cdnaType):
-    outPsl = "aligns/" + getRelOutPsl(chains, cdnaType)
-    return os.path.exists(outPsl)
+    def addJob(self, cmd):
+        out = cmd[-1]
+        if not os.path.isabs(out):
+            out = os.getcwd() + "/" + out
+        cmd2 = ["../" + self.binDir + "/" + cmd[0]] + list(cmd[1:-1]) + ["{check out exists " + out + "}"]
+        fileOps.prRow(self.fh, cmd2)
 
-def addMappingJob(fh, binDir, chains, cdnaType, opts):
-    outPsl = opts.resultsDir + getRelOutPsl(chains, cdnaType)
-    cmd = ["../"+binDir+"/doRunTransMap", opts.genomeDefsPickle,
-           chains.srcDb.db, chains.destDb.db, str(cdnaType),
-           "{check out exists "+ outPsl + "}"]
-    fh.write("  ".join(cmd))
-    fh.write("\n")
+    def close(self):
+        self.fh.close()
+        os.rename(self.batchFileTmp, self.batchFile)
+
+class MkJobs(object):
+    def __init__(self, opts):
+        self.mdefs = MappingDefs(opts);
+        self.alignBat = Batch(myBinDir, opts.alignBatchDir)
+        self.filterBat = Batch(myBinDir, opts.filterBatchDir)
+        self.tmpOutDir = opts.tmpOutDir
+        self.resultsDir = opts.resultsDir
+        self.chromsCache = ChromsCache("/cluster/data")
+
+    def close(self):
+        self.alignBat.close()
+        self.filterBat.close()
+        
+    @staticmethod
+    def getRelOutPsl(chains, cdnaType, part=None, ext=""):
+        p = chains.destDb.db + "/" + chains.srcDb.db + "/" + str(cdnaType)
+        if part != None:
+            p += "." + part
+        p += ".psl" + ext
+        return p
+
+    @staticmethod
+    def getOutPsl(dir, chains, cdnaType, part=None, ext=""):
+        return dir + "/" + MkJobs.getRelOutPsl(chains, cdnaType, part, ext)
+
+    def __doAlignPart(self, chains, cdnaType, part):
+        outPsl = self.getOutPsl(self.tmpOutDir, chains, cdnaType, part[0])
+        if not os.path.exists(outPsl):
+            cmd = ["doRunTransMap"]
+            if part[0] == part[1]:
+                cmd.append("--chrom="+part[0])
+            else:
+                cmd.append("--firstChrom="+part[0])
+                cmd.append("--lastChrom="+part[1])
+            cmd.extend((opts.genomeDefsPickle, chains.srcDb.db, chains.destDb.db, str(cdnaType), outPsl))
+            self.alignBat.addJob(cmd)
+
+    def __doFilter(self, chains, cdnaType, outPsl):
+        # partition genome
+        genomeParts = self.chromsCache.obtain(chains.destDb).partition(genomePartTargetSize, genomePartMaxPerJob)
+        for part in genomeParts:
+            self.__doAlignPart(chains, cdnaType, part)
+        self.filterBat.addJob(("doRunFilter", opts.genomeDefsPickle, chains.srcDb.db, chains.destDb.db, str(cdnaType), self.tmpOutDir, outPsl))
+
+    def __doChainsType(self, chains, cdnaType):
+        outPsl = self.getOutPsl(self.resultsDir, chains, cdnaType, ext=".bz2")
+        if not os.path.exists(outPsl):
+            self.__doFilter(chains, cdnaType, outPsl)
+
+    def genJobs(self):
+        for chains in self.mdefs.mappings:
+            for cdnaType in chains.srcDb.cdnaTypes:
+                self.__doChainsType(chains, cdnaType)
+
 
 opts = CmdOpts()
-(genomeDefs, mappings) = setup.mkMappingDefs(opts)
-
-tmpExt = setup.getTmpExt()
-
-jobFile = opts.jobDir + "/jobs.para"
-jobFileTmp = jobFile + tmpExt
-fileOps.ensureDir(opts.jobDir)
-jobFh = open(jobFileTmp, "w")
-
-for chains in mappings:
-    for cdnaType in chains.srcDb.cdnaTypes:
-        if not haveOutPsl(chains, cdnaType):
-            addMappingJob(jobFh, myBinDir, chains, cdnaType, opts)
-jobFh.close()
-os.rename(jobFileTmp, jobFile)
+mkJobs = MkJobs(opts)
+mkJobs.genJobs()
+mkJobs.close()

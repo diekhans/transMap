@@ -68,12 +68,13 @@ class CDnaMeta(CmdRule):
         awkProg = """
         BEGIN {OFS = "\t"}
         /^acc / {acc = $2}
+        /^ver / {ver = $2}
         /^cds / {cds = $2}
         /^gen/ {gen = $2}
         /^mol/ {mol = gensub("^.*-","","g",$2)}
         /^$/ {
-            print acc,cds,gen,mol;
-            acc=cds=gen=mol="";
+            print acc"."ver,cds,gen,mol;
+            acc=ver=cds=gen=mol="";
         }
         """
         cmd2 = ("awk", awkProg)

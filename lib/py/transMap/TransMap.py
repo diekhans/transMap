@@ -1,5 +1,7 @@
 import os
 from transMap.GenomeDefs import CDnaTypes
+from pycbio.sys.Pipeline import Pipeline
+from pycbio.tsv.TSVReader import TSVReader
 
 class TransMap(object):
     "object that has common data and functions used my transMap rules"
@@ -70,3 +72,64 @@ class TransMap(object):
         path = self.getMappedPre(destDb, srcDb, cdnaType) + ".pslstats.bz2"
         return self.exrun.getFile(path)
 
+class Chroms(list):
+    """object contain list of chromosomes and sizes, sorted by descending size"""
+    def __init__(self, genome2bit):
+        pl = Pipeline([["twoBitInfo", genome2bit, "stdout"], ["fgrep", "-v", "_hap"], ["sort","-k 2,2nr"]])
+        for row in TSVReader(genome2bit, columns=("chrom", "size"), typeMap={"size":int}, inFh=pl):
+            self.append(row)
+
+    def getRange(self, firstChrom, lastChrom):
+        "get chroms in sort list bounds by firstChrom and lastChrom"
+        l = len(self)
+        i = 0
+        while (i < l) and (self[i].chrom != firstChrom):
+            i += 1
+        if i >= l:
+            raise Exception(firstChrom + " not found")
+        chroms = []
+        while i < l:
+            chroms.append(self[i].chrom)
+            if self[i].chrom == lastChrom:
+                break
+            i += 1
+        if i >= l:
+            raise Exception(lastChrom + " not found after " + firstChrom)
+        return chroms
+
+    def partition(self, targetSize, maxPerJob):
+        """return list of (start, end); targetSize is used to combine scaffolds,
+        maxPerJob prevents command lines from overflowing"""
+        parts = []
+        # do chroms first, one per part
+        l = len(self)
+        i = 0;
+        while (i < l) and self[i].chrom.startswith("chr"):
+            parts.append((self[i].chrom, self[i].chrom))
+            i += 1
+
+        # do remaining, grouping into targetSize segments
+        while i < l:
+            start = end = self[i].chrom
+            size = self[i].size
+            j = i+1
+            cnt = 0
+            while (j < l) and ((size+self[j].size) < targetSize) and (cnt < maxPerJob):
+                end = self[j].chrom
+                size += self[j].size
+                j += 1
+                cnt += 1
+            parts.append((start, end))
+            i = j
+        return parts
+
+class ChromsCache(dict):
+    "cache of Chroms, by genome"
+    def __init__(self, dataDir):
+        self.dataDir = dataDir
+
+    def obtain(self, db):
+        chroms = self.get(db)
+        if chroms == None:
+            chroms = self[db] = Chroms(self.dataDir + "/" + db.db + "/" + db.db + ".2bit")
+        return chroms

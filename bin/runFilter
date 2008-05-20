@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+
+import sys, os, glob
+myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
+sys.path.append(myBinDir + "/../extern/pycbio/lib")
+sys.path.append(myBinDir + "/../lib/py")
+execPath = myBinDir + "/../output/bin/" + os.uname()[4] + "/opt"
+os.environ["PATH"] = execPath + ":" + os.environ["PATH"]
+
+from optparse import OptionParser
+from pycbio.sys import fileOps, Pipeline, procOps
+from transMap import GenomeDefs, setTMPDIR, getTmpExt, runCmds
+
+
+class CmdOpts(object):
+    usage = """%prog [options] genomeDefsPickle srcDb destDb cdnaType alnTmpDir mappedPsl
+"""
+    def __init__(self):
+        parser = OptionParser(usage=CmdOpts.usage)
+        (opts, args) = parser.parse_args()
+        if len(args) != 6:
+            parser.error("wrong number of arguments")
+        (self.genomeDefsPickle, self.srcDb, self.destDb, self.cdnaType, self.alnTmpDir, self.mappedPsl) = args
+        self.cdnaType = GenomeDefs.CDnaTypes(self.cdnaType)
+        self.__dict__.update(opts.__dict__)
+
+opts = CmdOpts()
+isParasol = os.environ.get("PARASOL") != None
+if isParasol:
+    os.chdir("..")
+tmpDir = setTMPDIR()
+tmpExt = getTmpExt()
+genomeDefs = GenomeDefs.load(opts.genomeDefsPickle)
+srcDb = genomeDefs.dbs[opts.srcDb]
+destDb = genomeDefs.dbs[opts.destDb]
+chains = srcDb.destDbs.getChains(destDb)
+
+# input
+inPsls = glob.glob(opts.alnTmpDir + "/" + destDb.db + "/" + srcDb.db + "/" + str(opts.cdnaType) + ".*.psl")
+inMapInfos = glob.glob(opts.alnTmpDir + "/" + destDb.db + "/" + srcDb.db + "/" + str(opts.cdnaType) + ".*.mapinfo")
+
+# output
+outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]
+outPslTmp = opts.mappedPsl + tmpExt + ".bz2" # .bz2 so it can be read
+outMapInfo = outPrefix + ".mapinfo.bz2"
+
+# not using polyA, doesn't seem worth the cost
+# finished targets are more strigent
+if chains.destDb.isFinished():
+    nearBest = "-globalNearBest=0.005"
+else:
+    nearBest = "-globalNearBest=0.01"
+
+###
+# combine and filter psls
+###
+qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
+qsort.extend(inPsls)
+pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=20", "-minCover=0.20", "-bestOverlap",
+                 nearBest, "stdin", "stdout"]
+pslQueryUniq = ["../../bin/pslQueryUniq"]
+bzip2 = ["bzip2", "-c"]
+fileOps.ensureFileDir(outPslTmp)
+runCmds([qsort, pslCDnaFilter, pslQueryUniq, bzip2], stdout=outPslTmp)
+
+###
+# combine and select mapInfo files, update qName, only keep one header
+###
+awkMapInfo = ["tawk", "((NR==1) || (FNR > 1))"] + inMapInfos
+pslMapInfoSelect = ["pslMapInfoSelect", "stdin", outPslTmp, "stdout"]
+runCmds([awkMapInfo, pslMapInfoSelect, bzip2], stdout=outMapInfo)
+
+os.rename(outPslTmp, opts.mappedPsl)
+
