@@ -1,0 +1,9 @@
+############################################################################
+# TRANSMAP vertebrate.2008-05-20  (2008-05-24 markd)
+
+vertebrate-wide transMap alignments were built  Tracks are created and loaded
+by a single Makefile, project is under:
+   svn+ssh://hgwdev.cse.ucsc.edu/projects/compbio/usr/markd/svn/projs/transMap/tags/vertebrate.2008-05-20
+
+see doc/builds.txt for specific details.
+############################################################################

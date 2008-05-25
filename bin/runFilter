@@ -30,6 +30,13 @@ if isParasol:
     os.chdir("..")
 tmpDir = setTMPDIR()
 tmpExt = getTmpExt()
+
+# skip if already completed
+if os.path.exists(opts.mappedPsl):
+    sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")
+    sys.exit(0)
+
+
 genomeDefs = GenomeDefs.load(opts.genomeDefsPickle)
 srcDb = genomeDefs.dbs[opts.srcDb]
 destDb = genomeDefs.dbs[opts.destDb]

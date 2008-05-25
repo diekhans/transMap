@@ -1,40 +1,4 @@
-2007-12-07
-
-
-hgFixed tables:
-
-    transMapSrcInfo{RefSeq,MRna, Est, Ucsc}
-       srcId
-       srcDb
-       srcType
-       chrom
-       chromStart
-       chromEnd
-       strand
-       gene
-    transMapSrcSeq{RefSeq,MRna, Est, Ucsc}
-                             
-    
-transMap
-
-
-
-2008-05-03:
-     genome db tables:
-        transMap${cdnatype}Aln
-        transMap${cdnatype}Info
-          - include mapping chain
-     hgFixed tables
-        transMap${cdnatype}Cds
-        transMap${cdnatype}Src
-        transMapSeq
-        transMapExtFile
-
-     genome db tables:
-        transMapAln${cdnatype}
-        transMapInfo${cdnatype}
-     hgFixed tables
-        transMapSrc${cdnatype}
-        transMapGene${cdnatype}
-        transMapSeq${cdnatype}
-        transMapExtFile${cdnatype}
+2008-05-23:
+     ideas to speed things up
+       - order jobs to do genomes with larger chroms first (monDom4)
+       - split up large source files

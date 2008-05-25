@@ -7,7 +7,7 @@ from pycbio.tsv.TSVReader import TSVReader
 from pycbio.sys import fileOps
 
 class CmdLine(object):
-    usage="""%prog [options] meta [met ...]
+    usage="""%prog [options] alignedIds meta [meta ...]
 
     convert meta files to the transMapGene table format
 assumes dir containing files is srcName
@@ -15,20 +15,29 @@ assumes dir containing files is srcName
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)
         (opts, args) = parser.parse_args()
-        if len(args) < 1:
+        if len(args) < 2:
             parser.error("wrong number of arguments")
-        self.metas = args
+        self.alignedIdFile = args[0]
+        self.metas = args[1:]
         self.__dict__.update(opts.__dict__)
+        self.alignedAcc = self.__loadAlignedIds(self.alignedIdFile)
+
+    def __loadAlignedIds(self, alignedIdFile):
+        s = set()
+        for id in fileOps.iterLines(alignedIdFile):
+            s.add(id.split("-")[0])
+        return s
 
 def parseSrcDb(fpath):
     return fpath.split("/")[-2]
 
-def metaCnv(metaFile, outFh):
+def metaCnv(metaFile, alignedAcc, outFh):
     srcDb = parseSrcDb(metaFile)
     for meta in TSVReader(metaFile, columns=("acc","cds","gene","mol")):
-        if (meta.cds != "") or (meta.gene != ""):
-            fileOps.prRowv(outFh, meta.acc, meta.cds, srcDb, meta.gene)
+        cds = meta.cds if meta.cds != "1..0" else ""
+        if ((cds != "") or (meta.gene != "")) and (meta.acc in alignedAcc):
+            fileOps.prRowv(outFh, meta.acc, cds, srcDb, meta.gene)
 
 opts = CmdLine()
 for meta in opts.metas:
-    metaCnv(meta, sys.stdout)
+    metaCnv(meta, opts.alignedAcc, sys.stdout)

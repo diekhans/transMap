@@ -10,6 +10,7 @@ from transMap import GenomeDefs, getTmpExt
 from transMap.TransMap import ChromsCache
 from transMap.MappingDefs import MappingDefs
 
+# used in grouping small jobs
 genomePartTargetSize = 100000000
 genomePartMaxPerJob = 5125
 

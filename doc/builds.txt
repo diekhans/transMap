@@ -45,3 +45,52 @@
 
 2008-05-11:
      make loadTracks
+
+#####################################################################
+2008-05-20:
+     # took a while to get browser working, so start new build to
+     # get lastest cDNAs and make sure its easy to run new
+     # assemblies
+       
+
+     mkdir -p builds/vertebrate.2008-05-20/
+     ssh getbank
+     cd builds/vertebrate.2008-05-20/
+     
+
+     # create makefile from previous build
+     make getData >&log
+     make batchSetup >&log
+
+     # run alignments
+     ssh pk
+     cd paraAln1
+     para ...
+
+     # several jobs crashed due to running out of memory, redo these on memk,
+     # various other problems encountered and worked around. 
+     # ran for 7 hrs, then out of memory: --chrom=chr14	genomeDefs.pickle	hg18	rheMac2	splicedEst
+
+     cd paraFilt1
+     para ....
+
+     # create and link location for gbdb files:
+     mkdir -p /cluster/store11/transMap 
+     ln -s  /cluster/store11/transMap  /cluster/data/
+
+     # load database
+     make loadMeta
+     make loadTracks
+
+     ../../bin/runJoinerCheck ~/compbio/genbank/kent/src/hg/makeDb/schema/all.joiner
+
+     ### FIXME:
+         - performance
+         
+uc003vhv.1	1..0
+###
+FIXME FOR NEXT TIME:
+       - order jobs to do genomes with larger chroms first (monDom4)
+       - split up large source files *** key
+       - make filter actually generate input names rather than glob (safer)
+          

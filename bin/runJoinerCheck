@@ -1,0 +1,30 @@
+#!/bin/sh -e
+usage='runJoinerCheck all.joinder
+run joinerCheck on transMap tracks
+'
+
+if [ $# != 1 ] ; then
+    echo "wrong # args: $usage"
+    exit 1
+fi
+allJoiner="$1"
+
+
+doJoinerCheck() {
+    echo '===================================================================='
+    (set -x ; joinerCheck $* $allJoiner)
+}
+
+
+doChecks() {
+    local type=$1
+    doJoinerCheck -identifier=transMapAlnInfo${type}Id  -keys
+    doJoinerCheck -identifier=transMapSrcInfo${type}Id -keys
+    doJoinerCheck -identifier=transMapSrc${type}Id -keys -database=hgFixed
+    doJoinerCheck -identifier=transMapExtFile${type}Id -keys -database=hgFixed
+}
+
+doChecks RefSeq
+doChecks MRna
+doChecks SplicedEst
+doChecks UcscGenes

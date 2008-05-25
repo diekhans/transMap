@@ -101,14 +101,8 @@ class Chroms(list):
         """return list of (start, end); targetSize is used to combine scaffolds,
         maxPerJob prevents command lines from overflowing"""
         parts = []
-        # do chroms first, one per part
         l = len(self)
         i = 0;
-        while (i < l) and self[i].chrom.startswith("chr"):
-            parts.append((self[i].chrom, self[i].chrom))
-            i += 1
-
-        # do remaining, grouping into targetSize segments
         while i < l:
             start = end = self[i].chrom
             size = self[i].size
