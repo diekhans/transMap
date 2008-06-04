@@ -1,4 +1,8 @@
 2008-05-23:
      ideas to speed things up
        - order jobs to do genomes with larger chroms first (monDom4)
-       - split up large source files
+       - split up large source files; this is key to de-hippo-ing
+
+
+2008-06-04
+    - netFilter -syn is losing way to much in Platypus

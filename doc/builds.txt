@@ -84,13 +84,18 @@
 
      ../../bin/runJoinerCheck ~/compbio/genbank/kent/src/hg/makeDb/schema/all.joiner
 
+
+
      ### FIXME:
-         - performance
-         
-uc003vhv.1	1..0
+         - Platypus chrX5:19,857,926-19,870,630   
+           why no human mapping?? NM_003329.2 
+         - tupBel1 - no transmap
+
+
 ###
 FIXME FOR NEXT TIME:
        - order jobs to do genomes with larger chroms first (monDom4)
        - split up large source files *** key
+       - pre-splitting or have to limit to ~120 nodes
        - make filter actually generate input names rather than glob (safer)
           

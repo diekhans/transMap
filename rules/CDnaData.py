@@ -116,12 +116,12 @@ class UcscGenesMeta(CmdRule):
     
 class UcscGenesSeqs(CmdRule):
     def __init__(self, tm, srcDb):
+        # warning: must get sequences from genePred, or it will not
+        # match sizes in generated PSL.
         self.tm = tm
         fa = tm.getSrcFa(srcDb, CDnaTypes.ucscGenes)
-        cmd1 = ("hgsql", "--raw", "-Ne",
-                """select concat(">",name,"\n",seq) from knownGeneMrna""",
-                srcDb.db)
-        CmdRule.__init__(self, Cmd((cmd1,), stdout=fa))
+        cmd1 = ("getRnaPred", srcDb.db, "knownGene", "all", FileOut(fa))
+        CmdRule.__init__(self, Cmd((cmd1,)))
 
 def __createCdnaTypeRules(tm, srcDb, cdnaType):
     if cdnaType == CDnaTypes.ucscGenes:

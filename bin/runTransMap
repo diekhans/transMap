@@ -14,11 +14,11 @@ class CmdOpts(object):
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
         parser.add_option("--chrom", dest="chroms", action="append", default=None,
-                          help="only process this chrom, maybe repeated")
+                          help="only process this destination chrom, maybe repeated")
         parser.add_option("--firstChrom", dest="firstChrom", action="store", default=None,
-                          help="destDb start chrom reverse size sort list chroms")
+                          help="destDb start destination chrom in reverse size sort list")
         parser.add_option("--lastChrom", dest="lastChrom", action="store", default=None,
-                          help="destDb last chrom reverse size sort list chroms")
+                          help="destDb last destination chrom in reverse size sort list")
         (opts, args) = parser.parse_args()
         if len(args) != 5:
             parser.error("wrong number of arguments")
