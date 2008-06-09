@@ -40,18 +40,10 @@ static void processMapInfo(FILE *outFh,
                            struct mapInfo *mi) {
     struct transMapInfo tmi;
     ZeroVar(&tmi);
-    tmi.srcDb = srcDb;
+    safecpy(tmi.srcDb, sizeof(tmi.srcDb), srcDb);
     tmi.srcId = mi->srcQName;
-    tmi.srcChrom = mi->srcTName;
-    tmi.srcStart = mi->srcTStart;
-    tmi.srcEnd = mi->srcTEnd;
-    tmi.srcStrand = mi->srcStrand;
     tmi.mappingId = mi->mappingId;
     tmi.mappedId = mi->mappedQName;
-    tmi.mappedChrom = mi->mappedTName;
-    tmi.mappedStart = mi->mappedTStart;
-    tmi.mappedEnd = mi->mappedTEnd;
-    tmi.mappedStrand = mi->mappedStrand;
     transMapInfoTabOut(&tmi, outFh);
 }
 

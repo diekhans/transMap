@@ -4,6 +4,7 @@ include ${ROOT}/src/defs.mk
 SUBDIRS = \
 	lib \
 	pslMapInfoSelect \
-	transMapInfoMk
+	transMapInfoMk \
+	cdnaPartition
 
 include ${HGTOOLS_ROOT}/build/defRules.mk
