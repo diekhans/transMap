@@ -27,6 +27,14 @@ void accPartitionFree(struct accPartition *ap) {
     }
 }
 
+/* get path for a partition. WARNING: static return */
+char *accPartitionPath(struct accPartition *ap,
+                       char* accPre) {
+    static char path[PATH_LEN];
+    safef(path, sizeof(path), ap->pathPat, accPre);
+    return path;
+}
+
 /* obtain file associate with partition, opening if needed */
 FILE *accPartitionGet(struct accPartition *ap,
                       char* acc) {
@@ -35,9 +43,19 @@ FILE *accPartitionGet(struct accPartition *ap,
     accPre[ap->prefixLen] = '\0';
     struct hashEl *hel = hashStore(ap->files, accPre);
     if (hel->val == NULL) {
-        char path[PATH_LEN];
-        safef(path, sizeof(path), ap->pathPat, accPre);
-        hel->val = mustOpen(path, "w");
+        hel->val = mustOpen(accPartitionPath(ap, accPre), "w");
     }
     return hel->val;
+}
+
+/* obtain list of prefixes */
+struct slName *accPartitionPrefixes(struct accPartition *ap) {
+    struct slName *pres = NULL;
+    struct hashCookie cookie = hashFirst(ap->files);
+    struct hashEl *hel;
+    while ((hel = hashNext(&cookie)) != NULL) {
+        slSafeAddHead(&pres, slNameNew(hel->name));
+    }
+    slNameSort(&pres);
+    return pres;
 }
