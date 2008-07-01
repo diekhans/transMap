@@ -4,13 +4,17 @@ import sys, os
 myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
 sys.path.append(myBinDir + "/../extern/pycbio/lib")
 sys.path.append(myBinDir + "/../lib/py")
+os.environ["PATH"] = myBinDir +":"+os.environ["PATH"]
 from optparse import OptionParser
 from pycbio.sys import fileOps, Pipeline, procOps
 from transMap import GenomeDefs, setTMPDIR, getTmpExt, runCmds
-from transMap.TransMap import Chroms
+from transMap.GenomeDefs import ChainType
+from transMap.TransMap import TransMap,Chroms
+
+# FIXME: don't need to specify chrom ranges now that using overlapSelect
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle srcDb destDb cdnaType mappedPsl"""
+    usage = """%prog [options] genomeDefsPickle srcDb destDb chainType cdnaType cdnaPart mappedPsl"""
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
         parser.add_option("--chrom", dest="chroms", action="append", default=None,
@@ -20,13 +24,17 @@ class CmdOpts(object):
         parser.add_option("--lastChrom", dest="lastChrom", action="store", default=None,
                           help="destDb last destination chrom in reverse size sort list")
         (opts, args) = parser.parse_args()
-        if len(args) != 5:
+        if len(args) != 8:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self.srcDb, self.destDb, self.cdnaType, self.mappedPsl) = args
-        self.cdnaType = GenomeDefs.CDnaTypes(self.cdnaType)
+        (self.genomeDefsPickle, self.srcDb, self.destDb, self.chainType, self.cdnaType, self.cdnaPart, self.clusterDir, self.mappedPsl) = args
         self.__dict__.update(opts.__dict__)
         if ((opts.firstChrom != None) or (opts.lastChrom != None)) and ((opts.firstChrom == None) or (opts.lastChrom == None)):
             parser.error("must specified either both or neither of --firstChrom and --lastChrom")
+
+    def fixEnums(self):
+        # FIXME: don't convert Enumerations until GenomeDefs is loaded
+        self.chainType = GenomeDefs.ChainType(self.chainType)
+        self.cdnaType = GenomeDefs.CDnaType(self.cdnaType)
 
 def bldChroms(opts, dest2bit):
     chromSet = None
@@ -56,11 +64,12 @@ if os.path.exists(opts.mappedPsl):
     sys.exit(0)
 
 genomeDefs = GenomeDefs.load(opts.genomeDefsPickle)
+opts.fixEnums()
+transMap = TransMap(None, genomeDefs, ".", None, opts.clusterDir)
 srcDb = genomeDefs.dbs[opts.srcDb]
 destDb = genomeDefs.dbs[opts.destDb]
-chains = srcDb.destDbs.getChains(destDb)
 
-rel2bit =  destDb.db + "/" + destDb.db + ".2bit"
+rel2bit =  destDb.name + "/" + destDb.name + ".2bit"
 dest2Bit = "/scratch/data/" + rel2bit
 if not os.path.exists(dest2Bit):
     if isParasol:
@@ -71,11 +80,19 @@ if (opts.chroms != None) or (opts.firstChrom != None):
 else:
     chroms = None
 
+##
 # input
-chainsFile = chains.getChainFile()
-srcPsl = "data/"+chains.srcDb.db+"/"+str(opts.cdnaType)+".psl.bz2"
-srcFa = "data/"+chains.srcDb.db+"/"+str(opts.cdnaType)+".fa.bz2"
-relTargetSeq = "data/" + destDb.db + "/" + destDb.db + ".2bit"
+##
+
+# chains
+chainsSet = srcDb.destChainsSets.getChainsSet(destDb)
+
+# cDNA
+srcPsl = transMap.getClusterSrcPsl(srcDb, opts.cdnaType, opts.cdnaPart)
+srcFa = transMap.getClusterSrcFa(srcDb, opts.cdnaType, opts.cdnaPart)
+
+# genome sequence
+relTargetSeq = "data/" + destDb.name + "/" + destDb.name + ".2bit"
 targetSeq = "/scratch/" + relTargetSeq
 if not os.path.exists(targetSeq):
     if isParasol:
@@ -85,60 +102,61 @@ if not os.path.exists(targetSeq):
     raise Exception("can't find genome: " + targetSeq)
 
 
-netChainFilterFlag = "-q=" if chains.orient == GenomeDefs.ChainOrient.rev else "-t="
-
+##
 # intermediate output
+##
 rawPslTmp = tmpDir + "/mapped.psl" + tmpExt
-faTmp = tmpDir + "/mapped.fa" + tmpExt
-chainSubsetTmp = None  # only set if used
+chainSubsetTmp = tmpDir + "/mapping.chain" + tmpExt
 
 # output
 outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]
 outPslTmp = opts.mappedPsl + tmpExt
 outMapInfo = outPrefix + ".mapinfo"
+outMapInfoRaw = outMapInfo + ".raw"
 
 ###
-# optionally get a subset of the chains
+# Get the chains to use.   Pre-filter with overlapSelect to reduce
+# memory requirements of pslMap and netChainSubset.
 ###
+chains = chainsSet.getSupportingType(opts.chainType)
+preFiltCmds = [["overlapSelect", "-inFmt=chainq", srcPsl, chains.chainFile, "stdout"]]
 if chroms != None:
-    chainFile = chainSubsetTmp = tmpDir + "/subset.chain" + tmpExt
-    chainFilter = ["chainFilter", netChainFilterFlag + ",".join(chroms), chains.getChainFile()]
-    runCmds([chainFilter], stdout=chainSubsetTmp)
+    preFiltCmds.append(["chainFilter", "-noHap", "-q=" + ",".join(chroms), "stdin"])
 else:
-    chainFile = chains.getChainFile()
+    preFiltCmds.append(["chainFilter", "-noHap", "stdin"])
+
+runCmds(preFiltCmds, stdout=chainSubsetTmp)
+
+chainFilterCmds = []
+if (opts.chainType == ChainType.all) or (opts.chainType == ChainType.rbest):
+    # no filtering
+    chainInFileRef = chainSubsetTmp
+else:
+    # syn filtering
+    chainFilterCmds.append(["netFilter", "-syn", "-noHap", chains.netFile])
+    chainFilterCmds.append(["netChainSubset", "-wholeChains", "-skipMissing", "-verbose=0", "stdin", chainSubsetTmp, "stdout"])
+    chainInFileRef = "stdin"
 
 ###
 # map alignments
 ##
-netFilter = ["netFilter", "-syn", "-noHap"]
-if chroms != None:
-    # only use a subset
-    netFilter.append(netChainFilterFlag + ",".join(chroms))
-netFilter.append(chains.getNetFile())
-
-netChainSubset = ["netChainSubset", "-wholeChains", "-verbose=0", "stdin", chainFile, "stdout"]
-pslMap = ["pslMap", "-chainMapFile"]
-if chains.orient == GenomeDefs.ChainOrient.rev:
-    pslMap.append("-swapMap")
-pslMap.extend(["-mapInfo="+outMapInfo, srcPsl, "stdin", "stdout"])
+pslMap = ["pslMap", "-chainMapFile", "-mapInfo="+outMapInfoRaw, srcPsl, chainInFileRef, "stdout"]
 
 # target sort speeds up pslRecalcMatch
 tsort = ["sort","-k","14,14", "-k", "16,16n"]
-
 fileOps.ensureFileDir(opts.mappedPsl)
-runCmds([netFilter, netChainSubset, pslMap, tsort], stdout=rawPslTmp)
+runCmds(chainFilterCmds + [pslMap, tsort], stdout=rawPslTmp)
 
 ###
-# get subset of cDNA fasta that were mapped
-###
-getPslAcc = ["awk", """BEGIN{FS="\t"} {print gensub("-[-0-9.]+$","","g",$10)}""", rawPslTmp]
-faSomeRecs = ["faSomeRecords", srcFa, "stdin", faTmp] 
-runCmds([getPslAcc, faSomeRecs])
+# add type of chains to mapInfo
+##
+runCmds(["addMapInfoChainType", "-v", "chainType="+str(opts.chainType), outMapInfoRaw], stdout=outMapInfo)
 
 ###
 # calculate match stats
 ##
-pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", rawPslTmp, targetSeq, faTmp, "stdout"]
+pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", rawPslTmp, targetSeq,
+                  transMap.getClusterSrcFa(srcDb, opts.cdnaType, opts.cdnaPart), "stdout"]
 
 # qsort here, just to make filter qsort quicker
 qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
@@ -147,6 +165,4 @@ runCmds([pslRecalcMatch, qsort], stdout=outPslTmp)
 os.rename(outPslTmp, opts.mappedPsl)
 
 os.unlink(rawPslTmp)
-os.unlink(faTmp)
-if chainSubsetTmp != None:
-    os.unlink(chainSubsetTmp)
+os.unlink(chainSubsetTmp)

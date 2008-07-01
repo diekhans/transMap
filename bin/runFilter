@@ -10,41 +10,56 @@ os.environ["PATH"] = execPath + ":" + os.environ["PATH"]
 from optparse import OptionParser
 from pycbio.sys import fileOps, Pipeline, procOps
 from transMap import GenomeDefs, setTMPDIR, getTmpExt, runCmds
+from transMap.TransMap import TransMap
 
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle srcDb destDb cdnaType alnTmpDir mappedPsl
+    usage = """%prog [options] genomeDefsPickle srcDb destDb cdnaType alnPslList clusterDir mappedPsl
 """
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
         (opts, args) = parser.parse_args()
-        if len(args) != 6:
+        if len(args) != 7:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self.srcDb, self.destDb, self.cdnaType, self.alnTmpDir, self.mappedPsl) = args
-        self.cdnaType = GenomeDefs.CDnaTypes(self.cdnaType)
+        (self.genomeDefsPickle, self.srcDb, self.destDb, self.cdnaType, self.partsLst, self.clusterDir, self.mappedPsl) = args
         self.__dict__.update(opts.__dict__)
+
+    def fixEnums(self):
+        # FIXME: don't convert Enumerations until GenomeDefs is loaded
+        self.cdnaType = GenomeDefs.CDnaType(self.cdnaType)
 
 opts = CmdOpts()
 isParasol = os.environ.get("PARASOL") != None
 if isParasol:
     os.chdir("..")
-tmpDir = setTMPDIR()
-tmpExt = getTmpExt()
-
 # skip if already completed
 if os.path.exists(opts.mappedPsl):
     sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")
     sys.exit(0)
 
+def mkInFileLst(baseName, destDb, srcDb, cdnaType, parts, mapFunc):
+    inTmp = tmpDir + "/" + baseName + tmpExt
+    fh = open(inTmp, "w")
+    for p in parts:
+        fh.write(mapFunc(destDb, srcDb, cdnaType, p))
+        fh.write("\n")
+    fh.close()
+    return inTmp
+    
+
+tmpDir = setTMPDIR()
+tmpExt = getTmpExt()
 
 genomeDefs = GenomeDefs.load(opts.genomeDefsPickle)
+opts.fixEnums()
+transMap = TransMap(None, genomeDefs, ".", None, opts.clusterDir)
 srcDb = genomeDefs.dbs[opts.srcDb]
 destDb = genomeDefs.dbs[opts.destDb]
-chains = srcDb.destDbs.getChains(destDb)
 
 # input
-inPsls = glob.glob(opts.alnTmpDir + "/" + destDb.db + "/" + srcDb.db + "/" + str(opts.cdnaType) + ".*.psl")
-inMapInfos = glob.glob(opts.alnTmpDir + "/" + destDb.db + "/" + srcDb.db + "/" + str(opts.cdnaType) + ".*.mapinfo")
+parts = fileOps.readFileLines(opts.partsLst)
+inPslsTmp = mkInFileLst("psl", destDb, srcDb, opts.cdnaType, parts, transMap.getClusterMappedPsl)
+inMapInfosTmp = mkInFileLst("mapInfo", destDb, srcDb, opts.cdnaType, parts, transMap.getClusterMappedInfo)
 
 # output
 outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]
@@ -53,7 +68,7 @@ outMapInfo = outPrefix + ".mapinfo.bz2"
 
 # not using polyA, doesn't seem worth the cost
 # finished targets are more strigent
-if chains.destDb.isFinished():
+if destDb.isFinished():
     nearBest = "-globalNearBest=0.005"
 else:
     nearBest = "-globalNearBest=0.01"
@@ -61,21 +76,23 @@ else:
 ###
 # combine and filter psls
 ###
+xargs = ["xargs", "cat"]
 qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
-qsort.extend(inPsls)
 pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=20", "-minCover=0.20", "-bestOverlap",
                  nearBest, "stdin", "stdout"]
 pslQueryUniq = ["../../bin/pslQueryUniq"]
 bzip2 = ["bzip2", "-c"]
 fileOps.ensureFileDir(outPslTmp)
-runCmds([qsort, pslCDnaFilter, pslQueryUniq, bzip2], stdout=outPslTmp)
+runCmds([xargs, qsort, pslCDnaFilter, pslQueryUniq, bzip2], stdin=inPslsTmp, stdout=outPslTmp)
 
 ###
 # combine and select mapInfo files, update qName, only keep one header
 ###
-awkMapInfo = ["tawk", "((NR==1) || (FNR > 1))"] + inMapInfos
+xargs = ["xargs", "cat"]
+awkMapInfo = ["tawk", "((NR==1) || !/#/)"]
 pslMapInfoSelect = ["pslMapInfoSelect", "stdin", outPslTmp, "stdout"]
-runCmds([awkMapInfo, pslMapInfoSelect, bzip2], stdout=outMapInfo)
+runCmds([xargs, awkMapInfo, pslMapInfoSelect, bzip2], stdin=inMapInfosTmp, stdout=outMapInfo)
 
 os.rename(outPslTmp, opts.mappedPsl)
-
+os.unlink(inPslsTmp)
+os.unlink(inMapInfosTmp)

@@ -1,76 +1,105 @@
-import os
-from transMap.GenomeDefs import CDnaTypes
+import os, sys
+from transMap.GenomeDefs import CDnaType
 from pycbio.sys.Pipeline import Pipeline
+from pycbio.sys import fileOps
 from pycbio.tsv.TSVReader import TSVReader
+from transMap import getTmpExt, runCmds
+
 
 class TransMap(object):
-    "object that has common data and functions used my transMap rules"
-    def __init__(self, exrun, genomeDefs, buildDir, mappings):
+    """Object that has common data and functions used my transMap rules.
+    If exrun is None, then it returns string paths rather than references"""
+    def __init__(self, exrun, genomeDefs, buildDir, mappings, clusterDir=None):
         self.exrun = exrun
         self.genomeDefs = genomeDefs
         self.buildDir = buildDir
+        self.clusterDir = clusterDir
         self.mappings = mappings
         self.arch = os.uname()[4]
-        
+
+    def __getFile(self, path):
+        if self.exrun != None:
+            return self.exrun.getFile(path)
+        else:
+            return path
+
+    ###
+    # source data
+    ##
     def getDataDir(self, srcDb):
-        return self.buildDir + "/data/" + srcDb.db
+        return self.buildDir + "/data/" + srcDb.name
 
     def getDataPre(self, srcDb, cdnaType):
         return self.getDataDir(srcDb) + "/" + str(cdnaType)
 
     def getSrcPsl(self, srcDb, cdnaType):
-        path = self.getDataPre(srcDb, cdnaType) + ".psl.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".psl.bz2")
         
     def getSrcSeqId(self, srcDb, cdnaType):
-        path = self.getDataPre(srcDb, cdnaType) + ".seqid.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".seqid.bz2")
         
     def getSrcAlnStats(self, srcDb, cdnaType):
-        path = self.getDataPre(srcDb, cdnaType) + ".pslstats.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".pslstats.bz2")
         
     def getSrcFa(self, srcDb, cdnaType):
-        path = self.getDataPre(srcDb, cdnaType) + ".fa.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".fa.bz2")
         
     def getSrcPolyA(self, srcDb, cdnaType):
-        path = self.getDataPre(srcDb, cdnaType) + ".polya.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".polya.bz2")
         
     def getSrcMeta(self, srcDb, cdnaType):
-        path = self.getDataPre(srcDb, cdnaType) + ".meta.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".meta.bz2")
         
     def getSrcCds(self, srcDb, cdnaType):
-        path = self.getDataPre(srcDb, cdnaType) + ".cds.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".cds.bz2")
         
+    ###
+    # cluster source data (partitioned by prefix).
+    ##
+    def getClusterDataDir(self, srcDb, cdnaType):
+        return self.clusterDir + "/data/" + srcDb.name + "/" + str(cdnaType)
+
+    def getClusterDataPre(self, srcDb, cdnaType, cdnaPart):
+        return self.getClusterDataDir(srcDb, cdnaType) + "/" + cdnaPart
+
+    def getClusterSrcPsl(self, srcDb, cdnaType, cdnaPart):
+        return self.__getFile(self.getClusterDataPre(srcDb, cdnaType, cdnaPart) + ".psl")
+        
+    def getClusterSrcFa(self, srcDb, cdnaType, cdnaPart):
+        return self.__getFile(self.getClusterDataPre(srcDb, cdnaType, cdnaPart) + ".fa")
+
+    ##
+    # intermediate transMap alignments before filtering
+    ##
+    def getClusterMappedDir(self, destDb, srcDb):
+        return self.clusterDir + "/aligns/" + destDb.name + "/" + srcDb.name
+
+    def getClusterMappedPre(self, destDb, srcDb, cdnaType, cdnaPart, genomePart=None):
+        p = self.getClusterMappedDir(destDb, srcDb) + "/" + str(cdnaType) + "/" + cdnaPart
+        if genomePart != None: 
+            p += "/" + genomePart
+        return p
+
+    def getClusterMappedPsl(self, destDb, srcDb, cdnaType, cdnaPart, genomePart=None):
+        return self.__getFile(self.getClusterMappedPre(destDb, srcDb, cdnaType, cdnaPart, genomePart) + ".psl")
+
+    def getClusterMappedInfo(self, destDb, srcDb, cdnaType, cdnaPart, genomePart=None):
+        return self.__getFile(self.getClusterMappedPre(destDb, srcDb, cdnaType, cdnaPart, genomePart) + ".mapinfo")
+
+    ##
+    # transMap alignments
+    ##
     def getMappedDir(self, destDb, srcDb):
-        return self.buildDir + "/mapped/" + destDb.db + "/" + srcDb.db
+        return self.buildDir + "/aligns/" + destDb.name + "/" + srcDb.name
 
     def getMappedPre(self, destDb, srcDb, cdnaType):
         return self.getMappedDir(destDb, srcDb) + "/" + str(cdnaType)
 
-    def getMappedRawPsl(self, destDb, srcDb, cdnaType):
-        path = self.getMappedPre(destDb, srcDb, cdnaType) + ".rawPsl.bz2"
-        return self.exrun.getFile(path)
-
-    def getMappedRawMapinfo(self, destDb, srcDb, cdnaType):
-        path = self.getMappedPre(destDb, srcDb, cdnaType) + ".rawMapinfo.bz2"
-        return self.exrun.getFile(path)
-
     def getMappedPsl(self, destDb, srcDb, cdnaType):
-        path = self.getMappedPre(destDb, srcDb, cdnaType) + ".psl.bz2"
-        return self.exrun.getFile(path)
+        return self.__getFile(self.getMappedPre(destDb, srcDb, cdnaType) + ".psl.bz2")
 
-    def getMappedFiltStats(self, destDb, srcDb, cdnaType):
-        path = self.getMappedPre(destDb, srcDb, cdnaType) + ".filtStats"
-        return self.exrun.getFile(path)
-
-    def getMappedPslStats(self, destDb, srcDb, cdnaType):
-        path = self.getMappedPre(destDb, srcDb, cdnaType) + ".pslstats.bz2"
-        return self.exrun.getFile(path)
+    def getMappedInfo(self, destDb, srcDb, cdnaType):
+        return self.__getFile(self.getMappedPre(destDb, srcDb, cdnaType) + ".mapinfo.bz2")
 
 class Chroms(list):
     """object contain list of chromosomes and sizes, sorted by descending size"""
@@ -118,12 +147,49 @@ class Chroms(list):
         return parts
 
 class ChromsCache(dict):
-    "cache of Chroms, by genome"
+    "cache of Chroms, by GenomeDb"
     def __init__(self, dataDir):
         self.dataDir = dataDir
 
     def obtain(self, db):
         chroms = self.get(db)
         if chroms == None:
-            chroms = self[db] = Chroms(self.dataDir + "/" + db.db + "/" + db.db + ".2bit")
+            chroms = self[db] = Chroms(self.dataDir + "/" + db.name + "/" + db.name + ".2bit")
         return chroms
+
+class CDnaPartitions(object):
+    def __init__(self, db, cdnaType, transMap, cdnaTargetSize):
+        self.db = db
+        self.cdnaType = cdnaType
+        self.transMap = transMap
+        self.cdnaTargetSize = cdnaTargetSize
+        self.partList = transMap.getClusterDataDir(db, cdnaType) + "/parts.lst"
+        if not os.path.exists(self.partList):
+            self.__mkPartitions()
+        self.parts = fileOps.readFileLines(self.partList)
+
+    def __mkPartitions(self):
+        outDir = self.transMap.getClusterDataDir(self.db, self.cdnaType)
+        fileOps.ensureDir(outDir)
+        partListTmp = self.partList + getTmpExt()
+        runCmds(["pslFaPartition", "-partList="+partListTmp,
+                 self.cdnaTargetSize,
+                 self.transMap.getSrcPsl(self.db, self.cdnaType),
+                 self.transMap.getSrcFa(self.db, self.cdnaType),
+                 outDir])
+        os.rename(partListTmp, self.partList)
+
+class CDnaPartitionsCache(dict):
+    "cache of CDnaPartitions, by (GenomeDb, CDnaType)"
+    def __init__(self, transMap, cdnaTargetSize):
+        self.transMap = transMap
+        self.cdnaTargetSize = cdnaTargetSize
+
+    def obtain(self, db, cdnaType):
+        key = (db, cdnaType)
+        cdnaParts = self.get(key)
+        if cdnaParts == None:
+            cdnaParts = self[key] = CDnaPartitions(db, cdnaType, self.transMap, self.cdnaTargetSize)
+        return cdnaParts
+
+    

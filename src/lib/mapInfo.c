@@ -10,6 +10,10 @@
 
 static char const rcsid[] = "$Id:$";
 
+/* definitions for chainSubset column */
+static char *values_chainSubset[] = {"unknown", "all", "syn", "rbest", NULL};
+static struct hash *valhash_chainSubset = NULL;
+
 void mapInfoStaticLoad(char **row, struct mapInfo *ret)
 /* Load a row from mapInfo table into ret.  The contents of ret will
  * be replaced at the next call to this function. */
@@ -42,6 +46,7 @@ ret->mappedStrand = row[23][0];
 ret->mappedAligned = sqlSigned(row[24]);
 ret->qStartTrunc = sqlSigned(row[25]);
 ret->qEndTrunc = sqlSigned(row[26]);
+ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
 }
 
 struct mapInfo *mapInfoLoad(char **row)
@@ -78,6 +83,7 @@ ret->mappedStrand = row[23][0];
 ret->mappedAligned = sqlSigned(row[24]);
 ret->qStartTrunc = sqlSigned(row[25]);
 ret->qEndTrunc = sqlSigned(row[26]);
+ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
 return ret;
 }
 
@@ -87,7 +93,7 @@ struct mapInfo *mapInfoLoadAll(char *fileName)
 {
 struct mapInfo *list = NULL, *el;
 struct lineFile *lf = lineFileOpen(fileName, TRUE);
-char *row[27];
+char *row[28];
 
 while (lineFileRow(lf, row))
     {
@@ -105,7 +111,7 @@ struct mapInfo *mapInfoLoadAllByChar(char *fileName, char chopper)
 {
 struct mapInfo *list = NULL, *el;
 struct lineFile *lf = lineFileOpen(fileName, TRUE);
-char *row[27];
+char *row[28];
 
 while (lineFileNextCharRow(lf, chopper, row, ArraySize(row)))
     {
@@ -153,6 +159,7 @@ sqlFixedStringComma(&s, &(ret->mappedStrand), sizeof(ret->mappedStrand));
 ret->mappedAligned = sqlSignedComma(&s);
 ret->qStartTrunc = sqlSignedComma(&s);
 ret->qEndTrunc = sqlSignedComma(&s);
+ret->chainSubset = sqlEnumComma(&s, values_chainSubset, &valhash_chainSubset);
 *pS = s;
 return ret;
 }
@@ -263,6 +270,10 @@ fputc(sep,f);
 fprintf(f, "%d", el->qStartTrunc);
 fputc(sep,f);
 fprintf(f, "%d", el->qEndTrunc);
+fputc(sep,f);
+if (sep == ',') fputc('"',f);
+sqlEnumPrint(f, el->chainSubset, values_chainSubset);
+if (sep == ',') fputc('"',f);
 fputc(lastSep,f);
 }
 

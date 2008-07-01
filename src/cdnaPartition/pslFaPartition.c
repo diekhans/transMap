@@ -5,10 +5,8 @@ static const char *usageMsg =
     "approximately targetSize bases per output file.  Files will be parallel,\n"
     "each containing the same sequences.\n"
     "\n"
-    "Directory must be empty, as files maybe appended\n"
-    "\n"
     "Options:\n"
-    "  -prefixList=out - write list of prefixes (less .psl or .fa) create to this file.\n";
+    "  -partList=out - write list of part numbers created to this file.\n";
 
 #include "common.h"
 #include "options.h"
@@ -23,16 +21,27 @@ static const char *usageMsg =
 
 /* command line options and values */
 static struct optionSpec optionSpecs[] = {
-    {"prefixList", OPTION_STRING},
+    {"partList", OPTION_STRING},
     {NULL, 0},
 };
 
+/* chop uniq suffix from acc. WARNING: static return */
+static char *idToAccv(char *id) {
+    static char accv[64];
+    safecpy(accv, sizeof(accv), id);
+    char *dash = strrchr(accv, '-');
+    if (dash != NULL) {
+        *dash = '\0';
+    }
+    return accv;
+}
+
 /* partition table */
 struct partTbl {
-    struct hash *idToPart;
+    struct hash *accvToParts; // indexed by accv, value is slName of parts
     unsigned nextPartNum;
-    char *curPart;          // string number for current partition
-    FILE *partFh;           // currently open file for curPart.
+    char *curPart;            // string number for current partition
+    FILE *partFh;             // currently open file for curPart.
 };
 
 /* create partition table */
@@ -40,7 +49,7 @@ static struct partTbl *partTblNew() {
     struct partTbl *pt;
     AllocVar(pt);
     pt->nextPartNum = 0;
-    pt->idToPart = hashNew(25);
+    pt->accvToParts = hashNew(23);
     return pt;
 }
 
@@ -48,17 +57,18 @@ static struct partTbl *partTblNew() {
 static void partTblNext(struct partTbl *pt) {
     char curPart[64];
     safef(curPart, sizeof(curPart), "%05d", pt->nextPartNum++);
-    pt->curPart = lmCloneString(pt->idToPart->lm, curPart);
+    pt->curPart = lmCloneString(pt->accvToParts->lm, curPart);
 }
 
-/* Add an entry to the partition table.  This requires that all ids are
- * unique. */
+/* Add an entry to the partition table. don't duplicate if in existing
+ * partition */
 static void partTblAdd(struct partTbl *pt, char *id) {
-    struct hashEl *hel = hashStore(pt->idToPart, id);
-    if (hel != NULL) {
-        errAbort("duplicate id: %s", id);
+    char *accv = idToAccv(id);
+    struct hashEl *hel = hashStore(pt->accvToParts, accv);
+    struct slName **parts = (struct slName**)&hel->val;
+    if (!slNameInList(*parts, pt->curPart)) {
+        slSafeAddHead(parts, lmSlName(pt->accvToParts->lm, pt->curPart));
     }
-    hel->val = pt->curPart;
 }
 
 /* close currently open file. */
@@ -81,19 +91,9 @@ static void partTblFileNext(struct partTbl *pt, char *outDir, char *ext) {
     pt->partFh = mustOpen(partTblFilePath(pt, outDir, pt->curPart, ext), "w");
 }
 
-/* Get a partition file for appending by id, caching last open.  Return NULL
- * if id is not found. */
-static FILE *partTblFileGet(struct partTbl *pt, char *id, char *outDir, char *ext) {
-    char *part = hashFindVal(pt->idToPart, id);
-    if (part == NULL) {
-        return NULL;
-    }
-    if (part != pt->curPart) {
-        partTblFileClose(pt);
-        pt->curPart = part;
-        pt->partFh = mustOpen(partTblFilePath(pt, outDir, pt->curPart, ext), "a");
-    }
-    return pt->partFh;
+/* Get list of partitions for an accv, NULL if none */
+static struct slName *partTblGetAccvParts(struct partTbl *pt, char *accv) {
+    return hashFindVal(pt->accvToParts, accv);
 }
 
 /* Partition psl */
@@ -120,51 +120,90 @@ static struct partTbl *pslPartition(unsigned targetSize, char *inPslFile, char *
     return pt;
 }
 
+/* table of open fasta files */
+struct faPart {
+    int numOpen;
+    struct hash *partToFh;
+};
+
+/* build/rebuild hash */
+static struct faPart *faPartNew() {
+    struct faPart *faPart;
+    AllocVar(faPart);
+    faPart->partToFh = hashNew(20);
+    return faPart;
+}
+
+/* close open fasta files */
+static  void faPartClose(struct faPart *faPart) {
+    struct hashCookie cookie = hashFirst(faPart->partToFh);
+    struct hashEl *hel;
+    while ((hel = hashNext(&cookie)) != NULL) {
+        carefulClose((FILE **)&(hel->val));
+    }
+    faPart->numOpen = 0;
+}
+
+/* get fasta FILE for a partition */
+static FILE *faPartGetFh(struct partTbl *pt, struct faPart *faPart, char *outDir, char *part) {
+    struct hashEl *hel = hashStore(faPart->partToFh, part);
+    if (hel->val == NULL) {
+        if (faPart->numOpen >= 1000) {
+            faPartClose(faPart);
+        }
+        hel->val = mustOpen(partTblFilePath(pt, outDir, part, "fa"), "a");
+        faPart->numOpen++;
+    }
+    return hel->val;
+}
+
 /* partition one sequence */
-static void faPartitionSeq(struct partTbl *pt, char *outDir, DNA *seq, int size, char *header) {
+static void faPartitionSeq(struct partTbl *pt, struct faPart *faPart, char *outDir, DNA *seq, int size, char *header) {
     char buf[256];
     safecpy(buf, sizeof(buf), header);
-    char *id = firstWordInLine(buf);
-    FILE *fh = partTblFileGet(pt, id, outDir, "fa");
-    if (fh != NULL) {
+    char *accv = firstWordInLine(buf);
+    struct slName *part, *parts = partTblGetAccvParts(pt, accv);
+    for (part = parts; part != NULL; part = part->next) {
+        FILE *fh = faPartGetFh(pt, faPart, outDir, part->name);
         faWriteNext(fh, header, seq, size);
     }
 }
 
 /* Partition fasta */
 static void faPartition(struct partTbl *pt, char *inFaFile, char *outDir) {
+    struct faPart *faPart = faPartNew();
     struct lineFile *inLf = lineFileOpen(inFaFile, TRUE);
     DNA *seq;
     int size;
     char *header;
     while (faSpeedReadNext(inLf, &seq, &size, &header)) {
-        faPartitionSeq(pt, outDir, seq, size, header);
+        faPartitionSeq(pt, faPart, outDir, seq, size, header);
     }
     faFreeFastBuf();
     lineFileClose(&inLf);
+    faPartClose(faPart);
 }
 
-/* write prefixes to a file */
-static void listPrefixes(struct partTbl *pt, char *outDir, char *prefixList) {
-    FILE *fh = mustOpen(prefixList, "w");
+/* write part prefixes to a file */
+static void listParts(struct partTbl *pt, char *partList) {
+    FILE *fh = mustOpen(partList, "w");
     int iPart;
     for (iPart = 0; iPart < pt->nextPartNum; iPart++) {
-        fprintf(fh, "%s/%05d\n", outDir, iPart);
+        fprintf(fh, "%05d\n", iPart);
     }
     carefulClose(&fh);
 }
 
-
 /* partition psl and fa */
 static void pslFaPartition(unsigned targetSize, char *inPslFile, char *inFaFile,
-                           char *outDir, char *prefixList) {
+                           char *outDir, char *partList) {
     if (listDir(outDir, "*") != NULL) {
         errAbort("output directory not empty: %s", outDir);
     }
     struct partTbl *pt = pslPartition(targetSize, inPslFile, outDir);
     faPartition(pt, inFaFile, outDir);
-    if (prefixList != NULL) {
-        listPrefixes(pt, outDir, prefixList);
+    if (partList != NULL) {
+        listParts(pt, partList);
     }
 }
 
@@ -174,8 +213,8 @@ int main(int argc, char **argv) {
     if (argc != 5) {
         errAbort("wrong # of args: %s", usageMsg);
     }
-    pslFaPartition(sqlUnsigned(argv[1]), argv[1], argv[2], argv[3],
-                   optionVal("prefixList", NULL));
+    pslFaPartition(sqlUnsigned(argv[1]), argv[2], argv[3], argv[4],
+                   optionVal("partList", NULL));
     return 0;
 }
 

@@ -26,7 +26,7 @@ def parseSrcDb(fpath):
 def mapInfoCnv(mapInfoFile, outFh):
     srcDb = parseSrcDb(mapInfoFile)
     for mi in TSVReader(mapInfoFile):
-        fileOps.prRowv(outFh, mi.mappedQName, srcDb, mi.srcQName, mi.mappingId)
+        fileOps.prRowv(outFh, mi.mappedQName, srcDb, mi.srcQName, mi.mappingId, mi.chainType)
 
 opts = CmdLine()
 for mapInfo in opts.mapInfos:

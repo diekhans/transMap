@@ -90,12 +90,24 @@
          - Platypus chrX5:19,857,926-19,870,630   
            why no human mapping?? NM_003329.2 
          - tupBel1 - no transmap
+         AJ412038, in Orangutan search fails!
 
+2008-06-09:
+     - build vertebrate.2008-06-07 to use more diverse filtering,
+     - due to corruption create chkForAsciiData:
+            data/dasNov1/mrna.fa.bz2	/dev/stdin: data
+            data/loxAfr1/mrna.fa.bz2	/dev/stdin: data
+       rebuild these by hand, still don't know why its happening
 
-###
-FIXME FOR NEXT TIME:
-       - order jobs to do genomes with larger chroms first (monDom4)
-       - split up large source files *** key
-       - pre-splitting or have to limit to ~120 nodes
-       - make filter actually generate input names rather than glob (safer)
-          
+     
+2008-06-23:
+      - modified to use all, rbest, or syn
+      - dropped chrom partition, this was not needed after the addition of overlapSelect.
+      - need to make smaller psl input files, a hand full of hippos on pslRecalcMatch
+      - max # of open files causes grief for partitioning, add forced close hack.
+
+        mm9:chr16:33,726,952-33,727,295
+
+2008-07-01:
+      - submitted all databases on hgwbeta for QA.
+      - tag vertebrate.2008-06-07 build

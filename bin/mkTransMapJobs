@@ -7,12 +7,19 @@ sys.path.append(myBinDir + "/../lib/py")
 from optparse import OptionParser
 from pycbio.sys import fileOps, Pipeline
 from transMap import GenomeDefs, getTmpExt
-from transMap.TransMap import ChromsCache
+from transMap.GenomeDefs import ChainType
+from transMap.TransMap import TransMap, ChromsCache, CDnaPartitionsCache
 from transMap.MappingDefs import MappingDefs
 
+# FIXME: don't need to specify chrom ranges now that using overlapSelect
+
 # used in grouping small jobs
-genomePartTargetSize = 100000000
-genomePartMaxPerJob = 5125
+genomePartTargetSize = 250000000
+genomePartMaxPerJob = 25000
+
+# used to split source cDNA alignments
+# hg18 splicedEsts: 2,390,677,424
+cdnaTargetSize = 1000000
 
 class CmdOpts(object):
     usage = """%prog [options] genomeDefsPickle alignBatchDir filterBatchDir tmpOutDir resultsDir
@@ -22,6 +29,10 @@ class CmdOpts(object):
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
         MappingDefs.addOptions(parser)
+        parser.add_option("--synDist", dest="synDist", action="store", default=None, type="float",
+                          help="use syntenic filter for genomes with a distance that is no more than this cutoff")
+        parser.add_option("--useAvailableRBest", dest="useAvailableRBest", action="store_true", default=False,
+                          help="use reciprocal best chains when available for filtering")
         (opts, args) = parser.parse_args()
         if len(args) != 5:
             parser.error("wrong number of arguments")
@@ -50,57 +61,70 @@ class Batch(object):
 class MkJobs(object):
     def __init__(self, opts):
         self.mdefs = MappingDefs(opts);
+        self.synDist = opts.synDist
+        self.useAvailableRBest = opts.useAvailableRBest
         self.alignBat = Batch(myBinDir, opts.alignBatchDir)
         self.filterBat = Batch(myBinDir, opts.filterBatchDir)
-        self.tmpOutDir = opts.tmpOutDir
-        self.resultsDir = opts.resultsDir
+        self.transMap = TransMap(None, self.mdefs.defs, ".", self.mdefs, opts.tmpOutDir)
         self.chromsCache = ChromsCache("/cluster/data")
+        self.cdnaPartsCache = CDnaPartitionsCache(self.transMap, cdnaTargetSize)
 
     def close(self):
         self.alignBat.close()
         self.filterBat.close()
-        
-    @staticmethod
-    def getRelOutPsl(chains, cdnaType, part=None, ext=""):
-        p = chains.destDb.db + "/" + chains.srcDb.db + "/" + str(cdnaType)
-        if part != None:
-            p += "." + part
-        p += ".psl" + ext
-        return p
 
-    @staticmethod
-    def getOutPsl(dir, chains, cdnaType, part=None, ext=""):
-        return dir + "/" + MkJobs.getRelOutPsl(chains, cdnaType, part, ext)
-
-    def __doAlignPart(self, chains, cdnaType, part):
-        outPsl = self.getOutPsl(self.tmpOutDir, chains, cdnaType, part[0])
-        if not os.path.exists(outPsl):
-            cmd = ["doRunTransMap"]
-            if part[0] == part[1]:
-                cmd.append("--chrom="+part[0])
+    def __getChainType(self, chainsSet):
+        if (self.synDist != None) and (chainsSet.dist != None) and (chainsSet.dist <= self.synDist):
+            if self.useAvailableRBest and (ChainType.rbest in chainsSet.byType):
+                return ChainType.rbest
             else:
-                cmd.append("--firstChrom="+part[0])
-                cmd.append("--lastChrom="+part[1])
-            cmd.extend((opts.genomeDefsPickle, chains.srcDb.db, chains.destDb.db, str(cdnaType), outPsl))
-            self.alignBat.addJob(cmd)
+                return ChainType.syn
+        else:
+            return ChainType.all
+        
+    def __mkAlignJob(self, chainsSet, cdnaType, cdnaPart, genomePart, outPsl):
+        cmd = ["doRunTransMap"]
+        if genomePart != None:
+            if genomePart[0] == genomePart[1]:
+                cmd.append("--chrom="+genomePart[0])
+            else:
+                cmd.append("--firstChrom="+genomePart[0])
+                cmd.append("--lastChrom="+genomePart[1])
+        cmd.extend((opts.genomeDefsPickle, chainsSet.srcDb.name, chainsSet.destDb.name,
+                    str(self.__getChainType(chainsSet)), str(cdnaType), cdnaPart,
+                    self.transMap.clusterDir, outPsl))
+        self.alignBat.addJob(cmd)
 
-    def __doFilter(self, chains, cdnaType, outPsl):
-        # partition genome
-        genomeParts = self.chromsCache.obtain(chains.destDb).partition(genomePartTargetSize, genomePartMaxPerJob)
-        for part in genomeParts:
-            self.__doAlignPart(chains, cdnaType, part)
-        self.filterBat.addJob(("doRunFilter", opts.genomeDefsPickle, chains.srcDb.db, chains.destDb.db, str(cdnaType), self.tmpOutDir, outPsl))
-
-    def __doChainsType(self, chains, cdnaType):
-        outPsl = self.getOutPsl(self.resultsDir, chains, cdnaType, ext=".bz2")
+    def __doAlignPart(self, chainsSet, cdnaType, cdnaPart, genomePart):
+        genomePart0 = genomePart[0] if (genomePart != None) else None
+        outPsl = self.transMap.getClusterMappedPsl(chainsSet.destDb, chainsSet.srcDb, cdnaType, cdnaPart, genomePart0)
         if not os.path.exists(outPsl):
-            self.__doFilter(chains, cdnaType, outPsl)
+            self.__mkAlignJob(chainsSet, cdnaType, cdnaPart, genomePart, outPsl)
+
+    def __doAlign(self, chainsSet, cdnaType):
+        # partition genome and cdnas
+        #genomeParts = self.chromsCache.obtain(chainsSet.destDb).partition(genomePartTargetSize, genomePartMaxPerJob)
+        cdnaParts = self.cdnaPartsCache.obtain(chainsSet.srcDb, cdnaType)
+        genomePart = None
+        #for genomePart in genomeParts:
+        if True:
+            for cdnaPart in cdnaParts.parts:
+                self.__doAlignPart(chainsSet, cdnaType, cdnaPart, genomePart)
+
+    def __mkFilterJob(self, chainsSet, cdnaType, outPsl):
+        cdnaParts  = self.cdnaPartsCache.obtain(chainsSet.srcDb, cdnaType)
+        self.filterBat.addJob(("doRunFilter", opts.genomeDefsPickle, chainsSet.srcDb.name, chainsSet.destDb.name, str(cdnaType), cdnaParts.partList, self.transMap.clusterDir, outPsl))
+
+    def __doChainsType(self, chainsSet, cdnaType):
+        outPsl = self.transMap.getMappedPsl(chainsSet.destDb, chainsSet.srcDb, cdnaType)
+        if not os.path.exists(outPsl):
+            self.__doAlign(chainsSet, cdnaType)
+            self.__mkFilterJob(chainsSet, cdnaType, outPsl)
 
     def genJobs(self):
-        for chains in self.mdefs.mappings:
-            for cdnaType in chains.srcDb.cdnaTypes:
-                self.__doChainsType(chains, cdnaType)
-
+        for chainsSet in self.mdefs.mappings:
+            for cdnaType in chainsSet.srcDb.cdnaTypes:
+                self.__doChainsType(chainsSet, cdnaType)
 
 opts = CmdOpts()
 mkJobs = MkJobs(opts)

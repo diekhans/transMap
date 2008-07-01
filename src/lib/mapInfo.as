@@ -27,4 +27,5 @@ table mapInfo
     int mappedAligned;          "mappedAligned"
     int qStartTrunc;            "qStartTrunc"
     int qEndTrunc;              "qEndTrunc"
+    enum('unknown', 'all', 'syn', 'rbest') chainSubset; "chain subset used"
 )

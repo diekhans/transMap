@@ -1,7 +1,7 @@
 #!/bin/sh -e
 
 MACH=$(uname -m)
-export PATH="/cluster/bin/scripts:/cluster/bin/$MACH:${HOME}/opt/linux/$MACH/bin:$PATH"
+export PATH="/cluster/home/markd/compbio/genbank/kent/bin/${MACH}:/cluster/bin/scripts:/cluster/bin/$MACH:${HOME}/opt/linux/$MACH/bin:$PATH"
 export LD_LIBRARY_PATH="${HOME}/opt/linux/$MACH/lib:${HOME}/opt/linux/$MACH/libcompat:${HOME}/opt/linux/i686/libcompat:"
 binDir=$(dirname $0)
 exec $binDir/runTransMap "$@"

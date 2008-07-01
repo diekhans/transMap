@@ -1,4 +1,1 @@
-${OBJDIR}/faPartition.o: ../../src/lib/accPartition.h
-${OBJDIR}/pslPartition.o: ../../src/lib/accPartition.h
-${OBJDIR}/faPartition.o: faPartition.c
-${OBJDIR}/pslPartition.o: pslPartition.c
+${OBJDIR}/pslFaPartition.o: pslFaPartition.c

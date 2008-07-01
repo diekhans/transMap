@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 import sys, os, string, cPickle
-myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
-sys.path.append(myBinDir + "/../extern/pycbio/lib")
-sys.path.append(myBinDir + "/../lib/py")
+rootDir = os.path.normpath(os.path.dirname(os.path.realpath(sys.argv[0])) + "/..")
+sys.path = [rootDir + "/extern/pycbio/lib", rootDir + "/lib/py"] + sys.path
 from optparse import OptionParser
 import glob,re
 from pycbio.sys.fileOps import prRowv
 from pycbio.sys import setOps, fileOps
 from pycbio.sys.Pipeline import Pipeline
 from pycbio.tsv.TSVReader import TSVReader
-from transMap.GenomeDefs import GenomeDefs,GenomeDb,CDnaTypes,Chains,ChainOrient
+from transMap.GenomeDefs import GenomeDefs,GenomeDb,CDnaType,Chains,ChainsSet
+from Bio.Nexus import Trees
 
 # ucscGenes  containing srcDbs FIXME: automate
 ucscGenesDbs = frozenset(("hg18", "mm9"))
@@ -28,12 +28,17 @@ class CmdOpts(object):
                           help="include only specified clades (maybe repeated)")
         parser.add_option("--excludeClade", dest="excludeClades", action="append", default=None,
                           help="exclude specified clades (maybe repeated)")
-        parser.add_option("--excludeDbs", dest="excludeDbs", action="append", default=None,
+        parser.add_option("--excludeDb", dest="excludeDbs", action="append", default=None,
                           help="exclude specified databases (maybe repeated)")
         parser.add_option("--debug", dest="debug", action="store_true", default=False,
                           help="print debugging information")
+        parser.add_option("--tree", dest="trees", action="append", default=[],
+                          help="set branch lengths from this tree file, maybe repeated.  The distance from the newest databases are used."
+                          "If file ends in .mod, its assumes to be a phastCons model file, otherwise a newick tree file ")
         parser.add_option("--info", dest="info", action="store", default=None,
-                          help="write information about mappints to info file")
+                          help="write information about mappings to this file")
+        parser.add_option("--chainDists", dest="chainDists", action="store", default=None,
+                          help="write information chain distances to this file.  Only includes potential mappings ")
         (opts, args) = parser.parse_args()
         if len(args) != 1:
             parser.error("wrong number of arguments")
@@ -44,16 +49,24 @@ class CmdOpts(object):
         if self.excludeClades != None:
             self.excludeClades = set(self.excludeClades)
 
-class DbInfoTbl(dict):
-    """table of GenomeDb objects build from dbDb and genomeClade, indexed by db.
-    """
-
-    def __init__(self, includeClades=None, excludeClades=None, excludeDbs=None):
+class GenomeDbReader(object):
+    """object to build GenomeDb objects from dbDb and genomeClade tables, doing some gross filtering"""
+    def __init__(self, opts):
+        self.includeClades = opts.includeClades
+        self.excludeClades = opts.excludeClades
+        self.excludeDbs = opts.excludeDbs
         cmd = ["hgw-sql", "-e", "select dd.name as db, dd.organism as common, dd.scientificName as scientific, gc.clade from dbDb dd, genomeClade gc where dd.genome=gc.genome", "hgcentraltest"]
-        pin = Pipeline(cmd, 'r')
-        for row in TSVReader("<sqlquery>", inFh=pin):
-            if self.__inclDb(row, includeClades, excludeClades, excludeDbs):
-                self[row.db] = GenomeDb(row.db, row.clade)
+        self.pin = Pipeline(cmd, 'r')
+        self.reader = TSVReader("<sqlquery>", inFh=self.pin)
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        for row in self.reader:
+            if self.__inclDb(row, self.includeClades, self.excludeClades, self.excludeDbs):
+                return GenomeDb(row.db, row.clade, row.common, row.scientific)
+        raise StopIteration()
 
     def __inclDb(self, row, includeClades, excludeClades, excludeDbs):
         if not GenomeDb.dbParseRe.match(row.db):
@@ -62,15 +75,9 @@ class DbInfoTbl(dict):
             return False  # clade not included
         if (excludeClades != None) and (row.clade in excludeClades):
             return False # clade excluded
-        if (excludeDbs != None) and (row.db in includeClades):
+        if (excludeDbs != None) and (row.db in excludeDbs):
             return False # db excluded
         return True
-
-    def dump(self, fh):
-        prRowv(fh, "DbInfoTbl")
-        for di in self.itervalues():
-            prRowv(fh, "", di)
-
 
 class Conf(object):
     """configuration of genbank for a genome or the defaults.
@@ -88,7 +95,7 @@ class Conf(object):
         return frozenset(self.on | dflt.on.difference(self.off))
 
 class CDnaInfoTbl(dict):
-    """table of db to set of CDnaTypes, table from genbank.conf and alignments
+    """table of db to set of CDnaType, table from genbank.conf and alignments
     on file systems.  Also fill in ucscGenes"""
 
     def __init__(self):
@@ -107,6 +114,14 @@ class CDnaInfoTbl(dict):
         for db in self.iterkeys():
             prRowv(fh, "", db, setOps.setJoin(self[db]))
 
+    empty = frozenset()
+    def obtain(self, db):
+        "get set of db, or an empty set if not found"
+        cdnaTypes = self.get(db)
+        if cdnaTypes == None:
+            cdnaTypes = self.empty
+        return cdnaTypes
+
     def __newestAlnSrcDbDir(self, srcDb):
         pat = "/cluster/data/genbank/data/aligned/" + srcDb + ".*"
         dirs = glob.glob(pat)
@@ -116,16 +131,16 @@ class CDnaInfoTbl(dict):
         return dirs[len(dirs)-1]
 
     def __isAligned(self, db, cdnaType):
-        if cdnaType == CDnaTypes.refSeq:
+        if cdnaType == CDnaType.refSeq:
             pat = self.refSeqAlnDir + "/" + db + "/*/mrna.native.psl.gz"
-        elif cdnaType == CDnaTypes.mrna:
+        elif cdnaType == CDnaType.mrna:
             pat = self.genBankAlnDir + "/" + db + "/*/mrna.native.psl.gz"
-        elif cdnaType == CDnaTypes.splicedEst:
+        elif cdnaType == CDnaType.splicedEst:
             pat = self.genBankAlnDir + "/" + db + "/*/est.*.native.intronPsl.gz"
         return len(glob.glob(pat)) > 0
         
     def __getAlignedSet(self, db, enabled):
-        "return set of CDnaTypes configured and aligned for db"
+        "return set of CDnaType configured and aligned for db"
         # don't use panTro, as a source Db, as it has few of it's own,
         # and human being treated as native
         if db.startswith("panTro"):
@@ -136,7 +151,7 @@ class CDnaInfoTbl(dict):
             if self.__isAligned(db, cdnaType):
                 aligned.add(cdnaType)
         if db in ucscGenesDbs:
-                aligned.add(CDnaTypes.ucscGenes)
+                aligned.add(CDnaType.ucscGenes)
         return frozenset(aligned)
 
     # parse clusterGenome line, used so we find entries that all all defaults
@@ -170,12 +185,12 @@ class CDnaInfoTbl(dict):
         db = parsed.group(1)
         cdna = None
         if parsed.group(2) == "refseq":
-            cdna = CDnaTypes.refSeq
+            cdna = CDnaType.refSeq
         elif parsed.group(2) == "genbank":
             if parsed.group(3) == "mrna":
-                cdna = CDnaTypes.mrna
+                cdna = CDnaType.mrna
             elif parsed.group(3) == "est":
-                cdna = CDnaTypes.splicedEst
+                cdna = CDnaType.splicedEst
         state = None
         if parsed.group(5) == "yes":
             state = True
@@ -189,98 +204,143 @@ class CDnaInfoTbl(dict):
         else:
             conf.off.add(cdna)
 
-class ChainTbl(list):
-    "table of Chains objects between assemblies"
-    def __init__(self, dbInfoTbl):
-        # entries are dicts for the srcDb, linked to Chain objects
-        self.bySrcDb = dict()
-        for srcDb in dbInfoTbl.itervalues():
-            for destDb in dbInfoTbl.itervalues():
-                if destDb.dbOrg != srcDb.dbOrg:
-                    self.__addChainsIf(srcDb, destDb)
+class DistTbl(dict):
+    """table indexed by frozenset(orgName1, orgName2) to Entry objects"""
+    class Entry(object):
+        def __init__(self, orgName1, orgNum1, orgName2, orgNum2, dist):
+            self.orgName1 = orgName1
+            self.orgNum1 = orgNum1
+            self.orgName2 = orgName2
+            self.orgNum2 = orgNum2
+            self.dist = dist
+    
+        def __same(self, orgName1, orgName2):
+            return (orgName1 == self.orgName1) and (orgName2 == self.orgName2)
 
-    def getChain(self, srcDb, destDb):
-        forSrcDb = self.bySrcDb.get(srcDb)
-        if forSrcDb != None:
-            chain = forSrcDb.get(destDb)
-            if chain != None:
-                return chain
-        return None
+        def __isNewer(self, orgNum1, orgNum2):
+            """one must be the same and the other greater, or both greater to
+            be considered newer (but not bother checking for both the same)"""
+            return (orgNum1 >= self.orgNum1) and (orgNum2 >= self.orgNum2)
 
-    def haveChain(self, srcDb, destDb):
-        return self.getChain(srcDb, destDb) != None
+        def updateIfNewer(self, orgNameA, orgNumA, orgNameB, orgNumB, dist):
+            if self.__same(orgNameA, orgNameB):
+                if self.__isNewer(orgNumA, orgNumB):
+                    self.dist = dist
+            elif self.__same(orgNameB, orgNameA):
+                if self.__isNewer(orgNumB, orgNumA):
+                    self.dist = dist
+            else:
+                raise Exception("updateIfNewer mismatch")
 
-    def __addChainsIf(self, srcDb, destDb):
-        "search for and add a srcDb, destDb chain, if available"
-        chains = Chains(srcDb, destDb)
-        if chains.setup():
-            forSrcDb = self.bySrcDb.get(srcDb)
-            if forSrcDb == None:
-                forSrcDb = self.bySrcDb[srcDb] = dict()
-            forSrcDb[destDb] = chains
-            self.append(chains)
+    def __init__(self, treeFile):
+        tree = self.__loadTree(treeFile)
+        leafs = [tree.node(i) for i in tree.get_terminals()]
+        for l1 in leafs:
+            for l2 in leafs:
+                if l1 != l2:
+                    self.__addPair(l1.data.taxon, l2.data.taxon, tree.distance(l1.id, l2.id))
 
+    def __parsePhastConsMod(self, treeFile):
+        strtree = None
+        for line in fileOps.iterLines(treeFile):
+            if line.startswith("TREE:"):
+                strtree = line[6:]
+        if strtree == None:
+            raise Exception("TREE: not found in phastCons model: " + treeFile)
+        return strtree
+
+    def __loadTree(self, treeFile):
+        if treeFile.endswith(".mod"):
+            strtree = self.__parsePhastConsMod(treeFile)
+        else:
+            strtree = "".join(fileOps.readFileLines(treeFile))
+        return Trees.Tree(strtree)
+
+    def __addPair(self, dbName1, dbName2, dist):
+        orgName1, orgNum1 = GenomeDb.dbParse(dbName1)
+        orgName2, orgNum2 = GenomeDb.dbParse(dbName2)
+        key = frozenset((orgName1, orgName2))
+        ent = self.get(key)
+        if ent == None:
+            self[key] = DistTbl.Entry(orgName1, orgNum1, orgName2, orgNum2, dist)
+        else:
+            ent.updateIfNewer(orgName1, orgNum1, orgName2, orgNum2, dist)
+
+    def getByOrgDb(self, orgDbName1, orgDbName2):
+        "get distance by genome db pair, or None if not available"
+        ent = self.get(frozenset([orgDbName1, orgDbName2]))
+        if ent == None:
+            return None
+        else:
+            return ent.dist
+
+class GenomeDefsMk(object):
+    "build GenomeDefs object"
+    def __init__(self, opts):
+        self.includeClades = opts.includeClades
+        self.excludeClades = opts.excludeClades,
+        self.excludedDbs = opts.excludeDbs
+        self.cdnaInfoTbl = CDnaInfoTbl()
+        self.defs = GenomeDefs()
+
+        for db in GenomeDbReader(opts):
+            self.__addDb(db)
+        self.defs.buildChainSets()
+        self.defs.finish()
+        for treeFile in opts.trees:
+            self.__setDistances(treeFile)
+
+    def __addDb(self, db):
+        db.cdnaTypes = self.cdnaInfoTbl.obtain(db.name)
+        self.defs.addGenomeDb(db)
+
+    def __setDistances(self, treeFile):
+        dists = DistTbl(treeFile)
+        for chset in self.defs.chainsSets:
+            if chset.dist == None:
+                dist = dists.getByOrgDb(chset.srcDb.orgDbName, chset.destDb.orgDbName)
+                if dist != None:
+                    chset.setDistance(dist)
+
+    def __buildOrgChainsSets(self, org):
+        "build list of ChainsSets from an organisms"
+        chsets = []
+        doneDestOrgs = set()
+        for srcDb in org.dbs:
+            if len(srcDb.cdnaTypes) > 0:
+                for chset in srcDb.destChainsSets.itervalues():
+                    if chset.destDb.org  not in doneDestOrgs:
+                        doneDestOrgs.add(chset.destDb.org)
+                        chsets.append(chset)
+        return chsets
+
+    def writeDists(self, fh):
+        chsets = []
+        for org in self.defs.orgs.itervalues():
+            chsets.extend(self.__buildOrgChainsSets(org))
+        chsets.sort(ChainsSet.distCmp)
+        for chset in chsets:
+            fileOps.prRowv(fh, chset.srcDb.name, chset.destDb.name, chset.dist, chset.srcDb.clade, chset.destDb.clade)
+        
     def dump(self, fh):
-        prRowv(fh, "ChainTbl")
-        for chain in self:
-            prRowv(fh, "", chain)
+        self.cdnaInfoTbl.dump(fh)
+        self.defs.dump(fh)
 
-def getSrcDbs(dbInfoTbl, cdnaInfoTbl):
-    "get list of databses in info table with cDNAs to map"
-    srcDbs = set()
-    for dbName in cdnaInfoTbl.iterkeys():
-        db = dbInfoTbl.get(dbName)
-        if db != None:
-            srcDbs.add(db)
-    return srcDbs
-
-def getDestDbsChains(dbInfoTbl, srcDbs, chainTbl):
-    "get dbs that can be mapped from srcDbs and associatd chains"
-    destDbs = set()
-    chains = set()
-    for ch in chainTbl:
-        if (ch.srcDb in srcDbs) and (ch.destDb.db in dbInfoTbl):
-            destDbs.add(ch.destDb)
-            chains.add(ch)
-    return (destDbs, chains)
-
-def buildGenomeDefs(dbInfoTbl, cdnaInfoTbl, chainTbl):
-    srcDbs = getSrcDbs(dbInfoTbl, cdnaInfoTbl)
-    destDbs, chains = getDestDbsChains(dbInfoTbl, srcDbs, chainTbl)
-    defs = GenomeDefs()
-    for db in srcDbs:
-        db.cdnaTypes = cdnaInfoTbl[db.db]
-        defs.addGenomeDb(db)
-    empty = frozenset()
-    for db in destDbs:
-        if db not in srcDbs:
-            db.cdnaTypes = empty
-            defs.addGenomeDb(db)
-    for ch in chains:
-        defs.addChains(ch)
-    defs.finish()
-    return defs
 
 opts = CmdOpts()
-dbInfoTbl = DbInfoTbl(opts.includeClades, opts.excludeClades,
-                      opts.excludeDbs)
-if opts.debug:
-    dbInfoTbl.dump(sys.stderr)
-cdnaInfoTbl = CDnaInfoTbl()
-if opts.debug:
-    cdnaInfoTbl.dump(sys.stderr)
-chainTbl = ChainTbl(dbInfoTbl)
-if opts.debug:
-    chainTbl.dump(sys.stderr)
+gdmk = GenomeDefsMk(opts)
 
-defs = buildGenomeDefs(dbInfoTbl, cdnaInfoTbl, chainTbl)
 if opts.debug:
-    defs.dump(sys.stderr)
+    gmk.dump(sys.stderr)
+
 if opts.info != None:
     fh = open(opts.info, "w")
-    defs.dump(fh)
+    gdmk.defs.dump(fh)
     fh.close()
 
-fh = open(opts.pickleOut, "w")
-cPickle.dump(defs, fh)
-fh.close()
+if opts.chainDists != None:
+    fh = open(opts.chainDists, "w")
+    gdmk.writeDists(fh)
+    fh.close()
+
+gdmk.defs.save(opts.pickleOut)

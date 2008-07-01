@@ -6,3 +6,25 @@
 
 2008-06-04
     - netFilter -syn is losing way to much in Platypus
+
+      hg18 28way:
+            An additional filtering step was introduced in the
+            generation of the 28-way conservation track to reduce the number
+            of paralogs and pseudogenes from the high-quality assemblies and
+            the suspect alignments from the low-quality assemblies: the
+            pairwise alignments of high-quality mammalian sequences (placental
+            and marsupial) were filtered based on synteny; those for 2X
+            mammalian genomes were filtered to retain only alignments of best
+            quality in both the target and query ("reciprocal best").
+
+      in hg18.doc primate multiz
+        # calJac1 mafRBestNet
+        # canFam2 mafSynNet
+        # hg18 mafNet
+        # mm9 mafSynNet
+        # otoGar1 mafRBestNet
+        # panTro2 mafSynNet
+        # ponAbe2 mafSynNet
+        # rheMac2 mafSynNet
+        # rn4 mafSynNet
+        # tupBel1 mafRBestNet

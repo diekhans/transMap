@@ -5,8 +5,15 @@
 #ifndef MAPINFO_H
 #define MAPINFO_H
 
-#define MAPINFO_NUM_COLS 27
+#define MAPINFO_NUM_COLS 28
 
+enum mapInfoChainSubset
+    {
+    mapInfoUnknown = 0,
+    mapInfoAll = 1,
+    mapInfoSyn = 2,
+    mapInfoRbest = 3,
+    };
 struct mapInfo
 /* psl mapping information */
     {
@@ -38,6 +45,7 @@ struct mapInfo
     int mappedAligned;	/* mappedAligned */
     int qStartTrunc;	/* qStartTrunc */
     int qEndTrunc;	/* qEndTrunc */
+    enum mapInfoChainSubset chainSubset;	/* chain subset used */
     };
 
 void mapInfoStaticLoad(char **row, struct mapInfo *ret);

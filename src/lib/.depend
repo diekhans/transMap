@@ -1,4 +1,2 @@
-${OBJDIR}/accPartition.o: ../../src/lib/accPartition.h
-${OBJDIR}/accPartition.o: accPartition.c
 ${OBJDIR}/mapInfo.o: mapInfo.c
 ${OBJDIR}/mapInfo.o: mapInfo.h

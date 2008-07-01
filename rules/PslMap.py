@@ -3,7 +3,7 @@ pslMap
 """
 
 from pycbio.exrun.ExRun import CmdRule, Cmd, IFileRef, OFileRef
-from transMap.GenomeDefs import ChainSelect, ChainOrient
+from transMap.GenomeDefs import ChainType, ChainOrient
 
 class PslMap(CmdRule):
     "Map a PSL from one genome to another"
