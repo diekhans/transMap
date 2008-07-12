@@ -14,6 +14,8 @@ assumes dir containing files is srcName
 """
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)
+        parser.add_option("--srcDb", action="store", dest="srcDb", default=None,
+                          help="""use this srcDb rather than parsing from psl path""")
         (opts, args) = parser.parse_args()
         if len(args) < 1:
             parser.error("wrong number of arguments")
@@ -23,12 +25,13 @@ assumes dir containing files is srcName
 def parseSrcDb(fpath):
     return fpath.split("/")[-2]
 
-def pslCnv(pslFile, outFh):
-    srcDb = parseSrcDb(pslFile)
+def pslCnv(pslFile, srcDb, outFh):
+    if srcDb == None:
+        srcDb = parseSrcDb(pslFile)
     for psl in PslReader(pslFile):
         fileOps.prRowv(outFh, srcDb, psl.qName, psl.tName, psl.tStart, psl.tEnd, psl.strand,
                        ("%0.3f" % psl.identity()), ("%0.3f" % psl.queryAligned()))
 
 opts = CmdLine()
 for psl in opts.psls:
-    pslCnv(psl, sys.stdout)
+    pslCnv(psl, opts.srcDb, sys.stdout)
