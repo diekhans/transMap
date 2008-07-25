@@ -19,7 +19,11 @@ gbdbDir = /gbdb/hgFixed/transMap/${build}
 
 SHELL = bash3.2
 export SHELLOPTS=pipefail
-export TMPDIR=/scratch/tmp
+ifneq ($(wildcard /data/tmp),)
+    export TMPDIR=/data/tmp
+else
+    export TMPDIR=/scratch/tmp
+endif
 .SECONDARY:
 export PATH:=${binDir}:${binDirExec}:${PATH}
 
@@ -99,7 +103,7 @@ loadTrackTypes: \
 
 ${loadedDir}/load.${destDb}.aln.%.done:
 	@mkdir -p $(dir $@)
-	bzcat $(wildcard aligns/${destDb}/*/$*.psl.bz2) | hgLoadPsl ${destDb} -table=transMapAln${srcTypeTblPartMap_$*} stdin
+	bzcat $(wildcard aligns/${destDb}/*/$*.psl.bz2) | sort -k 14,14 -k 16,16n  | hgLoadPsl ${destDb} -table=transMapAln${srcTypeTblPartMap_$*} stdin
 	touch $@
 
 ${loadedDir}/load.${destDb}.info.%.done:

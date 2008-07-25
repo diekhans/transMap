@@ -1,0 +1,98 @@
+#!/usr/bin/env tclsh
+
+set tblStatsDir /cluster/data/genbank/var/tblstats/hgwbeta/2008.07.23
+
+# width	15
+# 0-col	1-col	columns for first 10 rows
+# 0	1	Name	HInv	
+# 1	2	Type	MyISAM
+# 2	3	Row_format	Dynamic
+# 3	4	Rows	56419	57281
+# 4	5	Avg_row_length	39
+# 5	6	Data_length	2255628
+# 6	7	Max_data_length	4294967295
+# 7	8	Index_length	472064
+# 8	9	Data_free	0
+# 9	10	Auto_increment	NULL
+# 10	11	Create_time	2006-02-02 15:23:56
+# 11	12	Update_time	2006-02-02 15:24:26
+# 12	13	Check_time	NULL
+# 13	14	Create_options
+# 14	15	Comment
+
+
+set awkCmd {
+    FNR == 1 {
+        db = gensub("^.*/(.+)\\.tbls","\\1", "", FILENAME);
+        next;
+    }
+    {
+        cat = "XXX";
+    }
+    $1 ~ /MRna$/ {
+        cat = "mrna";
+    }
+    $1 ~ /RefSeq$/ {
+        cat = "refSeq";
+    }
+    $1 ~ /UcscGenes$/ {
+        cat = "ucscGenes";
+    }
+    $1 ~ /SplicedEst$/ {
+        cat = "splicedEst";
+    }
+    $1 ~ /^transMap/ {
+        # db cat tbl data index total
+        print db,cat,$1,$6,$8,$6+$8;
+    }
+}
+
+
+set cmd [concat [list tawk $awkCmd] [glob $tblStatsDir/*.tbls]]
+
+proc sumByKey {cntTblVar key val} {
+    upvar $cntTblVar cntTbl
+    if {![info exists cntTbl($key)]} {
+        set cntTbl($key) 0
+    }
+    incr cntTbl($key) $val
+}
+
+foreach row [split [eval exec $cmd] \n] {
+    sumByKey byDb [lindex $row 0] [lindex $row 5]
+    sumByKey byCat [lindex $row 1] [lindex $row 5]
+    sumByKey byTbl [lindex $row 2] [lindex $row 5]
+}
+
+foreach row [split [exec hgw-sql -Ne {select name,organism from dbDb} hgcentraltest] \n] {
+    set row [split $row \t]
+    set dbOrgTbl([lindex $row 0]) [lindex $row 1]
+}
+
+foreach db [array names byDb] {
+    if {[info exists dbOrgTbl($db)]} {
+        set dbOrg $dbOrgTbl($db)
+    } else {
+        set dbOrg $db
+    }
+    set key "$db\t$dbOrg"
+    set byDbOrg($key) $byDb($db)
+}
+
+proc cnvCnt {cnt} {
+    return [format %0.3f [expr $cnt/(1024.0*1024.0*1024.0)]]
+}
+proc mkReport {cntTblVar title} {
+    upvar $cntTblVar cntTbl
+    puts $title
+    set tot 0
+    foreach key [array names cntTbl] {
+        set cnt [cnvCnt $cntTbl($key)]
+        puts "\t$key\t$cnt"
+        incr tot $cntTbl($key)
+    }
+    puts "\tTOTAL\t[cnvCnt $tot]"
+}
+mkReport byDbOrg "by database"
+mkReport byCat "by category"
+mkReport byTbl "by table"
