@@ -111,3 +111,29 @@
 2008-07-01:
       - submitted all databases on hgwbeta for QA.
       - tag vertebrate.2008-06-07 build
+
+2008-07-16:
+      * PSL tracks not sorted!! reloaded them.
+
+      - some issues:
+      
+        1. What about pileups?  There are no filters to limit the display of 
+        many alignments like there are for ESTs.  It also doesn't do the normal 
+        EST thing where it displays a certain number and then crams everything 
+        else into a single line.  So, for example, you can't get TransMap ESTs 
+        out of dense mode on anoCar1 scaffold_7220.
+
+        - performance: tracks take a very long time to load all of chr1 in 
+        either dense or full mode, and sometimes it just results in a white screen.
+
+        - equCab2 is not on the RR yet -- what about links to it in other orgs' 
+        details pages?
+
+        - what about pileups? Can't get ESTs out of dense on anoCar1 
+        scaffold_7220.  There are no filters to limit the display of many 
+        alignments, and maxItems in trackDb doesn't limit the display, either. 
+        -- mark is looking at this.  We won't hold up the release for it.
+
+        - search is not working -- fixed 7/15, except mRNA and EST exact matches 
+        are overriding transMap matches.  Also, an exact match does not actually 
+        open the track if it is in hide.

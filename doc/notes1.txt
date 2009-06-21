@@ -28,3 +28,19 @@
         # rheMac2 mafSynNet
         # rn4 mafSynNet
         # tupBel1 mafRBestNet
+
+2008-09-11:
+   - TODO: hg18:chr1:226,355,040-226,357,660 (NM_024319.2)
+           tranMap missing cow & rat refseqs that are aligned by
+           xblat, and by previous version of transMap.
+      
+                                           
+2008-09-18:
+   baseColorDrawSetup: NM_001077235.1-1.1: mRNA size (5807) != psl qSize (5820)
+   sequence size is 5820 bp in NCBI, fasta file was corrupted is corrupt
+   in the data directory.
+        corrupt in vertebrate.2008-06-07/data/canFam2/refSeq.fa.bz2
+
+   Maybe related to other corruption encountered during build??
+   Just deleted alignments as quick fix.
+   *** Add code to fa.c to detect zero bytes
