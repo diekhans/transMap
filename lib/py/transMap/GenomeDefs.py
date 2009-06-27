@@ -168,22 +168,22 @@ class OrgChainsSetMap(MultiDict):
 
     def __str__(self):
         if self.srcDbIndexed:
-            l = [srcDb.name for chset in self]
+            l = [chset.srcDb.name for chset in self.itervalues()]
         else:
-            l = [destDb.name for chset in self]
+            l = [chset.descDb.name for chset in self.itervalues()]
         l.sort()
         return ",".join(l)
 
-    def add(self, chainsSet):
+    def addChainSet(self, chainsSet):
         "add a new database"
         assert(chainsSet.getDb(not self.srcDbIndexed) == self.db)
         org = chainsSet.srcDb.org if self.srcDbIndexed else chainsSet.destDb.org
-        MultiDict.add(self, org, chainsSet)
+        self.add(org, chainsSet)
 
-    def addAll(self, chainsSets):
+    def addChainSets(self, chainsSets):
         "add all chainsSets"
         for chset in chainsSets:
-            self.add(chset)
+            self.addChainSet(chset)
 
     def sort(self):
         "sort all entries"
@@ -302,8 +302,8 @@ class GenomeDefs(object):
                 if srcDb.org != destDb.org:
                     chset = ChainsSet(srcDb, destDb)
                     if chset.haveChains():
-                        srcDb.destChainsSets.add(chset)
-                        destDb.srcChainsSets.add(chset)
+                        srcDb.destChainsSets.addChainSet(chset)
+                        destDb.srcChainsSets.addChainSet(chset)
                         self.chainsSets.append(chset)
 
     def finish(self):
@@ -355,8 +355,9 @@ class GenomeDefs(object):
 
     def save(self, path):
         fh = open(path, "w")
-        cPickle.dump((ChainType, CDnaType, self), fh)
-        # FIXME , cPickle.HIGHEST_PROTOCOL causes error
+        #prot = cPickle.HIGHEST_PROTOCOL # FIXME: doesn't work
+        prot = 0
+        cPickle.dump((ChainType, CDnaType, self), fh, prot)
         fh.close()
 
 def load(path):

@@ -1,0 +1,17 @@
+#!/usr/bin/awk -f
+#
+#  gbRaToMeta
+#   get metadata from genbank ra files
+#
+BEGIN {
+    OFS = "\t";
+}
+/^acc / {acc = $2}
+/^ver / {ver = $2}
+/^cds / {cds = $2}
+/^gen/ {gen = $2}
+/^mol/ {mol = gensub("^.*-","","g",$2)}
+/^$/ {
+    print acc"."ver,cds,gen,mol;
+    acc=ver=cds=gen=mol="";
+}

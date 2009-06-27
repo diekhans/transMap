@@ -17,6 +17,6 @@ def setTMPDIR():
 def runCmds(cmds, stdin="/dev/null", stdout=None):
     """run a pipeline, printing command to stderr"""
     pl = Pipeline.Procline(cmds, stdin=stdin, stdout=stdout)
-    sys.stderr.write(pl.getDesc() + "\n")
+    sys.stderr.write(str(pl) + "\n")
     pl.wait()
 

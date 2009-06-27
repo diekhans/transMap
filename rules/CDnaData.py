@@ -34,7 +34,7 @@ class CDnaAlignStats(CmdRule):
         "dbs are GenomeDef objects"
         psl = tm.getSrcPsl(srcDb, cdnaType)
         stats = tm.getSrcAlnStats(srcDb, cdnaType)
-        CmdRule.__init__(self, Cmd(("pslStats", IFileRef(psl), OFileRef(stats))))
+        CmdRule.__init__(self, Cmd(("pslStats", FileIn(psl), FileOut(stats))))
 
 class CDnaSeqIds(CmdRule):
     "obtain list of cDNA sequence ids (without unique suffix)"
@@ -42,8 +42,7 @@ class CDnaSeqIds(CmdRule):
         "dbs are GenomeDef objects"
         psl = tm.getSrcPsl(srcDb, cdnaType)
         ids = tm.getSrcSeqId(srcDb, cdnaType)
-        CmdRule.__init__(self, Cmd((("bzcat", IFileRef(psl)),
-                                    ("cut", "-f", "10"),
+        CmdRule.__init__(self, Cmd((("cut", "-f", "10", FileIn(psl)),
                                     ("sed", "-re", "s/-.+$//"),
                                     ("sort", "-u")),
                                    stdout=ids))
@@ -54,7 +53,7 @@ class CDnaSeqs(CmdRule):
         self.tm = tm
         ids = tm.getSrcSeqId(srcDb, cdnaType)
         fa = tm.getSrcFa(srcDb, cdnaType)
-        cmd = mkGbGetSeqsCmd(tm, srcDb, cdnaType, "seq", accFile=IFileRef(ids))
+        cmd = mkGbGetSeqsCmd(tm, srcDb, cdnaType, "seq", accFile=FileIn(ids))
         CmdRule.__init__(self, Cmd(cmd, stdout=fa))
 
 class CDnaMeta(CmdRule):
@@ -65,19 +64,7 @@ class CDnaMeta(CmdRule):
         meta = tm.getSrcMeta(srcDb, cdnaType)
         cmd1 = mkGbGetSeqsCmd(tm, srcDb, cdnaType, "ra")
         
-        awkProg = """
-        BEGIN {OFS = "\t"}
-        /^acc / {acc = $2}
-        /^ver / {ver = $2}
-        /^cds / {cds = $2}
-        /^gen/ {gen = $2}
-        /^mol/ {mol = gensub("^.*-","","g",$2)}
-        /^$/ {
-            print acc"."ver,cds,gen,mol;
-            acc=ver=cds=gen=mol="";
-        }
-        """
-        cmd2 = ("awk", awkProg)
+        cmd2 = ("gbRaToMeta",)
         CmdRule.__init__(self, Cmd((cmd1, cmd2), stdout=meta))
 
 class CDnaPolyA(CmdRule):
@@ -87,7 +74,7 @@ class CDnaPolyA(CmdRule):
         self.tm = tm
         fa = tm.getSrcFa(srcDb, cdnaType)
         polya = tm.getSrcPoly(srcDb, cdnaType)
-        cmd = ["faPolyASizes", IFileRef(fa), OFileRef(polya)]
+        cmd = ["faPolyASizes", FileIn(fa), FileOut(polya)]
         CmdRule.__init__(self, Cmd(cmd))
 
 class UcscGenesAligns(CmdRule):
@@ -100,7 +87,7 @@ class UcscGenesAligns(CmdRule):
         cmd1 = ("hgsql", "-Ne",
                 "select name,chrom,strand,txStart,txEnd,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds from knownGene",
                 srcDb.name)
-        cmd2 = ("genePredToFakePsl", srcDb.name, "stdin", "stdout", OFileRef(cds))
+        cmd2 = ("genePredToFakePsl", srcDb.name, "stdin", "stdout", FileOut(cds))
         cmd3 = ("pslQueryUniq",)
         CmdRule.__init__(self, Cmd((cmd1, cmd2, cmd3), stdout=psl))
     
@@ -111,7 +98,7 @@ class UcscGenesMeta(CmdRule):
         cds = tm.getSrcCds(srcDb, CDnaType.ucscGenes)
         meta = tm.getSrcMeta(srcDb, CDnaType.ucscGenes)
         
-        cmd1 = ("getUcscGenesMeta", srcDb.name, IFileRef(cds), OFileRef(meta))
+        cmd1 = ("getUcscGenesMeta", srcDb.name, FileIn(cds), FileOut(meta))
         CmdRule.__init__(self, Cmd((cmd1,)))
     
 class UcscGenesSeqs(CmdRule):

@@ -10,10 +10,20 @@ from pycbio.sys import fileOps, procOps
 from optparse import OptionParser
 import CDnaData
 
+## FIXME: for some reason, pslStats didn't run the first time
+
 class CmdLine(object):
     usage="""%prog [options] genomeDefsPickle mappingsInfo"""
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)
+        parser.add_option("--dumpGraph", action="store_true", dest="dumpGraph", default=False,
+                          help="""dump the graph before starting""")
+        parser.add_option("--dumpGraphAfter", action="store_true", dest="dumpGraphAfter", default=False,
+                          help="""dump the graph after finish""")
+        parser.add_option("--dryRun", action="store_true", dest="dryRun", default=False,
+                          help="""don't actually run""")
+        parser.add_option("--threads", action="store", dest="threads", default=0, type="int",
+                          help="""run this many threads""")
         MappingDefs.addOptions(parser)
         (opts, args) = parser.parse_args()
         if len(args) != 2:
@@ -36,9 +46,11 @@ opts = CmdLine()
 mdefs = MappingDefs(opts, inclAllMappings=True);
 dumpMappings(opts.mappingsInfo, mdefs)
 
-exrun = ExRun()
+exrun = ExRun(maxLocalThreads=opts.threads)
 exrun.verb.flags.add(Verb.details)
+if opts.dumpGraph:
+    exrun.verb.flags.add(Verb.dumpStart)
 transMap = TransMap.TransMap(exrun, mdefs.defs, ".", mdefs.mappings)
 for srcDb in mdefs.mappings.srcDbs:
     CDnaData.createRules(transMap, srcDb)
-exrun.run()
+exrun.run(dryRun=opts.dryRun)
