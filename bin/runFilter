@@ -29,9 +29,6 @@ class CmdOpts(object):
         self.cdnaType = GenomeDefs.CDnaType(self.cdnaType)
 
 opts = CmdOpts()
-isParasol = os.environ.get("PARASOL") != None
-if isParasol:
-    os.chdir("..")
 # skip if already completed
 if os.path.exists(opts.mappedPsl):
     sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")

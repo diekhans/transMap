@@ -4,6 +4,8 @@ from pycbio.exrun import *
 from transMap.GenomeDefs import CDnaType
 from transMap import TransMap
 
+# N.B. /dev/stdout is used instead of stdout, as it appears to fasta corruption problem
+
 def mkGbGetSeqsCmd(tm, srcDb, cdnaType, what, accFile=None):
     "what is argument to -get="
     cmd=["/cluster/data/genbank/bin/" + tm.arch + "/gbGetSeqs",
@@ -15,7 +17,7 @@ def mkGbGetSeqsCmd(tm, srcDb, cdnaType, what, accFile=None):
         cmd.append("-accFile="+accFile)
     cmd.extend((("refseq" if (cdnaType == CDnaType.refSeq) else "genbank"),
                 ("est" if (cdnaType == CDnaType.splicedEst) else "mrna"),
-                "stdout"))
+                "/dev/stdout"))
     return cmd
 
 class CDnaAligns(CmdRule):
@@ -87,7 +89,7 @@ class UcscGenesAligns(CmdRule):
         cmd1 = ("hgsql", "-Ne",
                 "select name,chrom,strand,txStart,txEnd,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds from knownGene",
                 srcDb.name)
-        cmd2 = ("genePredToFakePsl", srcDb.name, "stdin", "stdout", FileOut(cds))
+        cmd2 = ("genePredToFakePsl", srcDb.name, "/dev/stdin", "/dev/stdout", FileOut(cds))
         cmd3 = ("pslQueryUniq",)
         CmdRule.__init__(self, Cmd((cmd1, cmd2, cmd3), stdout=psl))
     

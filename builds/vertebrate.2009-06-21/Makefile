@@ -11,10 +11,12 @@ hgLibDir = ${HOME}/compbio/genbank/kent/src/hg/lib
 
 host= $(shell hostname)
 pid = $(shell echo $$PPID)
+mach=$(shell uname -m)
 tmpExt = ${host}.${pid}.tmp
 tmpExtBz = ${host}.${pid}.tmp.bz2
 binDir = ${ROOT}/bin
-binDirExec = ${ROOT}/output/bin/$(shell uname -m)/opt
+binDirExec = ${ROOT}/output/bin/$mach/opt
+kentBinDir = ${ROOT}/extern/bin/$mach
 loadedDir = loaded
 # this is really under /cluster/data/transMap/
 gbdbDir = /gbdb/hgFixed/transMap/${build}
@@ -63,6 +65,8 @@ getData:  ${genomeDefs} ${mappingsInfo}
 
 defs: ${genomeDefs}
 
+
+####
 batchSetup:
 	@mkdir -p  ${alignParaDir} ${filterParaDir}  ${scratchOutDir}
 	${binDir}/mkTransMapJobs ${dbOpts} ${synOpts} ${genomeDefs} ${paraDir} ${alignParaDir} ${filterParaDir} ${scratchOutDir} aligns
@@ -163,3 +167,8 @@ ${gbdbDir}/${srcType}.fa: $(wildcard data/*/${srcType}.fa.bz2)
 	@mkdir -p $(dir $@)
 	bzcat $^ | faFilter -uniq stdin $@.tmp
 	mv -f $@.tmp $@
+
+##
+# make copy of kent programs to avoid pounding /cluster/home
+##
+runSetup:

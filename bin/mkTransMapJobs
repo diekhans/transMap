@@ -49,9 +49,7 @@ class Batch(object):
 
     def addJob(self, cmd):
         out = cmd[-1]
-        if not os.path.isabs(out):
-            out = os.getcwd() + "/" + out
-        cmd2 = ["../" + self.binDir + "/" + cmd[0]] + list(cmd[1:-1]) + ["{check out exists " + out + "}"]
+        cmd2 = [self.binDir + "/" + cmd[0]] + list(cmd[1:-1]) + ["{check out exists " + out + "}"]
         fileOps.prRow(self.fh, cmd2)
 
     def close(self):

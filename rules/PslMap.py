@@ -5,6 +5,8 @@ pslMap
 from pycbio.exrun.ExRun import CmdRule, Cmd, IFileRef, OFileRef
 from transMap.GenomeDefs import ChainType, ChainOrient
 
+# N.B. /dev/stdout is used instead of stdout, as it appears to fasta corruption problem
+
 class PslMap(CmdRule):
     "Map a PSL from one genome to another"
 
@@ -26,7 +28,7 @@ class PslMap(CmdRule):
         if synFilter:
             netsFile = tm.exrun.getFile(chains.getNetFile())
             cmds.append(["netFilter", "-syn", IFileRef(netsFile)])
-            cmds.append(["netChainSubset", "-wholeChains", "-verbose=0", "stdin", IFileRef(chainsFile), "stdout"])
+            cmds.append(["netChainSubset", "-wholeChains", "-verbose=0", "/dev/stdin", IFileRef(chainsFile), "/dev/stdout"])
         cmd = ["pslMap", "-chainMapFile"]
         if chains.orient == ChainOrient.rev:
             cmd.append("-swapMap")

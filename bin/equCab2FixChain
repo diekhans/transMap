@@ -1,0 +1,48 @@
+#!/bin/bash 
+usage="equCab2FixChain what chain
+
+Edit a chain to or from equCab2 to drop the bogus extra sequence at the end of chr27.
+what = query or target
+chain = must be actually file, not pipe
+"
+
+set -beEu -o pipefail
+
+if [ $# != 2 ] ; then
+    echo "wrong # args: $usage" >&2
+    exit 1
+fi
+what=$1
+chain=$2
+
+# chr27
+badSize=65921033
+goodSize=39960074
+
+# chain 3499313617 chrX 124114077 + 55462 124112167 chrX 126883977 + 1080579 126809795 1
+#       score      tName tsize    ts tstart tend    qname qsize    qs qstart qend      id
+# 1     2          3     4        5  6      7       8     9        10 11     12        13
+
+case $what in
+    query)
+        chr27Filt="-q=chr27 -qStartMax=$goodSize"
+        otherFilt="-notQ=chr27"
+        sizeCol=9 ;;
+    target)
+        chr27Filt="-t=chr27 -tStartMax=$goodSize"
+        otherFilt="-notT=chr27"
+        sizeCol=4 ;;
+    *) echo "invalid what value: $what" >&2
+        exit 1 ;;
+esac
+
+chainFilter $otherFilt $chain
+chainFilter $chr27Filt $chain | awk -v sizeCol=$sizeCol -v badSize=$badSize -v goodSize=$goodSize '
+    /^chain/ {
+       if ($sizeCol != badSize) {
+            print "Error sizeCol is wrong:", $0 >"/dev/stderr"
+            exit 1
+       }
+       $sizeCol = goodSize
+    }
+    { print $0 }'

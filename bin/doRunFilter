@@ -1,7 +1,8 @@
 #!/bin/sh -e
 
-MACH=$(uname -m)
-export PATH="/cluster/bin/scripts:/cluster/bin/$MACH:${HOME}/opt/linux/$MACH/bin:$PATH"
-export LD_LIBRARY_PATH="${HOME}/opt/linux/$MACH/lib:${HOME}/opt/linux/$MACH/libcompat:${HOME}/opt/linux/i686/libcompat:"
+# clear path to avoid hitting kkhome
+mach=$(uname -m)
+export PATH="/hive/users/${USER}/opt/current/${mach}/bin:/cluster/bin/$mach:/usr/bin:/bin"
+unset LD_LIBRARY_PATH
 binDir=$(dirname $0)
 exec $binDir/runFilter "$@"

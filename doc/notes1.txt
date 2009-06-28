@@ -61,3 +61,6 @@
         /cluster/data/genbank/bin/x86_64/gbGetSeqs -db=dasNov1 -get=seq -native -inclVersion -gbRoot=/cluster/data/genbank -accFile=./data/dasNov1/mrna.seqid.bz2 genbank mrna y.fa
 
        - looks like using /dev/stdout instead of stadout fixes the problem
+
+     - searching path put in cluster jobs was modified to avoid /cluster/home, as it dragged down
+       server
