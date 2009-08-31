@@ -1,6 +1,9 @@
 from transMap import GenomeDefs
 from pycbio.sys import setOps
 
+# FIXME: started --otherSrcDbTypes, however this means changing GenomeMappings 
+# to include cdnatype to map.
+
 
 class MappingDefs(object):
     """Get mapping definitions based on command line options"""
@@ -18,6 +21,8 @@ class MappingDefs(object):
                           help="""Only generate data for these destDbs. Can be specified multiple times.""")
         parser.add_option("--cdnaType", action="append", dest="cdnaTypes", default=None,
                           help="""Only generate data for these cDNA types. Can be specified multiple times, valid values are:""" + setOps.setJoin(set(GenomeDefs.CDnaType.values), ","))
+        parser.add_option("--otherSrcDbType", action="append", dest="otherSrcDbTypes", default=None,
+                          help="""add additional source databases and types, value in the form db/type (hg18/ucscGenes) """)
 
     def __init__(self, opts, inclAllMappings=False):
         "construct GenomeDefs and mappings"
@@ -28,6 +33,10 @@ class MappingDefs(object):
         self.otherDestDbs = self.defs.mapDbNamesSet(opts.otherDestDbs)
         self.excludeDbs = self.defs.mapDbNamesSet(opts.excludeDbs)
         self.clades = setOps.mkfzset(opts.includeClades) if (opts.includeClades != None) else self.defs.clades
+
+        # add in additional source dbs, dict of GenomeDb object to set of CdnaType
+        self.otherSrcDbTypes = self.__buildOtherSrcDbTypes(self.otherSrcDbTypes) if self.otherSrcDbTypes != None else frozenset([])
+
         if opts.cdnaTypes != None:
             # convert to Enumeration
             self.cdnaTypes = set()
@@ -41,6 +50,28 @@ class MappingDefs(object):
         self.allMappings = None
         if inclAllMappings:
             self.allMappings = self.__getMappingSets(inclMissingChains=True)
+
+
+    def __buildOtherSrcDbTypes(self, specs):
+        "convert list of db/type to dict of GenomeDb object to set of CdnaType"
+        raise Exception("--otherSrcDbTypes not implemented")
+        tbl = dict()
+        for spec in specs:
+            try:
+                self.__buildOtherSrcDbTypes(spec, tbl)
+            except e:
+                raise
+                # FIXME:raise Exception("error parsing --otherSrcDbTypes="+spec+": " + str(e))
+
+    def __buildOtherSrcDbType(self, spec, tbl):
+        parts = spec.split("/")
+        if len(parts) != 2:
+            raise Exception("expect spec in the form db/type")
+        srcDb = self.defs.mapDbName(parts[0])
+        cdnaType = CDnaType(parts[1])
+        if not srcDb in tbl:
+            tbl[srcDb] = set()
+        tbl[srcDb].add(cdnaType)
 
     def __useMapping(self, chainsSet, inclMissingChains):
         return ((chainsSet.srcDb not in self.excludeDbs)

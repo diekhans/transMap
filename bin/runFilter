@@ -63,20 +63,14 @@ outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]
 outPslTmp = opts.mappedPsl + tmpExt + ".bz2" # .bz2 so it can be read
 outMapInfo = outPrefix + ".mapinfo.bz2"
 
-# not using polyA, doesn't seem worth the cost
-# finished targets are more strigent
-if destDb.isFinished():
-    nearBest = "-globalNearBest=0.005"
-else:
-    nearBest = "-globalNearBest=0.01"
-
 ###
 # combine and filter psls
+# not using polyA, doesn't seem worth the cost
 ###
 xargs = ["xargs", "cat"]
 qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
-pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=20", "-minCover=0.20", "-bestOverlap",
-                 nearBest, "stdin", "stdout"]
+pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=" + str(transMap.minQSize), "-minCover=" + str(transMap.minCover), "-bestOverlap",
+                 "-globalNearBest=" + str(transMap.getGlobalNearBest(destDb)), "stdin", "stdout"]
 pslQueryUniq = ["../../bin/pslQueryUniq"]
 bzip2 = ["bzip2", "-c"]
 fileOps.ensureFileDir(outPslTmp)
@@ -87,7 +81,7 @@ runCmds([xargs, qsort, pslCDnaFilter, pslQueryUniq, bzip2], stdin=inPslsTmp, std
 ###
 xargs = ["xargs", "cat"]
 awkMapInfo = ["tawk", "((NR==1) || !/#/)"]
-pslMapInfoSelect = ["pslMapInfoSelect", "stdin", outPslTmp, "stdout"]
+pslMapInfoSelect = ["pslMapInfoSelect", "-dropUniq2nd", "stdin", outPslTmp, "stdout"]
 runCmds([xargs, awkMapInfo, pslMapInfoSelect, bzip2], stdin=inMapInfosTmp, stdout=outMapInfo)
 
 os.rename(outPslTmp, opts.mappedPsl)

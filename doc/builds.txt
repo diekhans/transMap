@@ -137,3 +137,12 @@
         - search is not working -- fixed 7/15, except mRNA and EST exact matches 
         are overriding transMap matches.  Also, an exact match does not actually 
         open the track if it is in hide.
+
+2009-07-01:
+      - builds/vertebrate.2009-07-01/
+      - include lastz alignments as well as blastz alignments
+      - delete old track, use dumps to find out
+      - build with Makefile
+      - convert to composite tracks
+        - however loses all the custom controls
+      - add blurb to browser make docs

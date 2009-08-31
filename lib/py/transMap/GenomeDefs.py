@@ -86,9 +86,9 @@ class ChainsSet(object):
         return self.srcDb.name + " ==> " + self.destDb.name + " " + enumSetStr(set(self.byType.iterkeys())) + " |" + str(self.dist) + "|"
 
     @staticmethod
-    def __findChainsDir(srcDb, destDb):
-        "return path to chain directory if one can be found, otherwise None"
-        base = "/cluster/data/" + destDb.name + "/bed/blastz." + srcDb.name
+    def __findChainsDirMeth(meth, srcDb, destDb):
+        "return path to chain directory for an alignment method"
+        base = "/cluster/data/" + destDb.name + "/bed/" + meth + "." + srcDb.name
         if os.path.exists(base):
             return base
         p = base + ".swap"
@@ -101,12 +101,20 @@ class ChainsSet(object):
             return dirs[-1]
 
         # check for missing symlink to names like blastzPanTro2.2006-03-28
-        pat = "/cluster/data/" + destDb.name + "/bed/blastz" + srcDb.name[0].upper() + srcDb.name[1:] + ".*-*-*"
+        pat = "/cluster/data/" + destDb.name + "/bed/" + meth + srcDb.name[0].upper() + srcDb.name[1:] + ".*-*-*"
         dirs = glob.glob(pat)
         dirs.sort()
         if len(dirs) > 0:
             return dirs[-1]
         return None
+
+    @staticmethod
+    def __findChainsDir(srcDb, destDb):
+        "return path to chain directory if one can be found, otherwise None"
+        p = ChainsSet.__findChainsDirMeth("lastz", srcDb, destDb)
+        if p == None:
+            p = ChainsSet.__findChainsDirMeth("blastz", srcDb, destDb)
+        return p
 
     def __getBlastzFile(self, bzdir, ext):
         """generate and check for one of the blastz alignment files, with and

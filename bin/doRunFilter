@@ -1,8 +1,8 @@
 #!/bin/sh -e
+binDir=$(dirname $0)
 
 # clear path to avoid hitting kkhome
 mach=$(uname -m)
-export PATH="/hive/users/${USER}/opt/current/${mach}/bin:/cluster/bin/$mach:/usr/bin:/bin"
+export PATH="/hive/users/${USER}/opt/current/${mach}/bin:/cluster/bin/$mach:$binDir:/usr/bin:/bin"
 unset LD_LIBRARY_PATH
-binDir=$(dirname $0)
 exec $binDir/runFilter "$@"

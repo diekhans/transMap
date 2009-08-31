@@ -3,7 +3,10 @@ static const char *usageMsg =
     "\n"
     "Select the subset of mapInfo records that are in selectPsl.\n"
     "This also updates the mappedQName record to match the uniqueness\n"
-    "suffix that was add to qName\n";
+    "suffix that was add to qName\n"
+    "\n"
+    "Options:\n"
+    "   -dropUniq2nd - drop 2nd uniqueness suffix\n";
 
 #include "common.h"
 #include "linefile.h"
@@ -15,8 +18,10 @@ static const char *usageMsg =
 
 /* command line options and values */
 static struct optionSpec optionSpecs[] = {
+    {"dropUniq2nd", OPTION_BOOLEAN},
     {NULL, 0}
 };
+static boolean gDropUniq2nd;
 
 /* entry in the select tbl */
 struct selectEntry {
@@ -52,7 +57,10 @@ static char* mkSelectKey(char *qName, int qStart, int qEnd,
 /* add a psl to the select table. */
 static void addPsl(struct hash *selectTbl,
                    struct psl *psl) {
-    char *srcQName = dropUniq2nd(psl->qName);
+    char *srcQName = psl->qName;
+    if (gDropUniq2nd) {
+        srcQName = dropUniq2nd(srcQName);
+    }
     struct selectEntry *se;
     lmAllocVar(selectTbl->lm, se);
     se->mappedQName = lmCloneString(selectTbl->lm, psl->qName);
@@ -139,6 +147,7 @@ int main(int argc, char **argv) {
     if (argc != 4) {
         errAbort("wrong # of args: %s", usageMsg);
     }
+    gDropUniq2nd = optionExists("dropUniq2nd");
     pslMapInfoSelect(argv[1], argv[2], argv[3]);
     return 0;
 }

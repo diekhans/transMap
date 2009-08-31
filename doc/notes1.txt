@@ -64,3 +64,31 @@
 
      - searching path put in cluster jobs was modified to avoid /cluster/home, as it dragged down
        server
+
+   - exclude equCab2, since it's chains still have the bogus chr27.
+   
+   - hippos with mondom5: hg19 mRNA w 529 sequences, 999887 bases
+     - address with prefiltering of alignments
+
+2009-07-01:
+  - forgot to look for lastz directories, just start over.
+
+  - builds/vertebrate.2009-07-01/
+  - delete old track, use dumps to find out
+
+
+2009-08-03:
+      - suggestion from Michael Hiller <hillerm@stanford.edu> on better net
+        filtering.
+
+            > Has anyone done any netFilter turning for more species more distant 
+            > that human/mouse?
+            >   
+            But I think apart from distance, the "scaffoldedness" of the query 
+            should be considered. Small scaffolds by definition can never meet the 
+            strict criteria of min score, length etc.
+
+       See http://genomewiki.ucsc.edu/index.php/Hg19_Genome_size_statistics
+       for alignment types used in MAF.
+
+       Maybe should still use netfilter for distant orgs, only not with -syn.

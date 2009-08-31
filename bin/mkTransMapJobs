@@ -11,7 +11,8 @@ from transMap.GenomeDefs import ChainType
 from transMap.TransMap import TransMap, ChromsCache, CDnaPartitionsCache
 from transMap.MappingDefs import MappingDefs
 
-# FIXME: don't need to specify chrom ranges now that using overlapSelect
+# N.B. chrom ranges not very useful now that using overlapSelect
+useGenomePart = False
 
 # used in grouping small jobs
 genomePartTargetSize = 250000000
@@ -19,6 +20,7 @@ genomePartMaxPerJob = 25000
 
 # used to split source cDNA alignments
 # hg18 splicedEsts: 2,390,677,424
+#  cdnaTargetSize = 250000 too small, really hit hive hard 
 cdnaTargetSize = 1000000
 
 class CmdOpts(object):
@@ -101,11 +103,12 @@ class MkJobs(object):
 
     def __doAlign(self, chainsSet, cdnaType):
         # partition genome and cdnas
-        #genomeParts = self.chromsCache.obtain(chainsSet.destDb).partition(genomePartTargetSize, genomePartMaxPerJob)
+        if useGenomePart:
+            genomeParts = self.chromsCache.obtain(chainsSet.destDb).partition(genomePartTargetSize, genomePartMaxPerJob)
+        else:
+            genomeParts = [None]
         cdnaParts = self.cdnaPartsCache.obtain(chainsSet.srcDb, cdnaType)
-        genomePart = None
-        #for genomePart in genomeParts:
-        if True:
+        for genomePart in genomeParts:
             for cdnaPart in cdnaParts.parts:
                 self.__doAlignPart(chainsSet, cdnaType, cdnaPart, genomePart)
 

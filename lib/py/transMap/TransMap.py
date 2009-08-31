@@ -101,6 +101,27 @@ class TransMap(object):
     def getMappedInfo(self, destDb, srcDb, cdnaType):
         return self.__getFile(self.getMappedPre(destDb, srcDb, cdnaType) + ".mapinfo.bz2")
 
+
+    ##
+    # filtering options
+    ##
+    def getGlobalNearBest(self, destDb):
+        "get globalNearBest cutoff"
+        # finished targets are more strigent
+        if destDb.isFinished():
+            return 0.005
+        else:
+            return 0.01
+
+    def getGlobalNearBestPreFilter(self, destDb):
+        "get globalNearBest prefilter cutoff"
+        # larger than final filter, since match stats columns not set
+        return 2*self.getGlobalNearBest(destDb)
+
+    minQSize = 20
+    minCover = 0.20
+
+
 class Chroms(list):
     """object contain list of chromosomes and sizes, sorted by descending size"""
     def __init__(self, genome2bit):

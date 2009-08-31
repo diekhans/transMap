@@ -1,39 +1,57 @@
 ROOT = ../..
 
-build =vertebrate.2008-05-20
-paraVer=2
+build=vertebrate.2009-07-01
+paraVer=3
+getDataThreads=6
 
-alignParaDir = paraAln${paraVer}
-filterParaDir = paraFilt${paraVer}
+paraTmpDir = para${paraVer}
+alignParaDir = ${paraTmpDir}/aln
+filterParaDir = ${paraTmpDir}/filt
+paraPartDir = ${paraTmpDir}/part
 
 hgLibDir = ${HOME}/compbio/genbank/kent/src/hg/lib
 
+host= $(shell hostname)
 pid = $(shell echo $$PPID)
-tmpExt = ${HOST}.${pid}.tmp
-tmpExtBz = ${HOST}.${pid}.tmp.bz2
+mach=$(shell uname -m)
+tmpExt = ${host}.${pid}.tmp
+tmpExtBz = ${host}.${pid}.tmp.bz2
 binDir = ${ROOT}/bin
+binDirExec = ${ROOT}/output/bin/${mach}/opt
+kentBinDir = ${ROOT}/extern/bin/${mach}
 loadedDir = loaded
 # this is really under /cluster/data/transMap/
 gbdbDir = /gbdb/hgFixed/transMap/${build}
 
 SHELL = bash3.2
 export SHELLOPTS=pipefail
-export TMPDIR=/scratch/tmp
+ifneq ($(wildcard /data/tmp),)
+    export TMPDIR=/data/tmp
+else
+    export TMPDIR=/scratch/tmp
+endif
 .SECONDARY:
-export PATH:=${binDir}:${PATH}
+export PATH:=${binDir}:${binDirExec}:${PATH}
 
 genomeDefs = genomeDefs.pickle
 genomeInfo = genomeDefs.info
+genomeDists = genomeDefs.dists
 mappingsInfo = mappings.info
 
-clades = --clade=mammal --clade=vertebrate
-#onlyDestDbs = --onlyDestDb=XXX 
-otherDestDbs = --otherDestDb=hg17 --otherDestDb=mm8
-skipDbs = --skipDb=venter1
-dbOpts= ${clades} ${onlyDestDbs} ${otherDestDbs} ${skipDbs}
+clades = --includeClade=mammal --includeClade=vertebrate
+otherSrcDbs = --otherSrcDb=hg18
+otherDestDbs = --otherDestDb=hg18
+synOpts=--synDist=0.5 --useAvailableRBest
+dbOpts= ${clades} ${onlyDestDbs} ${otherSrcDbs} ${otherDestDbs}
 
-scartchRootDir = /san/sanvol1/scratch/markd/transMap
-scratchOutDir = ${scartchRootDir}/${build}
+excludeDbs = venter1 canFamPoodle1 rn5 danRer6 dasNov2 loxAfr2
+excludeDbOpts = $(foreach d,${excludeDbs},--excludeDb=${d})
+trees=	--tree=/cluster/data/mm9/bed/multiz30way/mm9.30way.mod \
+	--tree=/cluster/data/hg19/bed/multiz46way/46way.nh  \
+	--tree=/cluster/data/hg18/bed/multiz44way/44way.nh \
+	--tree=/cluster/data/petMar1/bed/multiz6way/downloads/phastCons6way/6way.mod
+defsOpts= ${clades} ${excludeDbOpts} ${trees}
+
 
 remConf=${HOME}/.hg.rem.conf
 localConf=${HOME}/.hg.conf
@@ -48,21 +66,25 @@ getData:  ${genomeDefs} ${mappingsInfo}
 
 defs: ${genomeDefs}
 
+
+####
 batchSetup:
-	@mkdir -p  ${alignParaDir} ${filterParaDir}  ${scratchOutDir}
-	${binDir}/mkTransMapJobs ${dbOpts} ${genomeDefs} ${paraDir} ${alignParaDir} ${filterParaDir} ${scratchOutDir} aligns
+	@mkdir -p  ${alignParaDir} ${filterParaDir}  ${paraPartDir}
+	${binDir}/mkTransMapJobs ${dbOpts} ${synOpts} ${genomeDefs} ${paraDir} ${alignParaDir} ${filterParaDir} ${paraPartDir} aligns
 
 ${genomeDefs}:
-	${binDir}/genomeDefsMk --info=${genomeInfo} $@.${tmpExt}
+	${binDir}/genomeDefsMk ${defsOpts} --info=${genomeInfo} --chainDists=${genomeDists} $@.${tmpExt}
 	mv -f $@.${tmpExt} $@
+
+cleanDefs:
+	rm -f ${genomeDefs} ${genomeInfo} ${genomeDists}
 
 ${mappingsInfo}: ${genomeDefs}
-	${binDir}/getData ${dbOpts} ${genomeDefs} $@.${tmpExt}
+	${binDir}/getData ${dbOpts} --threads=${getDataThreads} ${genomeDefs} $@.${tmpExt}
 	mv -f $@.${tmpExt} $@
 
-copyAlns:
-	@mkdir -p aligns
-	rsync -a --whole-file ${scratchOutDir}/ aligns
+batchCleanup:
+	rm -rf ${alignParaDir} ${filterParaDir}  ${paraPartDir}
 
 destDbs = $(notdir $(wildcard aligns/*))
 srcTypes = refSeq mrna splicedEst ucscGenes 
@@ -75,6 +97,7 @@ srcTypeTblPartMap_ucscGenes = UcscGenes
 ###
 # database loading
 ###
+loadDb: loadTracks loadMeta
 loadTracks: $(destDbs:%=%.trackLoad)
 loadMeta: $(srcTypes:%=%.metaLoad)
 
@@ -93,7 +116,7 @@ loadTrackTypes: \
 
 ${loadedDir}/load.${destDb}.aln.%.done:
 	@mkdir -p $(dir $@)
-	bzcat $(wildcard aligns/${destDb}/*/$*.psl.bz2) | hgLoadPsl ${destDb} -table=transMapAln${srcTypeTblPartMap_$*} stdin
+	bzcat $(wildcard aligns/${destDb}/*/$*.psl.bz2) | sort -k 14,14 -k 16,16n  | hgLoadPsl ${destDb} -table=transMapAln${srcTypeTblPartMap_$*} stdin
 	touch $@
 
 ${loadedDir}/load.${destDb}.info.%.done:
@@ -139,9 +162,15 @@ ${loadedDir}/load.seq.${srcType}.done: ${gbdbDir}/${srcType}.fa
 	hgsql -e 'drop table if exists transMapSeq${srcTypeTbl}' hgFixed
 	hgsql -e 'drop table if exists transMapExtFile${srcTypeTbl}' hgFixed
 	hgLoadSeq -seqTbl=transMapSeq${srcTypeTbl} -extFileTbl=transMapExtFile${srcTypeTbl} hgFixed $<
+	rm -f transMapSeq${srcTypeTbl}.tab
 	touch $@
 
 ${gbdbDir}/${srcType}.fa: $(wildcard data/*/${srcType}.fa.bz2)
 	@mkdir -p $(dir $@)
 	bzcat $^ | faFilter -uniq stdin $@.tmp
 	mv -f $@.tmp $@
+
+##
+# make copy of kent programs to avoid pounding /cluster/home
+##
+runSetup:

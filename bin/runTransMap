@@ -4,14 +4,14 @@ import sys, os
 myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
 sys.path.append(myBinDir + "/../extern/pycbio/lib")
 sys.path.append(myBinDir + "/../lib/py")
-os.environ["PATH"] = myBinDir +":"+os.environ["PATH"]
+execPath = myBinDir + "/../output/bin/" + os.uname()[4] + "/opt"
+os.environ["PATH"] = execPath + ":" + myBinDir +":"+ os.environ["PATH"]
+
 from optparse import OptionParser
 from pycbio.sys import fileOps, Pipeline, procOps
 from transMap import GenomeDefs, setTMPDIR, getTmpExt, runCmds
 from transMap.GenomeDefs import ChainType
 from transMap.TransMap import TransMap,Chroms
-
-# FIXME: don't need to specify chrom ranges now that using overlapSelect
 
 class CmdOpts(object):
     usage = """%prog [options] genomeDefsPickle srcDb destDb chainType cdnaType cdnaPart clusterDir mappedPsl"""
@@ -104,32 +104,23 @@ if not os.path.exists(targetSeq):
 ##
 rawPslTmp = tmpDir + "/mapped.psl" + tmpExt
 chainSubsetTmp = tmpDir + "/mapping.chain" + tmpExt
+mapInfoRawTmp = tmpDir+ "/mapped.mapinfo.raw" + tmpExt
 
 # output
 outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]
 outPslTmp = opts.mappedPsl + tmpExt
 outMapInfo = outPrefix + ".mapinfo"
-outMapInfoRaw = outMapInfo + ".raw"
 
 ###
 # Get the chains to use.   Pre-filter with overlapSelect to reduce
 # memory requirements of pslMap and netChainSubset.
-#
-# equCab2 was chained with a bogus chr27 with had extra sequence at the end.
-# This was fix in the browser but not the files, so we do additional filter
-# to discard these changes and fix the size of chr27
 ###
 chains = chainsSet.getSupportingType(opts.chainType)
-inChainFile = chains.chainFile
-
 preFiltCmds = []
-if (srcDb.name == "equCab2") or (destDb.name == "equCab2"):
-    preFiltCmds.append(["equCab2FixChain", ("target" if (destDb.name == "equCab2") else "query"), inChainFile])
-    inChainFile = "/dev/stdin"
 
-preFiltCmds.append(["overlapSelect", "-inFmt=chainq", srcPsl, inChainFile, "/dev/stdout"])
+preFiltCmds.append(["overlapSelect", "-inFmt=chainq", srcPsl, chains.chainFile, "/dev/stdout"])
 if chroms != None:
-    preFiltCmds.append(["chainFilter", "-noHap", "-q=" + ",".join(chroms), "/dev/stdin"])
+    preFiltCmds.append(["chainFilter", "-noHap", "-t=" + ",".join(chroms), "/dev/stdin"])
 else:
     preFiltCmds.append(["chainFilter", "-noHap", "stdin"])
 
@@ -146,19 +137,26 @@ else:
     chainInFileRef = "/dev/stdin"
 
 ###
-# map alignments
+# map alignments.  Pre-filter before pslRecalcMatch to avoid it take hours when there are huge
+# number of mappings (say > 50,000 for one refseq in mapped to monDom5)
 ##
-pslMap = ["pslMap", "-chainMapFile", "-mapInfo="+outMapInfoRaw, srcPsl, chainInFileRef, "/dev/stdout"]
+pslMap = ["pslMap", "-chainMapFile", "-mapInfo="+mapInfoRawTmp, srcPsl, chainInFileRef, "/dev/stdout"]
+qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
+
+pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=" + str(transMap.minQSize), "-minCover=" + str(transMap.minCover),
+                 "-globalNearBest=" + str(transMap.getGlobalNearBestPreFilter(destDb)), "stdin", "stdout"]
 
 # target sort speeds up pslRecalcMatch
 tsort = ["sort","-k","14,14", "-k", "16,16n"]
 fileOps.ensureFileDir(opts.mappedPsl)
-runCmds(chainFilterCmds + [pslMap, tsort], stdout=rawPslTmp)
+runCmds(chainFilterCmds + [pslMap, qsort, pslCDnaFilter, tsort], stdout=rawPslTmp)
 
 ###
-# add type of chains to mapInfo
+# add type of chains to mapInfo, select subset of alignments
 ##
-runCmds(["addMapInfoChainType", "-v", "chainType="+str(opts.chainType), outMapInfoRaw], stdout=outMapInfo)
+addMapInfoChainType = ["addMapInfoChainType", "-v", "chainType="+str(opts.chainType), mapInfoRawTmp]
+pslMapInfoSelect = ["pslMapInfoSelect", "/dev/stdin", rawPslTmp, outMapInfo]
+runCmds([addMapInfoChainType, pslMapInfoSelect])
 
 ###
 # calculate match stats
@@ -167,10 +165,10 @@ pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", rawPslTmp, targetSeq,
                   transMap.getClusterSrcFa(srcDb, opts.cdnaType, opts.cdnaPart), "/dev/stdout"]
 
 # qsort here, just to make filter qsort quicker
-qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
 runCmds([pslRecalcMatch, qsort], stdout=outPslTmp)
 
 os.rename(outPslTmp, opts.mappedPsl)
 
 os.unlink(rawPslTmp)
 os.unlink(chainSubsetTmp)
+os.unlink(mapInfoRawTmp)
