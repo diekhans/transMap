@@ -6,7 +6,7 @@ import os, re, cPickle, glob
 from pycbio.sys.Enumeration import Enumeration
 from pycbio.sys.MultiDict import MultiDict
 from pycbio.sys import setOps,typeOps
-from pycbio.sys.fileOps import prRowv
+from pycbio.sys.fileOps import prRowv, prLine
 
 # FIXME: problem with Enumeration as variables rather than
 # classes is serialization doesn't match!
@@ -226,14 +226,15 @@ class GenomeDb(object):
             raise Exception("can't parse database name: " + dbName)
         return (m.group(1), int(m.group(2)))
 
-    def __init__(self, dbName, clade, common, scientific, cdnaTypes=None):
+    def __init__(self, dbName, org, dbNum, clade, common, scientific, cdnaTypes=None):
         self.name = dbName
-        self.orgDbName, self.dbNum = self.dbParse(self.name)
+        self.org = org
+        self.dbNum = dbNum
         self.clade = clade
         self.common = common
         self.scientific = scientific
         self.cdnaTypes = frozenset(cdnaTypes) if (cdnaTypes != None) else None
-        # chains to/from this databases, list by orgDbName, sorted newest to oldest
+        # chains to/from this databases, list by Organism, sorted newest to oldest
         self.srcChainsSets = OrgChainsSetMap(self, True)
         self.destChainsSets = OrgChainsSetMap(self, False)
 
@@ -252,7 +253,7 @@ class GenomeDb(object):
 
     def isFinished(self):
         "is this genome considered finished"
-        return (self.orgDbName == "hg") or  (self.orgDbName == "mm")
+        return (self.org.orgDbName == "hg") or  (self.org.orgDbName == "mm")
 
     def matches(self, clades=None, cdnaTypes=None):
         "does this match the specified filter sets"
@@ -262,6 +263,15 @@ class GenomeDb(object):
             return False
         return True
 
+    def __dumpChainsSets(self, fh, label, orgCsMap):
+        prLine(fh, "\t", label)
+        for cs in orgCsMap.itervalues():
+            prLine(fh, "\t\t", cs)
+    def dump(self, fh):
+        prLine(fh, str(self))
+        self.__dumpChainsSets(fh, "srcChainsSets", self.srcChainsSets)
+        self.__dumpChainsSets(fh, "destChainsSets", self.destChainsSets)
+    
 class Organism(object):
     "databases for a given organism"
 
@@ -271,7 +281,7 @@ class Organism(object):
 
     def add(self, db):
         "add a new database"
-        assert(db.orgDbName == self.orgDbName)
+        assert(db.org == self)
         self.dbs.append(db)
         db.org = self
 
@@ -290,10 +300,13 @@ class GenomeDefs(object):
         self.clades = set()        # all clades
         self.cdnaTypes = set()     # all CDnaTypes
 
-    def addGenomeDb(self, db):
+    def addGenomeDb(self, dbName, clade, common, scientific, cdnaTypes):
         "add a genome db"
+        orgDbName, dbNum = GenomeDb.dbParse(dbName)
+        org = self.obtainOrganism(orgDbName)
+        db = GenomeDb(dbName, org, dbNum, clade, common, scientific, cdnaTypes)
         self.dbs[db.name] = db
-        self.obtainOrganism(db.orgDbName).add(db)
+        org.add(db)
         self.clades.add(db.clade)
         self.cdnaTypes |= db.cdnaTypes
 

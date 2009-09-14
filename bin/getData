@@ -4,7 +4,6 @@ import sys, os
 rootDir = os.path.normpath(os.path.dirname(os.path.realpath(sys.argv[0])) + "/..")
 sys.path = [rootDir + "/extern/pycbio/lib", rootDir + "/lib/py", rootDir + "/rules"] + sys.path
 from transMap import TransMap,GenomeDefs, MappingDefs
-from transMap.MappingDefs import MappingDefs
 from pycbio.exrun import ExRun, Verb
 from pycbio.sys import fileOps, procOps
 from optparse import OptionParser
@@ -24,33 +23,26 @@ class CmdLine(object):
                           help="""don't actually run""")
         parser.add_option("--threads", action="store", dest="threads", default=0, type="int",
                           help="""run this many threads""")
-        MappingDefs.addOptions(parser)
+        MappingDefs.MappingDefsBuild.addOptions(parser)
         (opts, args) = parser.parse_args()
         if len(args) != 2:
             parser.error("wrong number of arguments")
         (self.genomeDefsPickle, self. mappingsInfo) = args
         self.__dict__.update(opts.__dict__)
 
-
-def dumpMappings(infoFile, mdefs):
-    fh = open(infoFile, "w")
-    for chains in mdefs.allMappings:
-        fh.write(str(chains))
-        if chains not in mdefs.mappings.chainsMap:
-            fh.write("\tSKIPPED: no chains/nets")
-        fh.write('\n')
-    fh.close()
-
 # entry
 opts = CmdLine()
-mdefs = MappingDefs(opts, inclAllMappings=True);
-dumpMappings(opts.mappingsInfo, mdefs)
+mdefsBld = MappingDefs.MappingDefsBuild(opts)
+mdefs = mdefsBld.mappings
+gdefs = mdefsBld.defs
+with open(opts.mappingsInfo, "w") as fh:
+    mdefs.printMappings(fh)
 
 exrun = ExRun(maxLocalThreads=opts.threads)
 exrun.verb.flags.add(Verb.details)
 if opts.dumpGraph:
     exrun.verb.flags.add(Verb.dumpStart)
-transMap = TransMap.TransMap(exrun, mdefs.defs, ".", mdefs.mappings)
-for srcDb in mdefs.mappings.srcDbs:
+transMap = TransMap.TransMap(exrun, gdefs, ".", mdefs)
+for srcDb in mdefs.bySrcDb.iterkeys():
     CDnaData.createRules(transMap, srcDb)
 exrun.run(dryRun=opts.dryRun)

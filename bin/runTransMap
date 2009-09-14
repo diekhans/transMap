@@ -25,7 +25,7 @@ class CmdOpts(object):
                           help="destDb last destination chrom in reverse size sort list")
         (opts, args) = parser.parse_args()
         if len(args) != 8:
-            parser.error("wrong number of arguments")
+            parser.error("wrong number of arguments: got " + str(len(args)) + ", expect 8")
         (self.genomeDefsPickle, self.srcDb, self.destDb, self.chainType, self.cdnaType, self.cdnaPart, self.clusterDir, self.mappedPsl) = args
         self.__dict__.update(opts.__dict__)
         if ((opts.firstChrom != None) or (opts.lastChrom != None)) and ((opts.firstChrom == None) or (opts.lastChrom == None)):
