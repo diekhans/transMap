@@ -26,7 +26,6 @@ static boolean gDropUniq2nd;
 /* entry in the select tbl */
 struct selectEntry {
     char *mappedQName;
-    boolean done;
 };
 
 /* drop second uniqueness suffix in a psl qName.  
@@ -113,12 +112,11 @@ static void processMapInfo(struct hash *selectTbl,
                            char **row) {
     struct mapInfo *mi = mapInfoLoad(row);
     struct selectEntry *se = findSelectEntry(selectTbl, mi);
-    if ((se != NULL) && !se->done) {
+    if (se != NULL) {
         char *hold = mi->mappedQName;
         mi->mappedQName = se->mappedQName;
         mapInfoTabOut(mi, outFh);
         mi->mappedQName = hold;
-        se->done = TRUE;
     }
     mapInfoFree(&mi);
 }
