@@ -1,6 +1,6 @@
 ROOT = ../..
 
-build=debug
+build=vertebrate.2009-09-13
 paraVer=1
 getDataThreads=8
 
@@ -138,19 +138,19 @@ ${loadedDir}/load.${destDb}.info.%.done:
 	@HGDB_CONF=${localConf} ${MAKE} loadSeq srcType=$* srcTypeTbl=${srcTypeTblPartMap_$*}
 
 # srcType= srcTypeTbl=
-loadSrcMeta: ${loadedDir}/load.src.${srcType}.done 
+loadSrcMeta: ${loadedDir}/load.meta.src.${srcType}.done 
 
-${loadedDir}/load.src.${srcType}.done:
+${loadedDir}/load.meta.src.${srcType}.done:
 	@mkdir -p $(dir $@)
 	mkTransMapSrc $(wildcard data/*/${srcType}.psl.bz2) | hgLoadSqlTab hgFixed transMapSrc${srcTypeTbl} ${hgLibDir}/transMapSrc.sql stdin
 	touch $@
 
 # srcType= srcTypeTbl=
-loadGeneMeta: ${loadedDir}/load.gene.${srcType}.done
+loadGeneMeta: ${loadedDir}/load.meta.gene.${srcType}.done
 
 geneAlignedIdTmp = ${srcType}.alignedId.${tmpExt}
 
-${loadedDir}/load.gene.${srcType}.done:
+${loadedDir}/load.meta.gene.${srcType}.done:
 	@mkdir -p $(dir $@)
 ifneq (${srcType},splicedEst)
 	bzcat $(wildcard data/*/${srcType}.psl.bz2) | cut -f 10 >${geneAlignedIdTmp}
@@ -160,9 +160,9 @@ endif
 	touch $@
 
 # srcType= srcTypeTbl=
-loadSeq: ${loadedDir}/load.seq.${srcType}.done
+loadSeq: ${loadedDir}/load.meta.seq.${srcType}.done
 
-${loadedDir}/load.seq.${srcType}.done: ${gbdbDir}/${srcType}.fa
+${loadedDir}/load.meta.seq.${srcType}.done: ${gbdbDir}/${srcType}.fa
 	@mkdir -p $(dir $@)
 	hgsql -e 'drop table if exists transMapSeq${srcTypeTbl}' hgFixed
 	hgsql -e 'drop table if exists transMapExtFile${srcTypeTbl}' hgFixed
@@ -175,7 +175,26 @@ ${gbdbDir}/${srcType}.fa: $(wildcard data/*/${srcType}.fa.bz2)
 	bzcat $^ | faFilter -uniq stdin $@.tmp
 	mv -f $@.tmp $@
 
-##
-# make copy of kent programs to avoid pounding /cluster/home
-##
-runSetup:
+####
+allJoiner=${HOME}/compbio/browser/dev/kent/src/hg/makeDb/schema/all.joiner
+genomeJoinerCheckIds = transMapAlnInfoRefSeqId transMapAlnInfoUcscGenesId transMapAlnInfoMRnaId transMapAlnInfoSplicedEstId transMapSrcInfoRefSeqId transMapSrcInfoUcscGenesId transMapSrcInfoMRnaId transMapSrcInfoSplicedEstId transMapSrcAlnUcscGenesId transMapSrcAlnRefSeqId transMapSrcAlnSplicedEstId
+hgFixedJoinerCheckIds = transMapSrcRefSeqId transMapSrcUcscGenesId transMapSrcMRnaId transMapSrcSplicedEstId transMapExtFileRefSeqId transMapExtFileUcscGenesId transMapExtFileMRnaId transMapExtFileSplicedEstId
+joinerCheckOutDir = jchecks
+
+
+runJoinerCheck: hgFixedCheck $(destDbs:%=%.genomeDbCheck)
+
+%.genomeDbCheck:
+	${MAKE} genomeDbCheck db="$*"
+
+genomeDbCheck: $(genomeJoinerCheckIds:%=${joinerCheckOutDir}/${db}.%.jcheck)
+${joinerCheckOutDir}/${db}.%.jcheck:
+	@mkdir -p $(dir $@)
+	joinerCheck -database=${db} -keys -identifier=$* ${allJoiner} >&$@.tmp
+	mv -f $@.tmp $@
+
+hgFixedCheck: $(hgFixedJoinerCheckIds:%=${joinerCheckOutDir}/hgFixed.%.jcheck)
+${joinerCheckOutDir}/hgFixed.%.jcheck:
+	@mkdir -p $(dir $@)
+	joinerCheck -database=hgFixed -keys -identifier=$* ${allJoiner} >&$@.tmp
+	mv -f $@.tmp $@
