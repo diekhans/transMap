@@ -92,3 +92,28 @@
        for alignment types used in MAF.
 
        Maybe should still use netfilter for distant orgs, only not with -syn.
+
+2009-09-17:
+   vertebrate.2009-09-13 vertebrate build.
+   - maintain transmap on all genomes on the public server
+   - drop transmap on loxAfr1 and oryCun1, as not public and newer
+     genomes are available
+
+2009-10-13
+  - vertebrate.2009-10-13 build
+  - bug discovered in previous version where multiple identical PSLs cause mapinfo to be lost.
+    fixed both pslMapInfoSelect and change runTransMap to remove duplicated PSLs with sort.
+  - create build directory, copy and edit Makefile.  Update list of public genomes to keep.
+  - build with these steps:
+    cd /hive/users/markd/projs/transMap/builds/vertebrate.2009-10-13
+    nice make getData>&log
+    nice make batchSetup>&log
+    # align
+    ssh swarm
+    cd /hive/users/markd/projs/transMap/builds/vertebrate.2009-10-13
+    para create para1/aln/jobs.para -batch=para1/aln/batch2
+    para push -maxPush=200000 -batch=para1/aln/batch2
+    para time  -batch=para1/aln/batch2 >misc/align.time
+    # filter
+    para create para1/filt/jobs.para -batch=para1/filt/batch2
+    para push -batch=para1/filt/batch2

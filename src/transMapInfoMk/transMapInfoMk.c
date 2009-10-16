@@ -53,8 +53,13 @@ static void mapInfoToTransMapInfo(FILE *outFh,
     char *srcDb = parseDbFromPath(mapInfoIn);
     struct lineFile *inLf = lineFileOpen(mapInfoIn, TRUE);
     char *row[MAPINFO_NUM_COLS];
-    while (lineFileNextRowTab(inLf, row, MAPINFO_NUM_COLS)) {
-        struct mapInfo *mi = mapInfoLoad(row);
+    int numCols;
+    while ((numCols = lineFileChopNextTab(inLf, row, MAPINFO_NUM_COLS)) >= 0) {
+        if (numCols < MAPINFO_MIN_NUM_COLS) {
+            lineFileAbort(inLf, "expected at least %d columns, got %d",
+                          MAPINFO_MIN_NUM_COLS, numCols);
+        }
+        struct mapInfo *mi = mapInfoLoad(row, numCols);
         processMapInfo(outFh, srcDb, mi);
         mapInfoFree(&mi);
     }

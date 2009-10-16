@@ -65,10 +65,11 @@ static void partTblNext(struct partTbl *pt) {
 static void partTblAdd(struct partTbl *pt, char *id) {
     char *accv = idToAccv(id);
     struct hashEl *hel = hashStore(pt->accvToParts, accv);
-    struct slName **parts = (struct slName**)&hel->val;
-    if (!slNameInList(*parts, pt->curPart)) {
-        slSafeAddHead(parts, lmSlName(pt->accvToParts->lm, pt->curPart));
+    struct slName *parts = hel->val;
+    if (!slNameInList(parts, pt->curPart)) {
+        slSafeAddHead(&parts, lmSlName(pt->accvToParts->lm, pt->curPart));
     }
+    hel->val = parts;
 }
 
 /* close currently open file. */
@@ -139,7 +140,9 @@ static  void faPartClose(struct faPart *faPart) {
     struct hashCookie cookie = hashFirst(faPart->partToFh);
     struct hashEl *hel;
     while ((hel = hashNext(&cookie)) != NULL) {
-        carefulClose((FILE **)&(hel->val));
+        FILE *fh = hel->val;
+        carefulClose(&fh);
+        hel->val = NULL;
     }
     faPart->numOpen = 0;
 }

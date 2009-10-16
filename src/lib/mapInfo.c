@@ -10,11 +10,13 @@
 
 static char const rcsid[] = "$Id:$";
 
+char *mapInfoHdrs = "#srcQName\tsrcQStart\tsrcQEnd\tsrcQSize\tsrcTName\tsrcTStart\tsrcTEnd\tsrcStrand\tsrcAligned\tmappingQName\tmappingQStart\tmappingQEnd\tmappingTName\tmappingTStart\tmappingTEnd\tmappingStrand\tmappingId\tmappedQName\tmappedQStart\tmappedQEnd\tmappedTName\tmappedTStart\tmappedTEnd\tmappedStrand\tmappedAligned\tqStartTrunc\tqEndTrunc\tchainType";
+
 /* definitions for chainSubset column */
 static char *values_chainSubset[] = {"unknown", "all", "syn", "rbest", NULL};
 static struct hash *valhash_chainSubset = NULL;
 
-void mapInfoStaticLoad(char **row, struct mapInfo *ret)
+void mapInfoStaticLoad(char **row, int numCols, struct mapInfo *ret)
 /* Load a row from mapInfo table into ret.  The contents of ret will
  * be replaced at the next call to this function. */
 {
@@ -46,10 +48,11 @@ ret->mappedStrand = row[23][0];
 ret->mappedAligned = sqlSigned(row[24]);
 ret->qStartTrunc = sqlSigned(row[25]);
 ret->qEndTrunc = sqlSigned(row[26]);
-ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
+if (numCols > MAPINFO_MIN_NUM_COLS)
+    ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
 }
 
-struct mapInfo *mapInfoLoad(char **row)
+struct mapInfo *mapInfoLoad(char **row, int numCols)
 /* Load a mapInfo from row fetched with select * from mapInfo
  * from database.  Dispose of this with mapInfoFree(). */
 {
@@ -83,11 +86,12 @@ ret->mappedStrand = row[23][0];
 ret->mappedAligned = sqlSigned(row[24]);
 ret->qStartTrunc = sqlSigned(row[25]);
 ret->qEndTrunc = sqlSigned(row[26]);
-ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
+if (numCols > MAPINFO_MIN_NUM_COLS)
+    ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
 return ret;
 }
 
-struct mapInfo *mapInfoLoadAll(char *fileName) 
+struct mapInfo *mapInfoLoadAll(char *fileName, int numCols) 
 /* Load all mapInfo from a whitespace-separated file.
  * Dispose of this with mapInfoFreeList(). */
 {
@@ -97,7 +101,7 @@ char *row[28];
 
 while (lineFileRow(lf, row))
     {
-    el = mapInfoLoad(row);
+    el = mapInfoLoad(row, numCols);
     slAddHead(&list, el);
     }
 lineFileClose(&lf);
@@ -105,7 +109,7 @@ slReverse(&list);
 return list;
 }
 
-struct mapInfo *mapInfoLoadAllByChar(char *fileName, char chopper) 
+struct mapInfo *mapInfoLoadAllByChar(char *fileName, int numCols, char chopper) 
 /* Load all mapInfo from a chopper separated file.
  * Dispose of this with mapInfoFreeList(). */
 {
@@ -115,7 +119,7 @@ char *row[28];
 
 while (lineFileNextCharRow(lf, chopper, row, ArraySize(row)))
     {
-    el = mapInfoLoad(row);
+    el = mapInfoLoad(row, numCols);
     slAddHead(&list, el);
     }
 lineFileClose(&lf);
@@ -123,7 +127,7 @@ slReverse(&list);
 return list;
 }
 
-struct mapInfo *mapInfoCommaIn(char **pS, struct mapInfo *ret)
+struct mapInfo *mapInfoCommaIn(char **pS, int numCols, struct mapInfo *ret)
 /* Create a mapInfo out of a comma separated string. 
  * This will fill in ret if non-null, otherwise will
  * return a new mapInfo */
@@ -159,7 +163,8 @@ sqlFixedStringComma(&s, &(ret->mappedStrand), sizeof(ret->mappedStrand));
 ret->mappedAligned = sqlSignedComma(&s);
 ret->qStartTrunc = sqlSignedComma(&s);
 ret->qEndTrunc = sqlSignedComma(&s);
-ret->chainSubset = sqlEnumComma(&s, values_chainSubset, &valhash_chainSubset);
+if (numCols > MAPINFO_MIN_NUM_COLS)
+    ret->chainSubset = sqlEnumComma(&s, values_chainSubset, &valhash_chainSubset);
 *pS = s;
 return ret;
 }
@@ -279,3 +284,20 @@ fputc(lastSep,f);
 
 /* -------------------------------- End autoSql Generated Code -------------------------------- */
 
+struct mapInfo *mapInfoNext(struct lineFile *lf)
+/* read the next record, or NULL on EOF */
+{
+char *row[MAPINFO_NUM_COLS];
+int numCols = lineFileChopNextTab(lf, row, MAPINFO_NUM_COLS);
+if (numCols == 0)
+    return NULL;
+if (numCols < MAPINFO_MIN_NUM_COLS)
+    lineFileAbort(lf, "expected at least %d columns, got %d",
+                  MAPINFO_MIN_NUM_COLS, numCols);
+return mapInfoLoad(row, numCols);;
+}
+
+/* parse a chainSubset string */
+enum mapInfoChainSubset mapInfoParseChainSubset(char *str) {
+    return sqlEnumParse(str, values_chainSubset, &valhash_chainSubset);
+}

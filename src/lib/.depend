@@ -1,2 +1,5 @@
+${OBJDIR}/alignPair.o: ../../src/lib/alignPair.h
+${OBJDIR}/alignPair.o: ../../src/lib/mapInfo.h
+${OBJDIR}/alignPair.o: alignPair.c
 ${OBJDIR}/mapInfo.o: mapInfo.c
 ${OBJDIR}/mapInfo.o: mapInfo.h

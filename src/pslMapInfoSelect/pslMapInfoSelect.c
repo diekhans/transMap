@@ -3,7 +3,8 @@ static const char *usageMsg =
     "\n"
     "Select the subset of mapInfo records that are in selectPsl.\n"
     "This also updates the mappedQName record to match the uniqueness\n"
-    "suffix that was add to qName\n"
+    "suffix that was add to qName.  The mapInfoIn chainSub column is\n"
+    "optional.\n"
     "\n"
     "Options:\n"
     "   -dropUniq2nd - drop 2nd uniqueness suffix\n";
@@ -15,6 +16,7 @@ static const char *usageMsg =
 #include "psl.h"
 #include "options.h"
 #include "lib/mapInfo.h"
+#include "lib/alignPair.h"
 
 /* command line options and values */
 static struct optionSpec optionSpecs[] = {
@@ -26,6 +28,7 @@ static boolean gDropUniq2nd;
 /* entry in the select tbl */
 struct selectEntry {
     char *mappedQName;
+    boolean done;
 };
 
 /* drop second uniqueness suffix in a psl qName.  
@@ -43,16 +46,6 @@ static char *dropUniq2nd(char *qName) {
     return buf;
 }
 
-/* generate key. WARNING: static return */
-static char* mkSelectKey(char *qName, int qStart, int qEnd,
-                         char *tName, int tStart, int tEnd,
-                         char strand) {
-    static char key[256];
-    safef(key, sizeof(key), "%s\t%d\t%d\t%s\t%d\t%d\t%c",
-          qName, qStart, qEnd, tName, tStart, tEnd, strand);
-    return key;
-}
-
 /* add a psl to the select table. */
 static void addPsl(struct hash *selectTbl,
                    struct psl *psl) {
@@ -63,10 +56,10 @@ static void addPsl(struct hash *selectTbl,
     struct selectEntry *se;
     lmAllocVar(selectTbl->lm, se);
     se->mappedQName = lmCloneString(selectTbl->lm, psl->qName);
-    char *key = mkSelectKey(srcQName, psl->qStart, psl->qEnd,
-                            psl->tName, psl->tStart, psl->tEnd,
-                            psl->strand[0]);
+    char* key = alignPairMkKey(srcQName, psl->qStart, psl->qEnd,
+                               psl->tName, psl->tStart, psl->tEnd);
     hashAdd(selectTbl, key, se);
+    freeMem(key);
 }
 
 /* generate select table from psls */
@@ -86,41 +79,30 @@ static struct hash* buildSelectTbl(char *selectPsl) {
 /* check if mapInfo row be kept, returning selectEntry or NULL */
 static struct selectEntry *findSelectEntry(struct hash *selectTbl,
                                            struct mapInfo *mi) {
-    char *key = mkSelectKey(mi->mappedQName, mi->mappedQStart, mi->mappedQEnd,
-                            mi->mappedTName, mi->mappedTStart, mi->mappedTEnd,
-                            mi->mappedStrand);
-    return hashFindVal(selectTbl, key);
-}
-
-/* copy header line, if it exists */
-static void copyHeader(struct lineFile *inLf,
-                       FILE *outFh) {
-    char *line;
-    if (lineFileNext(inLf, &line, NULL)) {
-        if (line[0] == '#') {
-            fprintf(outFh, "%s\n", line);
-        } else {
-            lineFileReuse(inLf);
-        }
+    char *key = alignPairMkMapInfoKey(mi);
+    struct selectEntry *se =hashFindVal(selectTbl, key);
+    if ((se != NULL) && se->done) {
+        errAbort("select entry already used: %s", key); 
     }
+    freeMem(key);
+    return se;
 }
 
 /* process one mapInfo row */
 static void processMapInfo(struct hash *selectTbl,
                            struct lineFile *inLf,
                            FILE *outFh,
-                           char **row) {
-    struct mapInfo *mi = mapInfoLoad(row);
+                           struct mapInfo *mi) {
     struct selectEntry *se = findSelectEntry(selectTbl, mi);
     if (se != NULL) {
         char *hold = mi->mappedQName;
         mi->mappedQName = se->mappedQName;
         mapInfoTabOut(mi, outFh);
         mi->mappedQName = hold;
+        se->done = TRUE;
     }
-    mapInfoFree(&mi);
 }
-                           
+                          
 
 /* filter mapInfo using selected PSLs */
 static void pslMapInfoSelect(char *mapInfoIn,
@@ -129,11 +111,13 @@ static void pslMapInfoSelect(char *mapInfoIn,
     struct hash *selectTbl = buildSelectTbl(selectPsl);
     struct lineFile *inLf = lineFileOpen(mapInfoIn, TRUE);
     FILE *outFh = mustOpen(mapInfoOut, "w");
-    copyHeader(inLf, outFh);
-    
-    char *row[MAPINFO_NUM_COLS];
-    while (lineFileNextRowTab(inLf, row, MAPINFO_NUM_COLS)) {
-        processMapInfo(selectTbl, inLf, outFh, row);
+    fputs(mapInfoHdrs, outFh);
+    fputc('\n', outFh);
+
+    struct mapInfo *mi;
+    while ((mi = mapInfoNext(inLf)) != NULL) {
+        processMapInfo(selectTbl, inLf, outFh, mi);
+        mapInfoFree(&mi);
     }
     carefulClose(&outFh);
     lineFileClose(&inLf);

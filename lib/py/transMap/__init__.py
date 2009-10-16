@@ -20,3 +20,7 @@ def runCmds(cmds, stdin="/dev/null", stdout=None):
     sys.stderr.write(str(pl) + "\n")
     pl.wait()
 
+
+def copyFile(src, dest):
+    "copy a file with cp"
+    runCmds(["cp", "-f", src, dest])

@@ -2,10 +2,15 @@
  * generated mapInfo.c and mapInfo.sql.  This header links the database and
  * the RAM representation of objects. */
 
+/* hand-modified to make chainSubset field optional */
+
 #ifndef MAPINFO_H
 #define MAPINFO_H
 
+#define MAPINFO_MIN_NUM_COLS 27
 #define MAPINFO_NUM_COLS 28
+
+extern char *mapInfoHdrs;  // file header string
 
 enum mapInfoChainSubset
     {
@@ -48,27 +53,27 @@ struct mapInfo
     enum mapInfoChainSubset chainSubset;	/* chain subset used */
     };
 
-void mapInfoStaticLoad(char **row, struct mapInfo *ret);
+void mapInfoStaticLoad(char **row, int numCols, struct mapInfo *ret);
 /* Load a row from mapInfo table into ret.  The contents of ret will
  * be replaced at the next call to this function. */
 
-struct mapInfo *mapInfoLoad(char **row);
+struct mapInfo *mapInfoLoad(char **row, int numCols);
 /* Load a mapInfo from row fetched with select * from mapInfo
  * from database.  Dispose of this with mapInfoFree(). */
 
-struct mapInfo *mapInfoLoadAll(char *fileName);
+struct mapInfo *mapInfoLoadAll(char *fileName, int numCols);
 /* Load all mapInfo from whitespace-separated file.
  * Dispose of this with mapInfoFreeList(). */
 
-struct mapInfo *mapInfoLoadAllByChar(char *fileName, char chopper);
+struct mapInfo *mapInfoLoadAllByChar(char *fileName, int numCols, char chopper);
 /* Load all mapInfo from chopper separated file.
  * Dispose of this with mapInfoFreeList(). */
 
-#define mapInfoLoadAllByTab(a) mapInfoLoadAllByChar(a, '\t');
+#define mapInfoLoadAllByTab(a,n) mapInfoLoadAllByChar(a,n, '\t');
 /* Load all mapInfo from tab separated file.
  * Dispose of this with mapInfoFreeList(). */
 
-struct mapInfo *mapInfoCommaIn(char **pS, struct mapInfo *ret);
+struct mapInfo *mapInfoCommaIn(char **pS, int numCols, struct mapInfo *ret);
 /* Create a mapInfo out of a comma separated string. 
  * This will fill in ret if non-null, otherwise will
  * return a new mapInfo */
@@ -90,6 +95,12 @@ void mapInfoOutput(struct mapInfo *el, FILE *f, char sep, char lastSep);
 /* Print out mapInfo as a comma separated list including final comma. */
 
 /* -------------------------------- End autoSql Generated Code -------------------------------- */
+
+struct mapInfo *mapInfoNext(struct lineFile *in);
+/* read the next record, or NULL on EOF */
+
+/* parse a chainSubset string */
+enum mapInfoChainSubset mapInfoParseChainSubset(char *str);
 
 #endif /* MAPINFO_H */
 

@@ -9,7 +9,7 @@ os.environ["PATH"] = execPath + ":" + myBinDir +":"+ os.environ["PATH"]
 
 from optparse import OptionParser
 from pycbio.sys import fileOps, Pipeline, procOps
-from transMap import GenomeDefs, setTMPDIR, getTmpExt, runCmds
+from transMap import GenomeDefs, setTMPDIR, getTmpExt, runCmds, copyFile
 from transMap.GenomeDefs import ChainType
 from transMap.TransMap import TransMap,Chroms
 
@@ -23,6 +23,8 @@ class CmdOpts(object):
                           help="destDb start destination chrom in reverse size sort list")
         parser.add_option("--lastChrom", dest="lastChrom", action="store", default=None,
                           help="destDb last destination chrom in reverse size sort list")
+        parser.add_option("--keep", dest="keep", action="store_true", default=False,
+                          help="keep temporary files")
         (opts, args) = parser.parse_args()
         if len(args) != 8:
             parser.error("wrong number of arguments: got " + str(len(args)) + ", expect 8")
@@ -102,9 +104,16 @@ if not os.path.exists(targetSeq):
 ##
 # intermediate output
 ##
-rawPslTmp = tmpDir + "/mapped.psl" + tmpExt
-chainSubsetTmp = tmpDir + "/mapping.chain" + tmpExt
-mapInfoRawTmp = tmpDir+ "/mapped.mapinfo.raw" + tmpExt
+chainSubsetTmp = tmpDir + "/transmap.chain" + tmpExt
+pslRawTmp = tmpDir + "/transmap.psl" + tmpExt
+mapInfoRawTmp = tmpDir+ "/transmap.mapinfo.raw" + tmpExt
+pslPreFiltTmp = tmpDir+ "/transmap.psl.prefilt" + tmpExt
+mapInfoPreFiltTmp = tmpDir+ "/transmap.mapinfo.prefilt" + tmpExt
+pslFiltTmp = tmpDir+ "/transmap.psl.filt" + tmpExt
+mapInfoFiltTmp = tmpDir+ "/transmap.mapinfo.filt" + tmpExt
+pslRecalcTmp = tmpDir+ "/transmap.psl.recalc" + tmpExt
+
+tmpFiles = (chainSubsetTmp, pslRawTmp, mapInfoRawTmp, pslPreFiltTmp, mapInfoPreFiltTmp, pslFiltTmp, mapInfoFiltTmp, pslRecalcTmp)
 
 # output
 outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]
@@ -116,15 +125,14 @@ outMapInfo = outPrefix + ".mapinfo"
 # memory requirements of pslMap and netChainSubset.
 ###
 chains = chainsSet.getSupportingType(opts.chainType)
-preFiltCmds = []
+chainPreFiltCmds = []
 
-preFiltCmds.append(["overlapSelect", "-inFmt=chainq", srcPsl, chains.chainFile, "/dev/stdout"])
+chainPreFiltCmds.append(["overlapSelect", "-inFmt=chainq", srcPsl, chains.chainFile, "/dev/stdout"])
 if chroms != None:
-    preFiltCmds.append(["chainFilter", "-noHap", "-t=" + ",".join(chroms), "/dev/stdin"])
+    chainPreFiltCmds.append(["chainFilter", "-noHap", "-t=" + ",".join(chroms), "/dev/stdin"])
 else:
-    preFiltCmds.append(["chainFilter", "-noHap", "stdin"])
-
-runCmds(preFiltCmds, stdout=chainSubsetTmp)
+    chainPreFiltCmds.append(["chainFilter", "-noHap", "stdin"])
+runCmds(chainPreFiltCmds, stdout=chainSubsetTmp)
 
 chainFilterCmds = []
 if (opts.chainType == ChainType.all) or (opts.chainType == ChainType.rbest):
@@ -137,38 +145,47 @@ else:
     chainInFileRef = "/dev/stdin"
 
 ###
-# map alignments.  Pre-filter before pslRecalcMatch to avoid it take hours when there are huge
-# number of mappings (say > 50,000 for one refseq in mapped to monDom5)
+# map alignments, removing duplicate psls with same query/target range, which
+# are noise and make it difficult to select the right mapInfo records
 ##
-pslMap = ["pslMap", "-chainMapFile", "-mapInfo="+mapInfoRawTmp, srcPsl, chainInFileRef, "/dev/stdout"]
-qsort = ["sort","-k","10,10", "-k", "12,12n", "-k", "13,13n"]
+pslMap = ["pslMap", "-chainMapFile", "-mapInfo="+mapInfoRawTmp, srcPsl, chainInFileRef, pslRawTmp]
+runCmds(chainFilterCmds +[pslMap])
+preFilt = ["pslMapInfoPreFilter", "-chainSubset="+str(opts.chainType), pslRawTmp, mapInfoRawTmp, pslPreFiltTmp, mapInfoPreFiltTmp]
+runCmds(preFilt)
 
+###
+# Filter before pslRecalcMatch to avoid it take hours when there are huge
+# number of mappings (say > 50,000 for one refseq in mapped to monDom5).
+# Target sort speeds up pslRecalcMatch.
+##
 pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=" + str(transMap.minQSize), "-minCover=" + str(transMap.minCover),
-                 "-globalNearBest=" + str(transMap.getGlobalNearBestPreFilter(destDb)), "stdin", "stdout"]
-
-# target sort speeds up pslRecalcMatch
+                 "-globalNearBest=" + str(transMap.getGlobalNearBestPreFilter(destDb)), pslPreFiltTmp, "stdout"]
 tsort = ["sort","-k","14,14", "-k", "16,16n"]
-fileOps.ensureFileDir(opts.mappedPsl)
-runCmds(chainFilterCmds + [pslMap, qsort, pslCDnaFilter, tsort], stdout=rawPslTmp)
+runCmds([pslCDnaFilter, tsort], stdout=pslFiltTmp)
+
+# select subset of alignments and get matching mapInfo file
+pslMapInfoSelect = ["pslMapInfoSelect", mapInfoPreFiltTmp, pslFiltTmp, mapInfoFiltTmp]
+runCmds(pslMapInfoSelect)
 
 ###
-# add type of chains to mapInfo, select subset of alignments
+# calculate match stats; qsort here, just to make runFilter qsort a bit quicker.
 ##
-addMapInfoChainType = ["addMapInfoChainType", "-v", "chainType="+str(opts.chainType), mapInfoRawTmp]
-pslMapInfoSelect = ["pslMapInfoSelect", "/dev/stdin", rawPslTmp, outMapInfo]
-runCmds([addMapInfoChainType, pslMapInfoSelect])
-
-###
-# calculate match stats
-##
-pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", rawPslTmp, targetSeq,
+pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", pslFiltTmp, targetSeq,
                   transMap.getClusterSrcFa(srcDb, opts.cdnaType, opts.cdnaPart), "/dev/stdout"]
 
-# qsort here, just to make filter qsort quicker
-runCmds([pslRecalcMatch, qsort], stdout=outPslTmp)
+qsort = ["sort", "-k","10,10", "-k", "12,12n", "-k", "13,13n"]
+runCmds([pslRecalcMatch, qsort], stdout=pslRecalcTmp)
 
+# install files, psl last and atomic
+fileOps.ensureFileDir(opts.mappedPsl)
+copyFile(mapInfoFiltTmp, outMapInfo)
+copyFile(pslRecalcTmp, outPslTmp)
 os.rename(outPslTmp, opts.mappedPsl)
 
-os.unlink(rawPslTmp)
-os.unlink(chainSubsetTmp)
-os.unlink(mapInfoRawTmp)
+if opts.keep:
+    sys.stderr.write("Note: keeping temporary files:\n")
+    for f in tmpFiles:
+        sys.stderr.write("\t" + f + "\n")
+else:
+    for f in tmpFiles:
+        os.unlink(f)

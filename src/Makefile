@@ -3,6 +3,7 @@ include ${ROOT}/src/defs.mk
 
 SUBDIRS = \
 	lib \
+	pslMapInfoPreFilter \
 	pslMapInfoSelect \
 	transMapInfoMk \
 	cdnaPartition

@@ -13,7 +13,7 @@ from transMap.GenomeDefs import GenomeDefs,GenomeDb,CDnaType,Chains,ChainsSet
 from Bio.Nexus import Trees
 
 # ucscGenes  containing srcDbs FIXME: automate
-ucscGenesDbs = frozenset(("hg18", "mm9"))
+ucscGenesDbs = frozenset(("hg18", "hg19", "mm9"))
 
 
 class CmdOpts(object):
