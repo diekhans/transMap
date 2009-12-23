@@ -133,3 +133,6 @@
     make loadDb
     make runJoinerCheck
     make mkPackScript
+
+2009-12-08:
+    reloaded tables to replace packed, since there is a mysql bug in the packed tables
