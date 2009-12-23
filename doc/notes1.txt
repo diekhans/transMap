@@ -113,7 +113,23 @@
     cd /hive/users/markd/projs/transMap/builds/vertebrate.2009-10-13
     para create para1/aln/jobs.para -batch=para1/aln/batch2
     para push -maxPush=200000 -batch=para1/aln/batch2
+    para check -batch=para1/aln/batch2
     para time  -batch=para1/aln/batch2 >misc/align.time
+    para status -batch=para1/aln/batch2 > misc/align.status
     # filter
-    para create para1/filt/jobs.para -batch=para1/filt/batch2
-    para push -batch=para1/filt/batch2
+    para make para1/filt/jobs.para -batch=para1/filt/batch2 >&log
+    para check -batch=para1/filt/batch2
+    para time  -batch=para1/filt/batch2 >misc/filt.time
+    para status -batch=para1/filt/batch2 > misc/filt.status
+
+    # very slow alignments regions
+      monDom4/hg18/mrna/00248.psl ->  1171504503 unfiltered
+         hg18.chr19:56940840-59019460
+
+      danRer6/hg19/mrna/00245.psl ->  1559659549 unfiltered
+         hg19.chr19:51954101-53913997
+
+    ssh hgwdev
+    make loadDb
+    make runJoinerCheck
+    make mkPackScript

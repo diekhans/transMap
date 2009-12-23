@@ -1,0 +1,15 @@
+#!/bin/sh -e
+usage='mkPackScript db1 ..
+generate transMapPack script
+'
+set -beEu -o pipefail
+
+if [ $# -lt 1 ] ; then
+    echo "wrong # args: $usage"
+    exit 1
+fi
+dbs="$*"
+
+for db in $dbs ; do
+     hgsql -Ne 'show tables like "transMap%"' $db | awk -v db=$db '{print "doPack",db,$1}'
+done

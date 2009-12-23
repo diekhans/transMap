@@ -179,24 +179,24 @@ ${gbdbDir}/${srcType}.fa: $(wildcard data/*/${srcType}.fa.bz2)
 
 ####
 allJoiner=${HOME}/compbio/browser/dev/kent/src/hg/makeDb/schema/all.joiner
-genomeJoinerCheckIds = transMapAlnInfoRefSeqId transMapAlnInfoUcscGenesId transMapAlnInfoMRnaId transMapAlnInfoSplicedEstId transMapSrcInfoRefSeqId transMapSrcInfoUcscGenesId transMapSrcInfoMRnaId transMapSrcInfoSplicedEstId transMapSrcAlnUcscGenesId transMapSrcAlnRefSeqId transMapSrcAlnSplicedEstId
-hgFixedJoinerCheckIds = transMapSrcRefSeqId transMapSrcUcscGenesId transMapSrcMRnaId transMapSrcSplicedEstId transMapExtFileRefSeqId transMapExtFileUcscGenesId transMapExtFileMRnaId transMapExtFileSplicedEstId
+genomeJoinerCheckIds = transMapAlnInfoRefSeqId transMapAlnInfoUcscGenesId transMapAlnInfoMRnaId transMapAlnInfoSplicedEstId
+hgFixedJoinerCheckIds = transMapSrcRefSeqId transMapSrcUcscGenesId transMapSrcMRnaId transMapSrcSplicedEstId transMapExtFileRefSeqId transMapExtFileUcscGenesId transMapExtFileMRnaId transMapExtFileSplicedEstId  transMapSrcInfoRefSeqId transMapSrcInfoUcscGenesId transMapSrcInfoMRnaId transMapSrcInfoSplicedEstId transMapSrcAlnUcscGenesId transMapSrcAlnRefSeqId transMapSrcAlnSplicedEstId
+joinerCheckIds = ${genomeJoinerCheckIds} ${hgFixedJoinerCheckIds}
 joinerCheckOutDir = jchecks
 
+# must run for all databases, or cross-database links are not checked
+runJoinerCheck: $(joinerCheckIds:%=${joinerCheckOutDir}/%.jcheck) \
 
-runJoinerCheck: hgFixedCheck $(destDbs:%=%.genomeDbCheck)
-
-%.genomeDbCheck:
-	${MAKE} genomeDbCheck db="$*"
-
-genomeDbCheck: $(genomeJoinerCheckIds:%=${joinerCheckOutDir}/${db}.%.jcheck)
-${joinerCheckOutDir}/${db}.%.jcheck:
+# -keys must be specified with -identifier= 
+${joinerCheckOutDir}/%.jcheck:
 	@mkdir -p $(dir $@)
-	joinerCheck -database=${db} -keys -identifier=$* ${allJoiner} >&$@.tmp
+	joinerCheck -keys -identifier=$* ${allJoiner} >&$@.tmp
 	mv -f $@.tmp $@
 
-hgFixedCheck: $(hgFixedJoinerCheckIds:%=${joinerCheckOutDir}/hgFixed.%.jcheck)
-${joinerCheckOutDir}/hgFixed.%.jcheck:
-	@mkdir -p $(dir $@)
-	joinerCheck -database=hgFixed -keys -identifier=$* ${allJoiner} >&$@.tmp
-	mv -f $@.tmp $@
+####
+# generate script to pack tables
+mkPackScript:
+	cp -f misc/transMapPack.head misc/transMapPack
+	mkPackScript ${destDbs} hgFixed >>misc/transMapPack
+	chmod +x misc/transMapPack
+
