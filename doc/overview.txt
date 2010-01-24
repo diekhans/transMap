@@ -1,0 +1,55 @@
+
+Overview of TransMap algorithm implementation for cross-species cDNA alignments:
+
+  - Identify desired set of source genomes that have the desired set of
+    native cDNA alignments.
+   
+  - Identify desired set of destination genomes that have chains and nets from
+    one or more source organisms, resulting in pairs of source/destination
+    genome.
+
+  - For each source genome obtain and save
+    - PSL alignments of the source cDNAs, with the cDNA accession.version turned into 
+      unique alignment ids using pslQueryUniq.  For example two alignments of
+      DQ592480.1 results in ids DQ592480.1-1 and DQ592480.1-2.
+
+    - FASTA file of cDNA sequences
+
+    - Tab-separated file of meta data, consisting of:
+           acc   geneCDS   geneName   type
+
+       - acc is the accession.version
+       - geneCDS is the CDS, in genbank format, or empty if no CDS
+       - geneName is the gene name (symbol) or empty if not available
+       - type - type of sequence, never actually used
+         
+     for example:
+       AB212816.1	10..1005	GnRHR1/III-1	mRNA
+
+  - For each source/destination genome pair and a given set of source alignments:
+
+    - Select set of chains to use for the mapping.  The browser vertebrate
+      alignments use syntenic chains for alignments with branch lengths
+      of no more than 0.5, as computed by phyloFit.  All chains are used
+      for more distance genomes.
+
+      - To select syntenic chains, use the netFilter and netChainSubset commands.
+        The netChainSubset -wholeChains option selects changes without truncating
+        them to match the net to prevents gene fragmentation.  Here is an example
+        to create chains for mapping human mRNAs to mouse:
+
+           chainDir=/cluster/data/mm8/bed/blastz.hg18/axtChain
+           netFilter -syn $chainDir/mm8.hg18.net.gz >mm8.hg18.syn.net
+           netChainSubset -wholeChains mm8.hg18.syn.net $chainDir/mm8.hg18.all.chain.gz mm8.hg18.syn.chain
+
+    - For large genomes, it maybe necessary to partition chains by destination chromosome,
+      attempting to map all source cDNAs through each partition.  This is not covered
+      in this overview.
+
+    - Use pslMap to create cross-species alignments, saving the mapping information:
+      
+         pslMap -chainMapFile -mappingPsls=mrna.mm8.hg18.raw.mapinfo mrna.hg18.psl mm8.hg18.syn.chain mrna.mm8.hg18.raw.psl
+
+    - Filter alignments to remove small
+
+
