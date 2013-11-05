@@ -50,12 +50,12 @@ class ChainsSet(object):
     """set of chains between two dbs.  There can be multiple chains
     due to different chain types."""
     
-    # /cluster/data/hg18/bed/blastz.calJac1/axtChain/
+    # /hive/data/genomes/hg18/bed/blastz.calJac1/axtChain/
     #     hg18.calJac1.all.chain.gz
     #     hg18.calJac1.net.gz
     #     hg18.calJac1.rbest.chain.gz
     #     hg18.calJac1.rbest.net.gz
-    # /cluster/data/hg18/bed/blastz.ponAbe2/axtChain/
+    # /hive/data/genomes/hg18/bed/blastz.ponAbe2/axtChain/
     #     hg18.ponAbe2.syn.net.gz
     
     __slots__ = ("srcDb", "destDb", "byType", "dist")
@@ -64,7 +64,7 @@ class ChainsSet(object):
         self.destDb = destDb
         self.byType = dict() # by types
         self.dist = None
-        bzdir = self.__findChainsDir(self.srcDb, self.destDb)
+        bzdir = self.__findChainsDir()
         if bzdir != None:
             self.__addIfExists(bzdir, ChainType.all, "all.chain", "net")
             self.__addIfExists(bzdir, ChainType.syn, "all.chain", "syn.net")
@@ -82,38 +82,48 @@ class ChainsSet(object):
         for ch in self.byType.itervalues():
             ch.dist = dist
 
-    def __str__(self):
-        return self.srcDb.name + " ==> " + self.destDb.name + " " + enumSetStr(set(self.byType.iterkeys())) + " |" + str(self.dist) + "|"
+    def getTypesStr(self):
+        "string representation of chain types that are available"
+        return enumSetStr(set(self.byType.iterkeys()))
 
-    @staticmethod
-    def __findChainsDirMeth(meth, srcDb, destDb):
-        "return path to chain directory for an alignment method"
-        base = "/cluster/data/" + destDb.name + "/bed/" + meth + "." + srcDb.name
+    def __str__(self):
+        return self.srcDb.name + " ==> " + self.destDb.name + " " + self.getTypesStr() + " |" + str(self.dist) + "|"
+
+    def __chainsNetsExist(self, bzdir):
+        """ make sure both all.chain.gz and net.gz exist, as there was a case
+        with only the rbest without an all.chain in one case"""
+        return ((self.__getBlastzFile(bzdir, "all.chain") != None)
+                and (self.__getBlastzFile(bzdir, "net") != None))
+
+    def __findChainsDirMeth(self, meth):
+        "Return path to chain directory for an alignment method."
+        base = "/hive/data/genomes/" + self.destDb.name + "/bed/" + meth + "." + self.srcDb.name
         if os.path.exists(base):
             return base
-        p = base + ".swap"
-        if os.path.exists(p):
-            return p
+        bzdir = base + ".swap"
+        if self.__chainsNetsExist(bzdir):
+            return bzdir
         # look for data extensions w/wo .swap
-        dirs = glob.glob(base + ".*-*-*")
-        dirs.sort()
-        if len(dirs) > 0:
-            return dirs[-1]
+        bzdirs = glob.glob(base + ".*-*-*")
+        bzdirs.sort(reverse=True)
+        for bzdir in bzdirs:
+            if self.__chainsNetsExist(bzdir):
+                return bzdir
 
         # check for missing symlink to names like blastzPanTro2.2006-03-28
-        pat = "/cluster/data/" + destDb.name + "/bed/" + meth + srcDb.name[0].upper() + srcDb.name[1:] + ".*-*-*"
-        dirs = glob.glob(pat)
-        dirs.sort()
-        if len(dirs) > 0:
-            return dirs[-1]
+        pat = "/hive/data/genomes/" + self.destDb.name + "/bed/" + meth + self.srcDb.name[0].upper() + self.srcDb.name[1:] + ".*-*-*"
+        bzdirs = glob.glob(pat)
+        bzdirs.sort()
+        for bzdir in bzdirs:
+            if self.__chainsNetsExist(bzdir):
+                return bzdir
         return None
 
-    @staticmethod
-    def __findChainsDir(srcDb, destDb):
+    def __findChainsDir(self):
         "return path to chain directory if one can be found, otherwise None"
-        p = ChainsSet.__findChainsDirMeth("lastz", srcDb, destDb)
+        p = self.__findChainsDirMeth("lastz")
         if p == None:
-            p = ChainsSet.__findChainsDirMeth("blastz", srcDb, destDb)
+            p = self.__findChainsDirMeth("blastz")
         return p
 
     def __getBlastzFile(self, bzdir, ext):
@@ -166,6 +176,13 @@ class ChainsSet(object):
         else:
             return cmp(cs1.dist, cs2.dist)
 
+    def dump(self, fh, prefix=""):
+        if len(self.byType) == 0:
+            fh.write(prefix + self.srcDb.name + " ==> " + self.destDb.name + " [None]\n")
+        else:
+            for chains in self.byType.itervalues():
+                fh.write(prefix + str(chains) + "\n")
+
 class OrgChainsSetMap(MultiDict):
     """map of Organism to list of ChainsSet, sorted newest to oldest, can be
     keyed and sorted by srcDb or destDb"""
@@ -212,6 +229,11 @@ class OrgChainsSetMap(MultiDict):
                 if chset.destDb == db:
                     return chset
         raise Exception("no chain from for " + str(db))
+
+    def dump(self, fh):
+        "OrgChainsSetMap", self.db
+        for chainsSet in self.itervalues():
+            chainsSet.dump(fh, "\t")
 
 class GenomeDb(object):
     "All information about a genome database"
@@ -267,6 +289,7 @@ class GenomeDb(object):
         prLine(fh, "\t", label)
         for cs in orgCsMap.itervalues():
             prLine(fh, "\t\t", cs)
+
     def dump(self, fh):
         prLine(fh, str(self))
         self.__dumpChainsSets(fh, "srcChainsSets", self.srcChainsSets)

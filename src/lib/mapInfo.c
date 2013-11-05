@@ -16,38 +16,47 @@ char *mapInfoHdrs = "#srcQName\tsrcQStart\tsrcQEnd\tsrcQSize\tsrcTName\tsrcTStar
 static char *values_chainSubset[] = {"unknown", "all", "syn", "rbest", NULL};
 static struct hash *valhash_chainSubset = NULL;
 
+static int parseSignedOrZero(char *strNum)
+/* if strNum is empty, return zero, else parse as int */
+{
+if (isEmpty(strNum))
+    return 0;
+else
+    return sqlSigned(strNum);
+}
+
 void mapInfoStaticLoad(char **row, int numCols, struct mapInfo *ret)
 /* Load a row from mapInfo table into ret.  The contents of ret will
  * be replaced at the next call to this function. */
 {
 
 ret->srcQName = row[0];
-ret->srcQStart = sqlSigned(row[1]);
-ret->srcQEnd = sqlSigned(row[2]);
-ret->srcQSize = sqlSigned(row[3]);
+ret->srcQStart = parseSignedOrZero(row[1]);
+ret->srcQEnd = parseSignedOrZero(row[2]);
+ret->srcQSize = parseSignedOrZero(row[3]);
 ret->srcTName = row[4];
-ret->srcTStart = sqlSigned(row[5]);
-ret->srcTEnd = sqlSigned(row[6]);
+ret->srcTStart = parseSignedOrZero(row[5]);
+ret->srcTEnd = parseSignedOrZero(row[6]);
 ret->srcStrand = row[7][0];
-ret->srcAligned = sqlSigned(row[8]);
+ret->srcAligned = parseSignedOrZero(row[8]);
 ret->mappingQName = row[9];
-ret->mappingQStart = sqlSigned(row[10]);
-ret->mappingQEnd = sqlSigned(row[11]);
+ret->mappingQStart = parseSignedOrZero(row[10]);
+ret->mappingQEnd = parseSignedOrZero(row[11]);
 ret->mappingTName = row[12];
-ret->mappingTStart = sqlSigned(row[13]);
-ret->mappingTEnd = sqlSigned(row[14]);
+ret->mappingTStart = parseSignedOrZero(row[13]);
+ret->mappingTEnd = parseSignedOrZero(row[14]);
 ret->mappingStrand = row[15][0];
 ret->mappingId = row[16];
 ret->mappedQName = row[17];
-ret->mappedQStart = sqlSigned(row[18]);
-ret->mappedQEnd = sqlSigned(row[19]);
+ret->mappedQStart = parseSignedOrZero(row[18]);
+ret->mappedQEnd = parseSignedOrZero(row[19]);
 ret->mappedTName = row[20];
-ret->mappedTStart = sqlSigned(row[21]);
-ret->mappedTEnd = sqlSigned(row[22]);
+ret->mappedTStart = parseSignedOrZero(row[21]);
+ret->mappedTEnd = parseSignedOrZero(row[22]);
 ret->mappedStrand = row[23][0];
-ret->mappedAligned = sqlSigned(row[24]);
-ret->qStartTrunc = sqlSigned(row[25]);
-ret->qEndTrunc = sqlSigned(row[26]);
+ret->mappedAligned = parseSignedOrZero(row[24]);
+ret->qStartTrunc = parseSignedOrZero(row[25]);
+ret->qEndTrunc = parseSignedOrZero(row[26]);
 if (numCols > MAPINFO_MIN_NUM_COLS)
     ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
 }
@@ -60,32 +69,32 @@ struct mapInfo *ret;
 
 AllocVar(ret);
 ret->srcQName = cloneString(row[0]);
-ret->srcQStart = sqlSigned(row[1]);
-ret->srcQEnd = sqlSigned(row[2]);
-ret->srcQSize = sqlSigned(row[3]);
+ret->srcQStart = parseSignedOrZero(row[1]);
+ret->srcQEnd = parseSignedOrZero(row[2]);
+ret->srcQSize = parseSignedOrZero(row[3]);
 ret->srcTName = cloneString(row[4]);
-ret->srcTStart = sqlSigned(row[5]);
-ret->srcTEnd = sqlSigned(row[6]);
+ret->srcTStart = parseSignedOrZero(row[5]);
+ret->srcTEnd = parseSignedOrZero(row[6]);
 ret->srcStrand = row[7][0];
-ret->srcAligned = sqlSigned(row[8]);
+ret->srcAligned = parseSignedOrZero(row[8]);
 ret->mappingQName = cloneString(row[9]);
-ret->mappingQStart = sqlSigned(row[10]);
-ret->mappingQEnd = sqlSigned(row[11]);
+ret->mappingQStart = parseSignedOrZero(row[10]);
+ret->mappingQEnd = parseSignedOrZero(row[11]);
 ret->mappingTName = cloneString(row[12]);
-ret->mappingTStart = sqlSigned(row[13]);
-ret->mappingTEnd = sqlSigned(row[14]);
+ret->mappingTStart = parseSignedOrZero(row[13]);
+ret->mappingTEnd = parseSignedOrZero(row[14]);
 ret->mappingStrand = row[15][0];
 ret->mappingId = cloneString(row[16]);
 ret->mappedQName = cloneString(row[17]);
-ret->mappedQStart = sqlSigned(row[18]);
-ret->mappedQEnd = sqlSigned(row[19]);
+ret->mappedQStart = parseSignedOrZero(row[18]);
+ret->mappedQEnd = parseSignedOrZero(row[19]);
 ret->mappedTName = cloneString(row[20]);
-ret->mappedTStart = sqlSigned(row[21]);
-ret->mappedTEnd = sqlSigned(row[22]);
+ret->mappedTStart = parseSignedOrZero(row[21]);
+ret->mappedTEnd = parseSignedOrZero(row[22]);
 ret->mappedStrand = row[23][0];
-ret->mappedAligned = sqlSigned(row[24]);
-ret->qStartTrunc = sqlSigned(row[25]);
-ret->qEndTrunc = sqlSigned(row[26]);
+ret->mappedAligned = parseSignedOrZero(row[24]);
+ret->qStartTrunc = parseSignedOrZero(row[25]);
+ret->qEndTrunc = parseSignedOrZero(row[26]);
 if (numCols > MAPINFO_MIN_NUM_COLS)
     ret->chainSubset = sqlEnumParse(row[27], values_chainSubset, &valhash_chainSubset);
 return ret;

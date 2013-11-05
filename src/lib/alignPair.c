@@ -77,10 +77,23 @@ static boolean keyFieldsEq(struct psl *psl, struct mapInfo *mi) {
         && (psl->tEnd == mi->mappedTEnd);
 }
 
+/* return the next entry where there was a mapping, skipped unmapped */
+static struct mapInfo *mapInfoNextMapped(struct lineFile *lf) {
+    struct mapInfo *mi;
+    while ((mi = mapInfoNext(lf)) != NULL) {
+        if (!isEmpty(mi->mappedTName)) {
+            return mi;
+        } else {
+            mapInfoFree(&mi);
+        }
+    }
+    return NULL;
+}
+
 /* load an alignPair object from two parallel lineFiles */
 struct alignPair *alignPairLoad(struct lineFile *pslLf, struct lineFile *miLf) {
     struct psl *psl = pslNext(pslLf);
-    struct mapInfo *mi = mapInfoNext(miLf);
+    struct mapInfo *mi = mapInfoNextMapped(miLf);
     if ((psl == NULL) && (mi == NULL)) {
         return NULL;
     } else if ((psl == NULL) || (mi == NULL)) {

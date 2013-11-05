@@ -57,7 +57,9 @@ opts = CmdOpts()
 tmpDir = setTMPDIR()
 tmpExt = getTmpExt()
 
+###
 # skip if already completed
+###
 if os.path.exists(opts.mappedPsl):
     sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")
     sys.exit(0)
@@ -67,17 +69,6 @@ opts.fixEnums()
 transMap = TransMap(None, genomeDefs, ".", None, opts.clusterDir)
 srcDb = genomeDefs.dbs[opts.srcDb]
 destDb = genomeDefs.dbs[opts.destDb]
-
-rel2bit =  destDb.name + "/" + destDb.name + ".2bit"
-dest2Bit = "/scratch/data/" + rel2bit
-if not os.path.exists(dest2Bit):
-    if isParasol:
-        raise Exception("on cluster and local 2bit not found: " + dest2Bit)
-    dest2Bit = "/cluster/data/" + rel2bit
-if (opts.chroms != None) or (opts.firstChrom != None):
-    chroms = bldChroms(opts, dest2Bit)
-else:
-    chroms = None
 
 ##
 # input
@@ -91,14 +82,16 @@ srcPsl = transMap.getClusterSrcPsl(srcDb, opts.cdnaType, opts.cdnaPart)
 srcFa = transMap.getClusterSrcFa(srcDb, opts.cdnaType, opts.cdnaPart)
 
 # genome sequence
-relTargetSeq = "data/" + destDb.name + "/" + destDb.name + ".2bit"
-targetSeq = "/scratch/" + relTargetSeq
-if not os.path.exists(targetSeq):
-    if isParasol:
-        raise Exception("on cluster, can't find local genome: " + targetSeq)
-    targetSeq = "/cluster/" + relTargetSeq
-if not os.path.exists(targetSeq):
-    raise Exception("can't find genome: " + targetSeq)
+relTargetSeqs = destDb.name + "/" + destDb.name + ".2bit"
+targetSeqs = "/scratch/data/" + relTargetSeqs
+if not os.path.exists(targetSeqs):
+    targetSeqs = "/hive/data/genomes/" + relTargetSeqs
+if not os.path.exists(targetSeqs):
+    raise Exception("can't find genome: " + targetSeqs)
+if (opts.chroms != None) or (opts.firstChrom != None):
+    chroms = bldChroms(opts, targetSeqs)
+else:
+    chroms = None
 
 
 ##
@@ -125,8 +118,11 @@ outMapInfo = outPrefix + ".mapinfo"
 # memory requirements of pslMap and netChainSubset.
 ###
 chains = chainsSet.getSupportingType(opts.chainType)
-chainPreFiltCmds = []
+if chains == None:
+    chainsSet.dump(sys.stderr)
+    raise Exception("No chains found for type: "+ str(opts.chainType))
 
+chainPreFiltCmds = []
 chainPreFiltCmds.append(["overlapSelect", "-inFmt=chainq", srcPsl, chains.chainFile, "/dev/stdout"])
 if chroms != None:
     chainPreFiltCmds.append(["chainFilter", "-noHap", "-t=" + ",".join(chroms), "/dev/stdin"])
@@ -170,7 +166,7 @@ runCmds(pslMapInfoSelect)
 ###
 # calculate match stats; qsort here, just to make runFilter qsort a bit quicker.
 ##
-pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", pslFiltTmp, targetSeq,
+pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", pslFiltTmp, targetSeqs,
                   transMap.getClusterSrcFa(srcDb, opts.cdnaType, opts.cdnaPart), "/dev/stdout"]
 
 qsort = ["sort", "-k","10,10", "-k", "12,12n", "-k", "13,13n"]

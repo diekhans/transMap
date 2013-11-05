@@ -19,7 +19,7 @@ ucscGenesDbs = frozenset(("hg18", "hg19", "mm9"))
 class CmdOpts(object):
     usage = """%prog [options] pickleOut
     Combine data from dbDb database on hgwdev, with Genbank track information from
-    /cluster/data/genbank/etc/genbank.conf to build a pickled version of transMap.GenomeDefs.
+    /hive/data/outside/genbank/etc/genbank.conf to build a pickled version of transMap.GenomeDefs.
      """
 
     def __init__(self):
@@ -132,7 +132,7 @@ class CDnaInfoTbl(dict):
         return cdnaTypes
 
     def __newestAlnSrcDbDir(self, srcDb):
-        pat = "/cluster/data/genbank/data/aligned/" + srcDb + ".*"
+        pat = "/hive/data/outside/genbank/data/aligned/" + srcDb + ".*"
         dirs = glob.glob(pat)
         if len(dirs) == 0:
             raise Exception("no directories matching: " + pat)
@@ -172,7 +172,7 @@ class CDnaInfoTbl(dict):
     def __loadGenbankConf(self):
         "build dict of Conf objects"
         confTbl = dict()
-        for line in fileOps.iterLines("/cluster/data/genbank/etc/genbank.conf"):
+        for line in fileOps.iterLines("/hive/data/outside/genbank/etc/genbank.conf"):
             line = line.strip()
             parsed = self.parseGenomeRe.match(line)
             if parsed != None:
@@ -340,7 +340,7 @@ opts = CmdOpts()
 gdmk = GenomeDefsMk(opts)
 
 if opts.debug:
-    gmk.dump(sys.stderr)
+    gdmk.dump(sys.stderr)
 
 if opts.info != None:
     with open(opts.info, "w") as fh:

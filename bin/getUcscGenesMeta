@@ -4,7 +4,7 @@ import sys, os
 rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
 sys.path.append(rootDir+"/extern/pycbio/lib")
 from pycbio.sys import fileOps, procOps
-from pycbio.tsv import TabFile
+from pycbio.tsv import TabFileReader
 from optparse import OptionParser
 
 
@@ -39,7 +39,7 @@ opts = CmdLine()
 tbl = dict()
 
 # load CDS
-for row in TabFile.TabFileReader(opts.cdsFile, hashAreComments=True):
+for row in TabFileReader(opts.cdsFile, hashAreComments=True):
     meta = getMeta(tbl, row[0])
     meta.cds = row[1]
 

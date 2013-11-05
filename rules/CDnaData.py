@@ -8,11 +8,11 @@ from transMap import TransMap
 
 def mkGbGetSeqsCmd(tm, srcDb, cdnaType, what, accFile=None):
     "what is argument to -get="
-    cmd=["/cluster/data/genbank/bin/" + tm.arch + "/gbGetSeqs",
+    cmd=["/hive/data/outside/genbank/bin/" + tm.arch + "/gbGetSeqs",
          "-db=" + srcDb.name,
          "-get=" + what,
          "-native", "-inclVersion",
-         "-gbRoot=/cluster/data/genbank"]
+         "-gbRoot=/hive/data/outside/genbank"]
     if accFile != None:
         cmd.append("-accFile="+accFile)
     cmd.extend((("refseq" if (cdnaType == CDnaType.refSeq) else "genbank"),
@@ -109,7 +109,7 @@ class UcscGenesSeqs(CmdRule):
         # match sizes in generated PSL.
         self.tm = tm
         fa = tm.getSrcFa(srcDb, CDnaType.ucscGenes)
-        gs = "/cluster/data/"+srcDb.name +"/"+srcDb.name+".2bit"
+        gs = "/hive/data/genomes/"+srcDb.name +"/"+srcDb.name+".2bit"
         cmd1 = ("getRnaPred", "-genomeSeqs="+gs, srcDb.name, "knownGene", "all", FileOut(fa))
         CmdRule.__init__(self, Cmd((cmd1,)))
 

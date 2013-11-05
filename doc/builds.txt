@@ -146,3 +146,42 @@
       - add blurb to browser make docs
       - build for all rr-genomes that have transMap tracks as well as the
         latest genomes.
+
+#######################################################################
+# vertebrate.2012-06-22
+#######################################################################
+
+2012-06-22:
+    - copy and edit Makefile to update:
+         - requiredDestDbs
+         - excludeDbs
+         - trees
+         
+     - start with data
+       nice make getData >&getData.out&
+     - run mapping jobs
+       nice make batchSetup >& batchSetup.out&
+       ssh swarm
+       para create -batch=para1/aln/batch1 para1/aln/jobs.para 
+       para try -batch=para1/aln/batch1
+       para push -batch=para1/aln/batch1  -maxPush=10000000
+
+       # problems:
+       - rn5 to mm9 died horribly since chains existed for the 2008 rn5:
+            /cluster/data/mm9/bed/lastz.rn5/axtChain/mm9.rn5.all.chain.gz
+         edit job files to removed 'rn5 mm9' aligns
+       - croPor0 - pick up, but has some non-standard chains files:
+          /cluster/data/croPor0/bed/lastz.galGal3/axtChain/croPor0.galGal3.rbest.chain.gz 
+         probably due to it not being an official build.  Edit job files to remove these
+       - allMis0 - don't know what this is, but shouldn't do *0 assemblies.
+       - hg18/bed/blastz.tupBel1/axtChain/hg18.tupBel1.net.gz was not compressed,
+         when correct, it was corrupt:
+              Expecting at least 7 words line 15122444 ofExpecting at least 7 words line 15122444 of /cluster/data/hg18/bed/blastz.tupBel1/axtChain/hg18.tupBel1.net.gz got 1
+         remove from filter files.
+       
+       para create -batch=para1/filt/batch1 para1/filt/jobs.para 
+       para try -batch=para1/filt/batch1
+       para push -batch=para1/filt/batch1  -maxPush=10000000
+
+       # load tracks
+       nice make loadDb >&load.out
