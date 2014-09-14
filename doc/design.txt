@@ -1,0 +1,7 @@
+
+ideas on refactoring:
+
+ucsc genes/
+gencode/ensembl
+
+Keep lists of pairwise alignments , and cDNA and other gene sources
