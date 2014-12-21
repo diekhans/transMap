@@ -3,13 +3,18 @@ import sys, os
 rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
 sys.path.append(rootDir+"/extern/pycbio/lib")
 from optparse import OptionParser
-from pycbio.sys import fileOps
+from pycbio.sys import fileOps,dbOps
 from pycbio.hgdata import hgDb
+from collections import namedtuple
+
+HgCentralServer = namedtuple("HgCentralServer", ("host", "db"))
+
 
 class CmdLine(object):
     usage="""%prog [options] version destDbs
 
-    generate list of tables to push
+    Generate list of tables to push.  This checks the RR and hgwbeta hgcentral servers
+    to get list of active databases.  Only those databases that are active are pushed.
 """
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)
@@ -18,22 +23,32 @@ class CmdLine(object):
             parser.error("wrong number of arguments")
         self.version = args[0]
         self.destDbs = args[1:]
+        self.centralServers = (HgCentralServer("genome-centdb", "hgcentral"),
+                               HgCentralServer("mysqlbeta", "hgcentralbeta"))
         self.__dict__.update(opts.__dict__)
 
-
-def listTransMapTbls(conn, db, version, fh):
-    sql = 'show tables from ' + db + ' like "transMap%' + version + '"'
-    cur = conn.cursor()
+def getActiveDbsServer(centralServer):
+    conn = hgDb.connect(centralServer.db, host=centralServer.host)
     try:
-        cur.execute(sql)
-        for row in cur:
-            fh.write(db + "." + row[0] + "\n")
+        return frozenset([row[0] for row in dbOps.queryConnection(conn, "select name from dbDb where active=1")])
     finally:
-        cur.close()
+        conn.close()
 
+def getActiveDbs(centralServers):
+    activeDbs = set()
+    for centralServer in centralServers:
+        activeDbs |= getActiveDbsServer(centralServer)
+    return frozenset(activeDbs)
+    
+def listTransMapTbls(conn, db, version, fh):
+    for row in dbOps.queryConnection(conn,  'show tables from ' + db + ' like "transMap%' + version + '"'):
+        fh.write(db + "." + row[0] + "\n")
     
 opts = CmdLine()
+activeDbs = getActiveDbs(opts.centralServers)
+
 conn = hgDb.connect()
 listTransMapTbls(conn, "hgFixed", opts.version, sys.stdout)
 for db in opts.destDbs:
-    listTransMapTbls(conn, db, opts.version, sys.stdout)
+    if db in activeDbs:
+        listTransMapTbls(conn, db, opts.version, sys.stdout)
