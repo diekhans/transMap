@@ -3,14 +3,13 @@ import sys, os
 rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
 sys.path.append(rootDir+"/extern/pycbio/lib")
 from optparse import OptionParser
-from pycbio.tsv.TSVReader import TSVReader
+from pycbio.tsv import TSVReader
 from pycbio.sys import fileOps
 
 class CmdLine(object):
     usage="""%prog [options] alignedIds meta [meta ...]
 
     convert meta files to the transMapGene table format
-assumes dir containing files is srcName
 """
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)

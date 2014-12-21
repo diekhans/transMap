@@ -6,15 +6,10 @@ sys.path = [rootDir + "/extern/pycbio/lib", rootDir + "/lib/py"] + sys.path
 from optparse import OptionParser
 import glob,re
 from pycbio.sys.fileOps import prRowv
-from pycbio.sys import setOps, fileOps
-from pycbio.sys.Pipeline import Pipeline
-from pycbio.tsv.TSVReader import TSVReader
-from transMap.GenomeDefs import GenomeDefs,GenomeDb,CDnaType,Chains,ChainsSet
-from Bio.Nexus import Trees
-
-# ucscGenes  containing srcDbs FIXME: automate
-ucscGenesDbs = frozenset(("hg18", "hg19", "mm9"))
-
+from pycbio.sys import setOps, fileOps, dbOps
+from pycbio.hgdata import hgDb
+from transMap.genomeDefs import GenomeDefs,GenomeDb,CDnaType,Chains,ChainsSet
+from transMap import phyloTreeOps,genbank
 
 class CmdOpts(object):
     usage = """%prog [options] pickleOut
@@ -35,88 +30,79 @@ class CmdOpts(object):
         parser.add_option("--tree", dest="trees", action="append", default=[],
                           help="set branch lengths from this tree file, maybe repeated.  The distance from the newest databases are used."
                           "If file ends in .mod, its assumes to be a phastCons model file, otherwise a newick tree file ")
-        parser.add_option("--info", dest="info", action="store", default=None,
-                          help="write information about mappings to this file")
-        parser.add_option("--chainDists", dest="chainDists", action="store", default=None,
-                          help="write information chain distances to this file.  Only includes potential mappings ")
+        parser.add_option("--genomeInfo", dest="genomeInfo", action="store", default=None,
+                          help="write information about all genomes found to this TSV file")
+        parser.add_option("--chainInfo", dest="chainInfo", action="store", default=None,
+                          help="write information about all chains found to this TSV file,  Only includes potential mappings ")
+        parser.add_option("--distInfo", dest="distInfo", action="store", default=None,
+                          help="write distance table")
+        parser.add_option("--centralDb", dest="centralDb", action="store", default="hgcentraltest",
+                          help="hgcentral database to use")
         (opts, args) = parser.parse_args()
         if len(args) != 1:
             parser.error("wrong number of arguments")
         (self.pickleOut,) = args
         self.__dict__.update(opts.__dict__)
         if self.includeClades != None:
-            self.includeClades = set(self.includeClades)
+            self.includeClades = frozenset(self.includeClades)
         if self.excludeClades != None:
-            self.excludeClades = set(self.excludeClades)
+            self.excludeClades = frozenset(self.excludeClades)
 
 class GenomeDbReader(object):
     """object to read dbDb and genomeClade tables, doing some gross filtering"""
 
     class Rec(object):
-        def __init__(self, dbName, clade, common, scientific):
+        def __init__(self, dbName, clade, commonName, scientificName):
             self.dbName = dbName
             self.clade = clade
-            self.common = common
-            self.scientific = scientific
+            self.commonName = commonName
+            self.scientificName = scientificName
 
     def __init__(self, opts):
+        self.centralDb = opts.centralDb
         self.includeClades = opts.includeClades
         self.excludeClades = opts.excludeClades
         self.excludeDbs = opts.excludeDbs
-        cmd = ["hgw-sql", "-e", "select distinct dd.name as db, dd.organism as common, dd.scientificName as scientific, gc.clade from dbDb dd, genomeClade gc where dd.genome=gc.genome", "hgcentraltest"]
-        self.pin = Pipeline(cmd, 'r')
-        self.reader = TSVReader("<sqlquery>", inFh=self.pin)
 
-    def __iter__(self):
-        return self
+    def read(self):
+        sql = "select distinct dd.name as db, dd.genome as genome, dd.organism as commonName, dd.scientificName as scientificName, gc.clade from dbDb dd, genomeClade gc where dd.genome=gc.genome"
+        conn = hgDb.connect(self.centralDb, dictCursor=True)
+        try:
+            for row in dbOps.queryConnection(conn, sql):
+                if self.__inclDb(row):
+                    self.__checkDb(row)
+                    yield self.Rec(row["db"], row["clade"], row["commonName"], row["scientificName"])
+        finally:
+            conn.close()
 
-    def next(self):
-        for row in self.reader:
-            if self.__inclDb(row):
-                return self.Rec(row.db, row.clade, row.common, row.scientific)
-        raise StopIteration()
+    def __checkDb(self, row):
+        "sanity checks on assumptions in database"
+        if row["genome"].lower() != row["commonName"].lower():
+            raise Exception("assumption that dbDb.genome = dbDb.organism violated: " + str(row))
 
     def __inclDb(self, row):
-        if not GenomeDb.dbParseRe.match(row.db):
+        if not GenomeDb.dbParseRe.match(row["db"]):
             return False  # weirdly named genomes
-        elif (self.includeClades != None) and (row.clade not in self.includeClades):
+        elif (self.includeClades != None) and (row["clade"] not in self.includeClades):
             return False  # clade not included
-        elif (self.excludeClades != None) and (row.clade in self.excludeClades):
+        elif (self.excludeClades != None) and (row["clade"] in self.excludeClades):
             return False # clade excluded
-        elif (self.excludeDbs != None) and (row.db in self.excludeDbs):
+        elif (self.excludeDbs != None) and (row["db"] in self.excludeDbs):
             return False # db excluded
         else:
             return True
 
-class Conf(object):
-    """configuration of genbank for a genome or the defaults.
-    handles on/off/defaulted"""
-    __slots__ = ("db", "on", "off")
-    def __init__(self, db):
-        self.db = db
-        self.on = set()
-        self.off = set()
-
-    def __str__(self):
-        return self.db + "\ton:" + setOps.setJoin(self.on,",") + "\toff:" + setOps.setJoin(self.off,",")
-
-    def getEnabled(self, dflt):
-        return frozenset(self.on | dflt.on.difference(self.off))
-
 class CDnaInfoTbl(dict):
     """table of db to set of CDnaType, table from genbank.conf and alignments
-    on file systems.  Also fill in ucscGenes"""
+    on file systems.  Also fill in ucscGenes and ensembl"""
 
     def __init__(self):
         "build from genbank.conf"
         self.refSeqAlnDir = self.__newestAlnSrcDbDir("refseq")
         self.genBankAlnDir = self.__newestAlnSrcDbDir("genbank")
 
-        confTbl = self.__loadGenbankConf()
-        dflt = confTbl["default"]
-        for conf in confTbl.itervalues():
-            if conf != dflt:
-                self[conf.db] = self.__getAlignedSet(conf.db, conf.getEnabled(dflt))
+        for genbankConf in genbank.GenbankConfTbl().itervalues():
+            self[genbankConf.db] = self.__getSrcSet(genbankConf.db, genbankConf)
 
     def dump(self, fh):
         prRowv(fh, "CDnaInfoTbl")
@@ -139,7 +125,7 @@ class CDnaInfoTbl(dict):
         dirs.sort()
         return dirs[len(dirs)-1]
 
-    def __isAligned(self, db, cdnaType):
+    def __isGenbankAligned(self, db, cdnaType):
         if cdnaType == CDnaType.refSeq:
             pat = self.refSeqAlnDir + "/" + db + "/*/mrna.native.psl.gz"
         elif cdnaType == CDnaType.mrna:
@@ -147,141 +133,120 @@ class CDnaInfoTbl(dict):
         elif cdnaType == CDnaType.splicedEst:
             pat = self.genBankAlnDir + "/" + db + "/*/est.*.native.intronPsl.gz"
         return len(glob.glob(pat)) > 0
-        
-    def __getAlignedSet(self, db, enabled):
-        "return set of CDnaType configured and aligned for db"
-        # don't use panTro, as a source Db, as it has few of it's own,
-        # and human being treated as native
-        if db.startswith("panTro"):
-            return frozenset()
 
+    def __haveTableLike(self, db, pat):
+        conn = hgDb.connect(db)
+        try:
+            return dbOps.haveTableLike(conn, pat)
+        finally:
+            conn.close()
+
+    def __isEnsemblProjectionBuild(self, db):
+        "does this ensembl appear to be a projection (full or mixed) gene build?"
+        # this is determined by there being at least one transcript that is mapped multiple times
+        conn = hgDb.connect(db)
+        try:
+            sql = "select count(*) from (select name, count(*) as cnt from ensGene group by name) as counts where counts.cnt > 2";
+            rows = list(dbOps.queryConnection(conn, sql))
+            return (rows[0][0] > 0)
+        finally:
+            conn.close()
+        
+    def __hasEnsembl(self, db):
+        "has gencode or ensembl?"
+        return self.__haveTableLike(db, "wgEncodeGencodeComp%") or (self.__haveTableLike(db, "ensGene") and not self.__isEnsemblProjectionBuild(db))
+
+    def __getSrcSet(self, db, genbankConf):
+        "return set of CDnaType configured and aligned for db"
         aligned = set()
-        for cdnaType in enabled:
-            if self.__isAligned(db, cdnaType):
+        for cdnaType in genbankConf.getEnabled():
+            if self.__isGenbankAligned(db, cdnaType):
                 aligned.add(cdnaType)
-        if db in ucscGenesDbs:
-                aligned.add(CDnaType.ucscGenes)
+        if self.__haveTableLike(db, "knownGene"):
+            aligned.add(CDnaType.ucscGenes)
+        if self.__hasEnsembl(db):
+            aligned.add(CDnaType.ensembl)
         return frozenset(aligned)
 
-    # parse clusterGenome line, used so we find entries that all all defaults
-    parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.clusterGenome\s*=")
+class DistTbl(object):
+    """Distances between organisms.  Since the trees specify distances by
+    assemble, we attempt to use the newest pair of assembles to define the
+    distance.  There is no order and both directions are checked. """
 
-    # parse a cDNA line        1                2                  3                     4                  5
-    parseCDnaRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
-
-    def __loadGenbankConf(self):
-        "build dict of Conf objects"
-        confTbl = dict()
-        for line in fileOps.iterLines("/hive/data/outside/genbank/etc/genbank.conf"):
-            line = line.strip()
-            parsed = self.parseGenomeRe.match(line)
-            if parsed != None:
-                self.__obtainConf(parsed.group(1), confTbl)
-            parsed = self.parseCDnaRe.match(line)
-            if parsed != None:
-                self.__processConf(confTbl, parsed, line)
-        return confTbl
-
-    def __obtainConf(self, db, confTbl):
-        "get a Conf entry, creating if it doesn't exist"
-        conf = confTbl.get(db)
-        if conf == None:
-            conf = confTbl[db] = Conf(db)
-        return conf
-            
-    def __processConf(self, confTbl, parsed, line):
-        "add or update a Conf object given a parsed line"
-        db = parsed.group(1)
-        cdna = None
-        if parsed.group(2) == "refseq":
-            cdna = CDnaType.refSeq
-        elif parsed.group(2) == "genbank":
-            if parsed.group(3) == "mrna":
-                cdna = CDnaType.mrna
-            elif parsed.group(3) == "est":
-                cdna = CDnaType.splicedEst
-        state = None
-        if parsed.group(5) == "yes":
-            state = True
-        elif parsed.group(5) == "no":
-            state = False
-        if (cdna == None) or (state == None):
-            raise Exception("can't parse genbank.conf line: "+line)
-        conf = self.__obtainConf(db, confTbl)
-        if state:
-            conf.on.add(cdna)
-        else:
-            conf.off.add(cdna)
-
-class DistTbl(dict):
-    """table indexed by frozenset(orgName1, orgName2) to Entry objects"""
     class Entry(object):
-        def __init__(self, orgName1, orgNum1, orgName2, orgNum2, dist):
-            self.orgName1 = orgName1
-            self.orgNum1 = orgNum1
-            self.orgName2 = orgName2
-            self.orgNum2 = orgNum2
+        def __init__(self, db1, db2, dist):
+            self.org1 = db1.org  # objects
+            self.db1 = db1  # updated when newer definition is found
+            self.org2 = db2.org
+            self.db2 = db2
             self.dist = dist
-    
-        def __same(self, orgName1, orgName2):
-            return (orgName1 == self.orgName1) and (orgName2 == self.orgName2)
 
-        def __isNewer(self, orgNum1, orgNum2):
+        def __sameOrgOrder(self, db1, db2):
+            "check if this is the right order"
+            return (db1.org == self.org1) and (db2.org == self.org2)
+
+        def __isNewerDb(self, db1, db2):
+            return (db1.dbNum >= self.db1.dbNum) and (db2.dbNum >= self.db2.dbNum)
+
+        def __update(self, db1, db2, dist):
+            self.db1 = db1
+            self.db2 = db2
+            self.dist = dist
+
+        def updateIfNewer(self, dbA,  dbB, dist):
             """one must be the same and the other greater, or both greater to
             be considered newer (but not bother checking for both the same)"""
-            return (orgNum1 >= self.orgNum1) and (orgNum2 >= self.orgNum2)
-
-        def updateIfNewer(self, orgNameA, orgNumA, orgNameB, orgNumB, dist):
-            if self.__same(orgNameA, orgNameB):
-                if self.__isNewer(orgNumA, orgNumB):
-                    self.dist = dist
-            elif self.__same(orgNameB, orgNameA):
-                if self.__isNewer(orgNumB, orgNumA):
-                    self.dist = dist
+            if self.__sameOrgOrder(dbA, dbB):
+                if self.__isNewerDb(dbA, dbB):
+                    self.__update(dbA, dbB, dist)
+            elif self.__sameOrgOrder(dbB, dbA):
+                if self.__isNewerDb(dbB, dbA):
+                    self.__update(dbB, dbA, dist)
             else:
                 raise Exception("updateIfNewer mismatch")
 
-    def __init__(self, treeFile):
-        tree = self.__loadTree(treeFile)
+    def __init__(self, defs):
+        self.orgPairs = dict()  # indexed by Organism pair frozenset
+        self.defs = defs
+
+    def loadTrees(self, treeFiles):
+        for treeFile in treeFiles:
+            self.loadTree(treeFile)
+
+    def loadTree(self, treeFile):
+        tree = phyloTreeOps.load(treeFile)
         leafs = [tree.node(i) for i in tree.get_terminals()]
         for l1 in leafs:
             for l2 in leafs:
                 if l1 != l2:
-                    self.__addPair(l1.data.taxon, l2.data.taxon, tree.distance(l1.id, l2.id))
+                    self.__addDbNamePair(l1.data.taxon, l2.data.taxon, tree.distance(l1.id, l2.id))
 
-    def __parsePhastConsMod(self, treeFile):
-        strtree = None
-        for line in fileOps.iterLines(treeFile):
-            if line.startswith("TREE:"):
-                strtree = line[6:]
-        if strtree == None:
-            raise Exception("TREE: not found in phastCons model: " + treeFile)
-        return strtree
+    def __addDbNamePair(self, dbName1, dbName2, dist):
+        db1 = self.defs.getDbByName(dbName1)
+        db2 = self.defs.getDbByName(dbName2)
+        if (db1 != None) and (db2 != None):
+            self.__addDbPair(db1, db2, dist)
 
-    def __loadTree(self, treeFile):
-        if treeFile.endswith(".mod"):
-            strtree = self.__parsePhastConsMod(treeFile)
-        else:
-            strtree = "".join(fileOps.readFileLines(treeFile))
-        return Trees.Tree(strtree)
-
-    def __addPair(self, dbName1, dbName2, dist):
-        orgName1, orgNum1 = GenomeDb.dbParse(dbName1)
-        orgName2, orgNum2 = GenomeDb.dbParse(dbName2)
-        key = frozenset((orgName1, orgName2))
-        ent = self.get(key)
+    def __addDbPair(self, db1, db2, dist):
+        key = frozenset((db1.org, db2.org))
+        ent = self.orgPairs.get(key)
         if ent == None:
-            self[key] = DistTbl.Entry(orgName1, orgNum1, orgName2, orgNum2, dist)
+            self.orgPairs[key] = DistTbl.Entry(db1, db2, dist)
         else:
-            ent.updateIfNewer(orgName1, orgNum1, orgName2, orgNum2, dist)
+            ent.updateIfNewer(db1, db2, dist)
 
-    def getByOrgDb(self, orgDbName1, orgDbName2):
+    def getByDb(self, db1, db2):
         "get distance by genome db pair, or None if not available"
-        ent = self.get(frozenset([orgDbName1, orgDbName2]))
+        ent = self.orgPairs.get(frozenset((db1.org, db2.org)))
         if ent == None:
             return None
         else:
             return ent.dist
+
+    def writeTsv(self, fh):
+        fileOps.prRowv(fh, "org1", "db1", "org2", "db2", "dist")
+        for op in self.orgPairs.itervalues():
+            fileOps.prRowv(fh, op.org1.commonName, op.db1.name, op.org2.commonName, op.db2.name, op.dist)
 
 class GenomeDefsMk(object):
     "build GenomeDefs object"
@@ -292,44 +257,48 @@ class GenomeDefsMk(object):
         self.cdnaInfoTbl = CDnaInfoTbl()
         self.defs = GenomeDefs()
 
-        for dbInfo in GenomeDbReader(opts):
+        for dbInfo in GenomeDbReader(opts).read():
             self.__addDb(dbInfo)
         self.defs.buildChainSets()
         self.defs.finish()
-        for treeFile in opts.trees:
-            self.__setDistances(treeFile)
+
+        self.distTbl = DistTbl(self.defs)
+        self.distTbl.loadTrees(opts.trees)
+        self.__setDistances(self.distTbl)
 
     def __addDb(self, dbInfo):
-        self.defs.addGenomeDb(dbInfo.dbName, dbInfo.clade, dbInfo.common, dbInfo.scientific,
+        self.defs.addGenomeDb(dbInfo.dbName, dbInfo.clade, dbInfo.commonName, dbInfo.scientificName,
                               self.cdnaInfoTbl.obtain(dbInfo.dbName))
 
-    def __setDistances(self, treeFile):
-        dists = DistTbl(treeFile)
-        for chset in self.defs.chainsSets:
-            if chset.dist == None:
-                dist = dists.getByOrgDb(chset.srcDb.org.orgDbName, chset.destDb.org.orgDbName)
-                if dist != None:
-                    chset.setDistance(dist)
+    def __setChainsSetDist(self, distTbl, chset):
+        dist = distTbl.getByDb(chset.srcDb, chset.destDb)
+        if dist != None:
+            chset.setDistance(dist)
+        else:
+            sys.stderr.write("Warning: no distance for: " + chset.srcDb.name + "<>" + chset.destDb.name+"\n")
+        
+    def __setDistances(self, distTbl):
+        for srcDb in self.defs.dbs.itervalues():
+            for chset in srcDb.destChainsSets.itervalues():
+                self.__setChainsSetDist(distTbl, chset)
 
-    def __buildOrgChainsSets(self, org):
-        "build list of ChainsSets from an organisms"
-        chsets = []
-        doneDestOrgs = set()
-        for srcDb in org.dbs:
-            if len(srcDb.cdnaTypes) > 0:
-                for chset in srcDb.destChainsSets.itervalues():
-                    if chset.destDb.org  not in doneDestOrgs:
-                        doneDestOrgs.add(chset.destDb.org)
-                        chsets.append(chset)
-        return chsets
+    def __getCdnaTypeDesc(self, cdnaTypes):
+        if cdnaTypes != None:
+            return setOps.setJoin(cdnaTypes,",")
+        else:
+            return ""
 
-    def writeDists(self, fh):
-        chsets = []
-        for org in self.defs.orgs.itervalues():
-            chsets.extend(self.__buildOrgChainsSets(org))
-        chsets.sort(ChainsSet.distCmp)
-        for chset in chsets:
-            fileOps.prRowv(fh, chset.srcDb.name, chset.destDb.name, chset.dist, chset.srcDb.clade, chset.destDb.clade)
+    def writeGenomeInfo(self, fh):
+        fileOps.prRowv(fh, "db", "clade", "commonName", "scientificName", "cdnaTypes")
+        for orgName in sorted(self.defs.orgs.iterkeys()):
+            for db in sorted(self.defs.orgs[orgName].dbs):
+                fileOps.prRowv(fh, db.name, db.clade, db.commonName, db.scientificName, self.__getCdnaTypeDesc(db.cdnaTypes))
+
+    def writeChains(self, fh):
+        fileOps.prRowv(fh, "srcDb", "destDb", "dist", "chainTypes", "srcClade", "destClade")
+        for srcDb in self.defs.dbs.itervalues():
+            for chset in srcDb.destChainsSets.itervalues():
+                fileOps.prRowv(fh, chset.srcDb.name, chset.destDb.name, chset.dist, chset.getTypesStr(), chset.srcDb.clade, chset.destDb.clade)
         
     def dump(self, fh):
         self.cdnaInfoTbl.dump(fh)
@@ -342,12 +311,14 @@ gdmk = GenomeDefsMk(opts)
 if opts.debug:
     gdmk.dump(sys.stderr)
 
-if opts.info != None:
-    with open(opts.info, "w") as fh:
-        gdmk.defs.dump(fh)
-
-if opts.chainDists != None:
-    with open(opts.chainDists, "w") as fh:
-        gdmk.writeDists(fh)
+if opts.genomeInfo != None:
+    with open(opts.genomeInfo, "w") as fh:
+        gdmk.writeGenomeInfo(fh)
+if opts.chainInfo != None:
+    with open(opts.chainInfo, "w") as fh:
+        gdmk.writeChains(fh)
+if opts.distInfo != None:
+    with open(opts.distInfo, "w") as fh:
+        gdmk.distTbl.writeTsv(fh)
 
 gdmk.defs.save(opts.pickleOut)

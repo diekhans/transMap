@@ -1,6 +1,6 @@
 """standard setup for TransMap jobs"""
 import os,sys,socket
-from pycbio.sys import Pipeline
+from pycbio.sys.pipeline import Procline
 
 def getTmpExt():
     return "." + socket.gethostname() + "." + str(os.getpid()) + ".tmp"
@@ -16,7 +16,7 @@ def setTMPDIR():
 
 def runCmds(cmds, stdin="/dev/null", stdout=None):
     """run a pipeline, printing command to stderr"""
-    pl = Pipeline.Procline(cmds, stdin=stdin, stdout=stdout)
+    pl = Procline(cmds, stdin=stdin, stdout=stdout)
     sys.stderr.write(str(pl) + "\n")
     pl.wait()
 
@@ -24,3 +24,7 @@ def runCmds(cmds, stdin="/dev/null", stdout=None):
 def copyFile(src, dest):
     "copy a file with cp"
     runCmds(["cp", "-f", src, dest])
+
+def getTwoBit(db):
+    return "/hive/data/genomes/"+db +"/"+db+".2bit"
+

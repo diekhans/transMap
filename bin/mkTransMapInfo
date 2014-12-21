@@ -3,14 +3,13 @@ import sys, os, re
 rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
 sys.path.append(rootDir+"/extern/pycbio/lib")
 from optparse import OptionParser
-from pycbio.tsv.TSVReader import TSVReader
+from pycbio.tsv import TSVReader
 from pycbio.sys import fileOps
 
 class CmdLine(object):
     usage="""%prog [options] mapInfo1 [mapInfo2 ...]
 
     convert mapInfo files to the transMapInfo table format
-assumes dir containing files is srcName
 """
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)

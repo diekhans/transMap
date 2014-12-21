@@ -18,22 +18,28 @@ class CmdLine(object):
         (self.db, self.cdsFile, self.metaOut) = args
         self.__dict__.update(opts.__dict__)
 
+# FIXME: column stuff is duplicated in various places commands
 def makeColumnWithSrcDbConcat(db, column):
     return 'concat("' + db + ':", ' + column + ')'
 
-def getUcscGenesMeta(conn, db, cdsFile, metaOut):
+def getEnsemblMeta(conn, db, cdsFile, metaOut):
     metaDataTbl = TranscriptMetaDataTbl()
     metaDataTbl.loadCdsFile(cdsFile)
-    metaDataTbl.loadGenesDb(conn, "select " + makeColumnWithSrcDbConcat(db, "kgID") + ", geneSymbol from kgXref")
-    metaDataTbl.loadCatDb(conn, "select " + makeColumnWithSrcDbConcat(db, "name") + ", category from kgTxInfo")
+
+    # older ensemble loads might not have these tables
+    if dbOps.haveTableLike(conn, "ensemblToGeneName"):
+        metaDataTbl.loadGenesDb(conn, "select " + makeColumnWithSrcDbConcat(db, "name") + ",value from ensemblToGeneName")
+    if dbOps.haveTableLike(conn, "ensemblSource"):
+        metaDataTbl.loadCatDb(conn, "select " + makeColumnWithSrcDbConcat(db, "name") + ", source from ensemblSource")
     with open(metaOut, "w") as fh:
         metaDataTbl.write(fh)
-
 
 # entry
 opts = CmdLine()
 conn = hgDb.connect(opts.db)
 try:
-    getUcscGenesMeta(conn, opts.db, opts.cdsFile, opts.metaOut)
+    getEnsemblMeta(conn, opts.db, opts.cdsFile, opts.metaOut)
 finally:
     conn.close()
+
+

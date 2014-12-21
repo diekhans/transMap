@@ -136,3 +136,8 @@
 
 2009-12-08:
     reloaded tables to replace packed, since there is a mysql bug in the packed tables
+
+2014-12-09
+        to find out what is on the RR:
+           hgsql -h genome-centdb hgcentral
+           select name from dbDb where active=1;

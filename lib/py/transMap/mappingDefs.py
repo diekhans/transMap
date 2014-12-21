@@ -1,7 +1,7 @@
-from transMap import GenomeDefs
+from . import genomeDefs
 
 from pycbio.sys import setOps,fileOps
-from pycbio.sys.MultiDict import MultiDict
+from pycbio.sys.multiDict import MultiDict
 
 class MappingDefsBuild(object):
     """Get mapping definitions based on command line options"""
@@ -15,16 +15,19 @@ class MappingDefsBuild(object):
                           help="""Other destDbs to include beside the most current. Can be specified multiple times.""")
         parser.add_option("--excludeDb", action="append", dest="excludeDbs", default=None,
                           help="""Exclude these databases. Can be specified multiple times.""")
+        parser.add_option("--onlySrcDb", action="append", dest="onlySrcDbs", default=None,
+                          help="""Only generate data for these srcDbs. Can be specified multiple times.""")
         parser.add_option("--onlyDestDb", action="append", dest="onlyDestDbs", default=None,
                           help="""Only generate data for these destDbs. Can be specified multiple times.""")
         parser.add_option("--cdnaType", action="append", dest="cdnaTypes", default=None,
-                          help="""Only generate data for these cDNA types. Can be specified multiple times, valid values are:""" + setOps.setJoin(set(GenomeDefs.CDnaType.values), ","))
+                          help="""Only generate data for these cDNA types. Can be specified multiple times, valid values are: """ + ", ".join([str(t) for t in genomeDefs.CDnaType]))
 
     def __init__(self, opts):
         "construct GenomeDefs and mappings"
-        self.defs = GenomeDefs.load(opts.genomeDefsPickle)
+        self.defs = genomeDefs.load(opts.genomeDefsPickle)
 
         # restrictions; default to full set of items to make code simpler
+        self.onlySrcDbs = self.defs.mapDbNamesSet(opts.onlySrcDbs) if (opts.onlySrcDbs != None) else None
         self.onlyDestDbs = self.defs.mapDbNamesSet(opts.onlyDestDbs) if (opts.onlyDestDbs != None) else None
         self.otherDestDbs = self.defs.mapDbNamesSet(opts.otherDestDbs)
         self.excludeDbs = self.defs.mapDbNamesSet(opts.excludeDbs)
@@ -34,7 +37,7 @@ class MappingDefsBuild(object):
             # convert to Enumeration
             self.cdnaTypes = set()
             for c in opts.cdnaTypes:
-                self.cdnaTypes.add(GenomeDefs.CDnaType(c))
+                self.cdnaTypes.add(genomeDefs.CDnaType(c))
         else:
             self.cdnaTypes = self.defs.cdnaTypes
         self.cdnaTypes = frozenset(self.cdnaTypes)
@@ -53,34 +56,45 @@ class MappingDefsBuild(object):
                 return db
         return None
 
+    def __getDestDbsForOrgs(self):
+        destDbs = set()
+        for org in self.defs.orgs.itervalues():
+            if self.__inclDestOrg(org):
+                db = self.__getNewestDestDb(org)
+                if db != None:
+                    destDbs.add(db)
+        return destDbs
+
     def __getDestDbs(self):
         "get set of destDbs, given restrictions"
         destDbs = set(self.otherDestDbs)
         if self.onlyDestDbs != None:
             destDbs |= self.onlyDestDbs
         else:
-            for org in self.defs.orgs.itervalues():
-                if self.__inclDestOrg(org):
-                    db = self.__getNewestDestDb(org)
-                    if db != None:
-                        destDbs.add(db)
+            destDbs |= self.__getDestDbsForOrgs()
         return destDbs
 
     def __useMapping(self, chainsSet):
+        # make sure we have `all' chains (this was missing once), as we fall back
+        # to using these and syntenic filtering.
         return ((chainsSet.srcDb not in self.excludeDbs) and chainsSet.haveChains()
+                and (genomeDefs.ChainType.all in chainsSet.byType)
                 and chainsSet.srcDb.matches(self.clades, self.cdnaTypes))
+
+    def __inclSrcDb(self, srcDb):
+        return (self.onlySrcDbs == None) or (srcDb in self.onlySrcDbs)
 
     def __getSrcOrgDestDbMappings(self, srcOrg, destDb, cdnaType, chainsSets, gms):
         # chainsSets are sorted new to oldest srcDb
         for chainsSet in chainsSets:
-            if self.__useMapping(chainsSet) and (cdnaType in chainsSet.srcDb.cdnaTypes):
+            if self.__useMapping(chainsSet) and self.__inclSrcDb(chainsSet.srcDb) and  (cdnaType in chainsSet.srcDb.cdnaTypes):
                 gms.addMapping(chainsSet, cdnaType)
-                break # stop a newests
+                break # stop at newest
 
     def __getDestDbMappings(self, destDb, gms):
         "build all GenomeMapping objects for a destDb"
         for srcOrg in destDb.srcChainsSets.iterkeys():
-            for cdnaType in GenomeDefs.CDnaType.values:
+            for cdnaType in self.cdnaTypes:
                 self.__getSrcOrgDestDbMappings(srcOrg, destDb, cdnaType, destDb.srcChainsSets[srcOrg], gms)
 
     def __getMappingSets(self):
@@ -112,18 +126,18 @@ class DestDbMappings(object):
         self.srcDbs.add(gm.srcDb)
         self.mappingsBySrcDb.add(gm.srcDb, gm)
 
-    def __printSrcDbMappings(self, fh, srcDb):
+    def __writeSrcDbMappings(self, fh, srcDb):
         gms = self.mappingsBySrcDb[srcDb]
         cdnaTypes = frozenset([gm.cdnaType for gm in gms])
         chainTypes = frozenset(gms[0].chainsSet.byType.iterkeys())
-        fileOps.prRowv(fh, self.destDb.name, srcDb.name, setOps.setJoin(cdnaTypes, ","),
+        fileOps.prRowv(fh, srcDb.name, self.destDb.name, setOps.setJoin(cdnaTypes, ","),
                        setOps.setJoin(chainTypes, ","), gms[0].chainsSet.dist)
+        
+    mappingsTsvHeader = ("srcDb", "destDb", "cdnaTypes", "chainTypes", "dist")
 
-    def printMappings(self, fh):
-        srcDbs = list(self.srcDbs)
-        srcDbs.sort(key=lambda a: a.name)
-        for srcDb in srcDbs:
-            self.__printSrcDbMappings(fh, srcDb)
+    def writeMappingsTsv(self, fh):
+        for srcDb in sorted(self.srcDbs, key=lambda a: a.name):
+            self.__writeSrcDbMappings(fh, srcDb)
         
 
 class GenomeMappings(list):
@@ -146,8 +160,7 @@ class GenomeMappings(list):
         destDbMappings.addMapping(gm)
         self.bySrcDb.add(gm.srcDb, gm)
 
-    def printMappings(self, fh):
-        destDbs = list(self.destDbMappingsTbl.iterkeys())
-        destDbs.sort(key=lambda a: a.name)
-        for destDb in destDbs:
-            self.destDbMappingsTbl[destDb].printMappings(fh)
+    def writeMappingsTsv(self, fh):
+        fileOps.prRow(fh, DestDbMappings.mappingsTsvHeader)
+        for destDb in sorted(self.destDbMappingsTbl.iterkeys(), key=lambda a: a.name):
+            self.destDbMappingsTbl[destDb].writeMappingsTsv(fh)

@@ -3,22 +3,23 @@ The GenomeDefs object can be constructed and pickled by the genomeDefsMk
 program to speed up loading this data.
 """
 import os, re, cPickle, glob
-from pycbio.sys.Enumeration import Enumeration
-from pycbio.sys.MultiDict import MultiDict
-from pycbio.sys import setOps,typeOps
-from pycbio.sys.fileOps import prRowv, prLine
+from pycbio.sys.symEnum import SymEnum
+from pycbio.sys.multiDict import MultiDict
+from pycbio.sys import setOps,typeOps,fileOps
 
-# FIXME: problem with Enumeration as variables rather than
-# classes is serialization doesn't match!
+class ChainType(SymEnum):
+    "type of chains, which can either be existing or ones filtered on the fly."
+    all = 1
+    syn = 2
+    rbest = 3
 
-# type of chains, which can either be existing or ones filtered on the fly.
-ChainType = Enumeration("ChainType", ("all", "syn", "rbest"))
-
-# cDNA set types
-CDnaType = Enumeration("CDnaType", ("refSeq", "mrna", "splicedEst", "ucscGenes"))
-
-def enumSetStr(eset):
-    return "["+setOps.setJoin(eset, ",")+"]"
+class CDnaType(SymEnum):
+    "cDNA set types"
+    refSeq = 1
+    mrna = 2
+    splicedEst = 3
+    ucscGenes = 4
+    ensembl = 5
 
 class Chains(object):
     "Describes a set of chains used in a mapping to a destDb"
@@ -38,7 +39,7 @@ class Chains(object):
         return self.srcDb.name + " ==> " + self.destDb.name + " [" + str(self.chtype) + "] |" + str(self.dist) + "|"
 
     def dump(self, fh):
-        prRowv(fh, str(self), self.bzdir)
+        fileOps.prRowv(fh, str(self), self.blastzDir)
 
     def __getstate__(self):
         return (self.srcDb, self.destDb, self.chtype, self.chainFile, self.netFile, self.dist)
@@ -64,11 +65,11 @@ class ChainsSet(object):
         self.destDb = destDb
         self.byType = dict() # by types
         self.dist = None
-        bzdir = self.__findChainsDir()
-        if bzdir != None:
-            self.__addIfExists(bzdir, ChainType.all, "all.chain", "net")
-            self.__addIfExists(bzdir, ChainType.syn, "all.chain", "syn.net")
-            self.__addIfExists(bzdir, ChainType.rbest, "rbest.chain", "rbest.net")
+        blastzDir = self.__findChainsDir()
+        if blastzDir != None:
+            self.__addIfExists(blastzDir, ChainType.all, "all.chain", "net")
+            self.__addIfExists(blastzDir, ChainType.syn, "all.chain", "syn.net")
+            self.__addIfExists(blastzDir, ChainType.rbest, "rbest.chain", "rbest.net")
 
     def __getstate__(self):
         return (self.srcDb, self.destDb, self.byType, self.dist)
@@ -84,39 +85,39 @@ class ChainsSet(object):
 
     def getTypesStr(self):
         "string representation of chain types that are available"
-        return enumSetStr(set(self.byType.iterkeys()))
+        return setOps.setJoin(set(self.byType.iterkeys()))
 
     def __str__(self):
-        return self.srcDb.name + " ==> " + self.destDb.name + " " + self.getTypesStr() + " |" + str(self.dist) + "|"
+        return self.srcDb.name + " ==> " + self.destDb.name + " [" + self.getTypesStr() + "] |" + str(self.dist) + "|"
 
-    def __chainsNetsExist(self, bzdir):
+    def __chainsNetsExist(self, blastzDir):
         """ make sure both all.chain.gz and net.gz exist, as there was a case
         with only the rbest without an all.chain in one case"""
-        return ((self.__getBlastzFile(bzdir, "all.chain") != None)
-                and (self.__getBlastzFile(bzdir, "net") != None))
+        return ((self.__getBlastzFile(blastzDir, "all.chain") != None)
+                and (self.__getBlastzFile(blastzDir, "net") != None))
 
     def __findChainsDirMeth(self, meth):
         "Return path to chain directory for an alignment method."
         base = "/hive/data/genomes/" + self.destDb.name + "/bed/" + meth + "." + self.srcDb.name
         if os.path.exists(base):
             return base
-        bzdir = base + ".swap"
-        if self.__chainsNetsExist(bzdir):
-            return bzdir
+        blastzDir = base + ".swap"
+        if self.__chainsNetsExist(blastzDir):
+            return blastzDir
         # look for data extensions w/wo .swap
-        bzdirs = glob.glob(base + ".*-*-*")
-        bzdirs.sort(reverse=True)
-        for bzdir in bzdirs:
-            if self.__chainsNetsExist(bzdir):
-                return bzdir
+        blastzDirs = glob.glob(base + ".*-*-*")
+        blastzDirs.sort(reverse=True)
+        for blastzDir in blastzDirs:
+            if self.__chainsNetsExist(blastzDir):
+                return blastzDir
 
         # check for missing symlink to names like blastzPanTro2.2006-03-28
         pat = "/hive/data/genomes/" + self.destDb.name + "/bed/" + meth + self.srcDb.name[0].upper() + self.srcDb.name[1:] + ".*-*-*"
-        bzdirs = glob.glob(pat)
-        bzdirs.sort()
-        for bzdir in bzdirs:
-            if self.__chainsNetsExist(bzdir):
-                return bzdir
+        blastzDirs = glob.glob(pat)
+        blastzDirs.sort()
+        for blastzDir in blastzDirs:
+            if self.__chainsNetsExist(blastzDir):
+                return blastzDir
         return None
 
     def __findChainsDir(self):
@@ -126,11 +127,11 @@ class ChainsSet(object):
             p = self.__findChainsDirMeth("blastz")
         return p
 
-    def __getBlastzFile(self, bzdir, ext):
+    def __getBlastzFile(self, blastzDir, ext):
         """generate and check for one of the blastz alignment files, with and
         without compressed extensions.  Return path if one exists, otherwise
         None"""
-        bzpre = bzdir + "/axtChain/" + self.destDb.name + "." + self.srcDb.name + "."
+        bzpre = blastzDir + "/axtChain/" + self.destDb.name + "." + self.srcDb.name + "."
         p = bzpre + ext + ".gz"  # common case
         if os.path.exists(p):
             return p
@@ -139,17 +140,18 @@ class ChainsSet(object):
             return p
         return None
 
-    def __addIfExists(self, bzdir, chtype, chainExt, netExt):
+    def __addIfExists(self, blastzDir, chtype, chainExt, netExt):
         """add a set of nets/chains if they exist for the specified type"""
-        chainFile = self.__getBlastzFile(bzdir, chainExt)
+        chainFile = self.__getBlastzFile(blastzDir, chainExt)
         if chainFile != None:
-            netFile = self.__getBlastzFile(bzdir, netExt)
+            netFile = self.__getBlastzFile(blastzDir, netExt)
             if netFile != None:
                 self.byType[chtype] = Chains(self.srcDb, self.destDb, chtype, chainFile, netFile)
 
     def getSupportingType(self, chtype):
         """get the chains that support the give type, or None.  This can return
         the all chains when then require more filtering"""
+        assert(isinstance(chtype, ChainType))
         chains = self.byType.get(chtype)
         if (chains == None) and (chtype == ChainType.syn):
             chains = self.byType[ChainType.all]
@@ -195,7 +197,7 @@ class OrgChainsSetMap(MultiDict):
         if self.srcDbIndexed:
             l = [chset.srcDb.name for chset in self.itervalues()]
         else:
-            l = [chset.descDb.name for chset in self.itervalues()]
+            l = [chset.destDb.name for chset in self.itervalues()]
         l.sort()
         return ",".join(l)
 
@@ -231,7 +233,7 @@ class OrgChainsSetMap(MultiDict):
         raise Exception("no chain from for " + str(db))
 
     def dump(self, fh):
-        "OrgChainsSetMap", self.db
+        fileOps.prRowv(fh, "OrgChainsSetMap", self.db)
         for chainsSet in self.itervalues():
             chainsSet.dump(fh, "\t")
 
@@ -248,13 +250,13 @@ class GenomeDb(object):
             raise Exception("can't parse database name: " + dbName)
         return (m.group(1), int(m.group(2)))
 
-    def __init__(self, dbName, org, dbNum, clade, common, scientific, cdnaTypes=None):
+    def __init__(self, dbName, org, clade, commonName, scientificName, cdnaTypes=None):
         self.name = dbName
         self.org = org
-        self.dbNum = dbNum
+        self.dbNum = self.dbParse(dbName)[1]
         self.clade = clade
-        self.common = common
-        self.scientific = scientific
+        self.commonName = commonName
+        self.scientificName = scientificName
         self.cdnaTypes = frozenset(cdnaTypes) if (cdnaTypes != None) else None
         # chains to/from this databases, list by Organism, sorted newest to oldest
         self.srcChainsSets = OrgChainsSetMap(self, True)
@@ -266,7 +268,7 @@ class GenomeDb(object):
         self.destChainsSets.sort()
 
     def __str__(self):
-        s = self.name + "\t" + self.clade + "\t'" + self.common + "'\t'" + self.scientific + "'\t"
+        s = self.name + "\t" + self.clade + "\t'" + self.commonName + "'\t'" + self.scientificName + "'\t"
         if self.cdnaTypes != None:
             s += setOps.setJoin(self.cdnaTypes,",")
         else:
@@ -275,7 +277,7 @@ class GenomeDb(object):
 
     def isFinished(self):
         "is this genome considered finished"
-        return (self.org.orgDbName == "hg") or  (self.org.orgDbName == "mm")
+        return self.org.commonName in ("Human", "Mouse")
 
     def matches(self, clades=None, cdnaTypes=None):
         "does this match the specified filter sets"
@@ -286,27 +288,28 @@ class GenomeDb(object):
         return True
 
     def __dumpChainsSets(self, fh, label, orgCsMap):
-        prLine(fh, "\t", label)
+        fileOps.prLine(fh, "\t", label)
         for cs in orgCsMap.itervalues():
-            prLine(fh, "\t\t", cs)
+            fileOps.prLine(fh, "\t\t", cs)
 
     def dump(self, fh):
-        prLine(fh, str(self))
+        fileOps.prLine(fh, str(self))
         self.__dumpChainsSets(fh, "srcChainsSets", self.srcChainsSets)
         self.__dumpChainsSets(fh, "destChainsSets", self.destChainsSets)
     
 class Organism(object):
-    "databases for a given organism"
+    """Databases for a given organism. We use common name to tie assembly dbs together, since db prefix
+    has changed between releases: Baboon papHam1 ->papAnu2
+    """
 
-    def __init__(self, orgDbName):
-        self.orgDbName = orgDbName
+    def __init__(self, commonName):
+        self.commonName = commonName
         self.dbs = []
 
     def add(self, db):
         "add a new database"
         assert(db.org == self)
         self.dbs.append(db)
-        db.org = self
 
     def sort(self):
         "sort all entries, by reverse dbNum"
@@ -315,28 +318,24 @@ class Organism(object):
 class GenomeDefs(object):
     "object containing all genome definitions"
     def __init__(self):
-        self.dbs = dict()
-        self.orgs = dict()         # orgDbName to Organism (-> GenomeDb)
-        self.chainsSets = []       # all ChainsSet objects
-        self.srcChainsSets = set()        # all source dbs
-        self.destChainsSets = set()       # all destination dbs
+        self.dbs = dict()          # by name
+        self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.clades = set()        # all clades
         self.cdnaTypes = set()     # all CDnaTypes
 
-    def addGenomeDb(self, dbName, clade, common, scientific, cdnaTypes):
+    def addGenomeDb(self, dbName, clade, commonName, scientificName, cdnaTypes):
         "add a genome db"
-        orgDbName, dbNum = GenomeDb.dbParse(dbName)
-        org = self.obtainOrganism(orgDbName)
-        db = GenomeDb(dbName, org, dbNum, clade, common, scientific, cdnaTypes)
+        org = self.obtainOrganism(commonName)
+        db = GenomeDb(dbName, org, clade, commonName, scientificName, cdnaTypes)
         self.dbs[db.name] = db
         org.add(db)
         self.clades.add(db.clade)
         self.cdnaTypes |= db.cdnaTypes
 
-    def obtainOrganism(self, orgDbName):
-        org = self.orgs.get(orgDbName)
+    def obtainOrganism(self, commonName):
+        org = self.orgs.get(commonName)
         if org == None:
-            org = self.orgs[orgDbName] = Organism(orgDbName)
+            org = self.orgs[commonName] = Organism(commonName)
         return org
 
     def buildChainSets(self):
@@ -348,23 +347,21 @@ class GenomeDefs(object):
                     if chset.haveChains():
                         srcDb.destChainsSets.addChainSet(chset)
                         destDb.srcChainsSets.addChainSet(chset)
-                        self.chainsSets.append(chset)
 
     def finish(self):
         """Finish up, making all likes"""
         for org in self.orgs.itervalues():
             org.sort()
-        for chset in self.chainsSets:
-            self.srcChainsSets.add(chset.srcDb)
-            self.destChainsSets.add(chset.destDb)
         for db in self.dbs.itervalues():
             db.finish()
 
         # paranoia
-        self.srcChainsSets = frozenset(self.srcChainsSets)
-        self.destChainsSets = frozenset(self.destChainsSets)
         self.clades = frozenset(self.clades)
         self.cdnaTypes = frozenset(self.cdnaTypes)
+
+    def getDbByName(self, dbName):
+        "lookup db name or None"
+        return self.dbs.get(dbName)
 
     def mapDbName(self, db):
         "change string db name to GenomeDb, if its not already a GenomeDb"
@@ -383,19 +380,17 @@ class GenomeDefs(object):
         return objs
 
     def mapDbNamesSet(self, dbs):
-        """change list of to db names or GenomeDb object, or None
+        """take list of db names or GenomeDb object, or None
         and return frozenset."""
         return frozenset(self.mapDbNames(typeOps.mkset(dbs)))
 
     def dump(self, fh):
         "print for debugging purposes"
-        prRowv(fh, "GenomeDefs: genomes:")
-        for org in self.orgs.iterkeys():
-            for db in self.orgs[org].dbs:
-                prRowv(fh, "", db, enumSetStr(db.cdnaTypes))
-        prRowv(fh, "GenomeDefs: chains:")
-        for chset in self.chainsSets:
-            prRowv(fh, "", chset)
+        fileOps.prRowv(fh, "GenomeDefs: genomes:")
+        for org in self.orgs.itervalues():
+            fileOps.prRowv(fh, "", org.commonName)
+            for db in org.dbs:
+                fileOps.prRowv(fh, "", "", db)
 
     def save(self, path):
         fh = open(path, "w")
