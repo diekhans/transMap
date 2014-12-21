@@ -65,7 +65,11 @@ remConf=${HOME}/.hg.rem.conf
 localConf=${HOME}/.hg.conf
 
 ifeq (${HGDB_CONF},)
+ifeq (${host},hgwdev)
+    export HGDB_CONF=${localConf}
+else
     export HGDB_CONF=${remConf}
+endif
 endif
 
 all: getDefs getData
@@ -203,8 +207,15 @@ ${joinerCheckOutDir}/%.jcheck:
 
 ####
 # generate list of databases to push
-mkPushList:
+pushList: push.list
 
+push.list:
+	mkPushList ${version} ${destDbs} >$@.tmp
+	mv -f $@.tmp $@
+#####
+# print destination dbs
+printDestDbs:
+	@echo ${destDbs}
 
 ####
 # generate script to pack tables
