@@ -141,3 +141,34 @@
         to find out what is on the RR:
            hgsql -h genome-centdb hgcentral
            select name from dbDb where active=1;
+           hgsql -h mysqlbeta hgcentralbeta
+
+2014-12-18
+
+   make getData
+   make batchSetup
+   ssk kk
+   para create -batch=para1/aln para1/aln/jobs.para
+   para try -batch=para1/aln
+   para push -batch=para1/aln -maxPush=1000000
+   para create -batch=para1/filt para1/filt/jobs.para
+   para try -batch=para1/filt
+   para push -batch=para1/filt -maxPush=1000000
+   ssh hgwdev
+   make -j 8 loadDb
+   make runJoinerCheck
+
+                very long running jobs caused by pslMap
+
+  ../../bin/doRunTransMap genomeDefs.pickle danRer7 hg19 all ensembl 00074 para1/part para1/part/aligns/hg19/danRer7/ensembl/00074.psl
+
+
+2014-12-22:
+    From: Hiram Clawson <hiram@soe.ucsc.edu>
+
+    Could I get a transMap for nasLar1 and rhiRox1 ?  They both have
+    chain/nets to hg38 and tarSyr2 browsers completed shortly after you
+    finished the recent update.
+
+2015-05-14
+    http://hgwdev-hiram.cse.ucsc.edu/cgi-bin/100way/lastz.pl
