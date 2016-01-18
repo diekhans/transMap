@@ -1,0 +1,30 @@
+\documentclass[12pt]{article}
+
+\begin{document}
+
+\section{Data Model}
+
+Source genomes are genome assemblies with from which annotations are mapped to
+target genome assemblies.  A genome maybe both a source and target genome,
+although not all target genomes will annotations making them suitable to be
+source genomes.
+
+For a given TransMap release consists of a fixed set of source genomes.  New
+target genomes maybe added to a given release, however source genomes and
+already mapped target genomes are not changed until a new release.
+
+\subsection{Source annotations}
+
+
+
+The following sources annotations sets maybe use from a
+*** GENBANK mRNAs
+*** GENBANK splice ESTs
+*** Ensembl full gene annotations (not projection), including GENCODE
+** The following data is required for each annotation:
+*** PSL alignments, with unique ids.  These can be actual alignments or artificial
+    alignments generated from genome annotations. PSLs are stored in big PSL format.  
+*** FASTA of sequences.  These are index by samtools.
+*** metadata: base transcript less unique suffix, CDS, and gene name, gene id, gene type
+
+\end{document}
