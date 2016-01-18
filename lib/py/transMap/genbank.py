@@ -1,6 +1,6 @@
 import re
 from pycbio.sys import fileOps
-from .genomeDefs import CDnaType
+from .genomeDefs import AnnotationSet
 
 class GenbankConf(object):
     """configuration of genbank for a genome or the defaults.
@@ -25,11 +25,11 @@ class GenbankConfTbl(dict):
         self.defaultConf = GenbankConf("default", None)
         self.__load()
 
-    # parse clusterGenome line, used so we find entries that all all defaults
+    # parse clusterGenome line, used so we find entries that are all defaults
     parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.clusterGenome\s*=")
 
     # parse a cDNA line        1                2                  3                     4                  5
-    parseCDnaRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
+    parseAnnSetRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
 
     def __load(self):
         "build dict of Conf objects"
@@ -40,9 +40,9 @@ class GenbankConfTbl(dict):
         geneomeMatch = self.parseGenomeRe.match(line)
         if geneomeMatch != None:
             self.__obtainGenbankConf(geneomeMatch.group(1))
-        cdnaMatch = self.parseCDnaRe.match(line)
-        if cdnaMatch != None:
-            self.__processGenbankConf(cdnaMatch, line)
+        annSetMatch = self.parseAnnSetRe.match(line)
+        if annSetMatch != None:
+            self.__processGenbankConf(annSetMatch, line)
 
     def __obtainGenbankConf(self, db):
         "get a Conf entry, creating if it doesn't exist"
@@ -53,21 +53,21 @@ class GenbankConfTbl(dict):
                 self[db] = GenbankConf(db, self.defaultConf)
             return self[db]
             
-    def __processGenbankConf(self, cdnaMatch, line):
+    def __processGenbankConf(self, annSetMatch, line):
         "add or update a GenbankConf object given a parsed line"
-        db = cdnaMatch.group(1)
+        db = annSetMatch.group(1)
         cdna = None
-        if cdnaMatch.group(2) == "refseq":
-            cdna = CDnaType.refSeq
-        elif cdnaMatch.group(2) == "genbank":
-            if cdnaMatch.group(3) == "mrna":
-                cdna = CDnaType.mrna
-            elif cdnaMatch.group(3) == "est":
-                cdna = CDnaType.splicedEst
+        if annSetMatch.group(2) == "refseq":
+            cdna = AnnotationSet.refSeq
+        elif annSetMatch.group(2) == "genbank":
+            if annSetMatch.group(3) == "mrna":
+                cdna = AnnotationSet.mrna
+            elif annSetMatch.group(3) == "est":
+                cdna = AnnotationSet.splicedEst
         state = None
-        if cdnaMatch.group(5) == "yes":
+        if annSetMatch.group(5) == "yes":
             state = True
-        elif cdnaMatch.group(5) == "no":
+        elif annSetMatch.group(5) == "no":
             state = False
         if (cdna == None) or (state == None):
             raise Exception("can't parse genbank.conf line: "+line)

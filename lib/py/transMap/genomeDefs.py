@@ -13,8 +13,8 @@ class ChainType(SymEnum):
     syn = 2
     rbest = 3
 
-class CDnaType(SymEnum):
-    "cDNA set types"
+class AnnotationSet(SymEnum):
+    "annotation sets"
     refSeq = 1
     mrna = 2
     splicedEst = 3
@@ -250,14 +250,14 @@ class GenomeDb(object):
             raise Exception("can't parse database name: " + dbName)
         return (m.group(1), int(m.group(2)))
 
-    def __init__(self, dbName, org, clade, commonName, scientificName, cdnaTypes=None):
+    def __init__(self, dbName, org, clade, commonName, scientificName, annotationSet=None):
         self.name = dbName
         self.org = org
         self.dbNum = self.dbParse(dbName)[1]
         self.clade = clade
         self.commonName = commonName
         self.scientificName = scientificName
-        self.cdnaTypes = frozenset(cdnaTypes) if (cdnaTypes != None) else None
+        self.annotationSet = frozenset(annotationSet) if (annotationSet != None) else None
         # chains to/from this databases, list by Organism, sorted newest to oldest
         self.srcChainsSets = OrgChainsSetMap(self, True)
         self.destChainsSets = OrgChainsSetMap(self, False)
@@ -269,8 +269,8 @@ class GenomeDb(object):
 
     def __str__(self):
         s = self.name + "\t" + self.clade + "\t'" + self.commonName + "'\t'" + self.scientificName + "'\t"
-        if self.cdnaTypes != None:
-            s += setOps.setJoin(self.cdnaTypes,",")
+        if self.annotationSet != None:
+            s += setOps.setJoin(self.annotationSet,",")
         else:
             s += "[]"
         return s
@@ -279,11 +279,11 @@ class GenomeDb(object):
         "is this genome considered finished"
         return self.org.commonName in ("Human", "Mouse")
 
-    def matches(self, clades=None, cdnaTypes=None):
+    def matches(self, clades=None, annotationSet=None):
         "does this match the specified filter sets"
         if (clades != None) and (self.clade not in clades):
             return False
-        if (cdnaTypes != None) and (len(self.cdnaTypes & cdnaTypes) == 0):
+        if (annotationSet != None) and (len(self.annotationSet & annotationSet) == 0):
             return False
         return True
 
@@ -321,16 +321,16 @@ class GenomeDefs(object):
         self.dbs = dict()          # by name
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.clades = set()        # all clades
-        self.cdnaTypes = set()     # all CDnaTypes
+        self.annotationSet = set()     # all AnnotationSets
 
-    def addGenomeDb(self, dbName, clade, commonName, scientificName, cdnaTypes):
+    def addGenomeDb(self, dbName, clade, commonName, scientificName, annotationSet):
         "add a genome db"
         org = self.obtainOrganism(commonName)
-        db = GenomeDb(dbName, org, clade, commonName, scientificName, cdnaTypes)
+        db = GenomeDb(dbName, org, clade, commonName, scientificName, annotationSet)
         self.dbs[db.name] = db
         org.add(db)
         self.clades.add(db.clade)
-        self.cdnaTypes |= db.cdnaTypes
+        self.annotationSet |= db.annotationSet
 
     def obtainOrganism(self, commonName):
         org = self.orgs.get(commonName)
@@ -357,7 +357,7 @@ class GenomeDefs(object):
 
         # paranoia
         self.clades = frozenset(self.clades)
-        self.cdnaTypes = frozenset(self.cdnaTypes)
+        self.annotationSet = frozenset(self.annotationSet)
 
     def getDbByName(self, dbName):
         "lookup db name or None"
@@ -396,14 +396,14 @@ class GenomeDefs(object):
         fh = open(path, "w")
         #prot = cPickle.HIGHEST_PROTOCOL # FIXME: doesn't work
         prot = 0
-        cPickle.dump((ChainType, CDnaType, self), fh, prot)
+        cPickle.dump((ChainType, AnnotationSet, self), fh, prot)
         fh.close()
 
 def load(path):
     fh = open(path)
     try:
-        global ChainType, CDnaType
-        ChainType, CDnaType, defs = cPickle.load(fh)
+        global ChainType, AnnotationSet
+        ChainType, AnnotationSet, defs = cPickle.load(fh)
         return defs
     finally:
         fh.close()

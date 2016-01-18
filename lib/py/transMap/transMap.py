@@ -1,5 +1,5 @@
 import os, sys
-from .genomeDefs import CDnaType
+from .genomeDefs import AnnotationSet
 from pycbio.sys.pipeline import Pipeline
 from pycbio.sys import fileOps
 from pycbio.tsv import TSVReader
@@ -33,44 +33,44 @@ class TransMap(object):
     def getDataDir(self, srcDb):
         return self.buildDir + "/data/" + srcDb.name
 
-    def getDataPre(self, srcDb, cdnaType):
-        return self.getDataDir(srcDb) + "/" + str(cdnaType)
+    def getDataPre(self, srcDb, annotationSet):
+        return self.getDataDir(srcDb) + "/" + str(annotationSet)
 
-    def getSrcPsl(self, srcDb, cdnaType):
-        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".psl.bz2")
+    def getSrcPsl(self, srcDb, annotationSet):
+        return self.__getFile(self.getDataPre(srcDb, annotationSet) + ".psl.bz2")
         
-    def getSrcSeqId(self, srcDb, cdnaType):
-        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".seqid.bz2")
+    def getSrcSeqId(self, srcDb, annotationSet):
+        return self.__getFile(self.getDataPre(srcDb, annotationSet) + ".seqid.bz2")
         
-    def getSrcAlnStats(self, srcDb, cdnaType):
-        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".pslstats.bz2")
+    def getSrcAlnStats(self, srcDb, annotationSet):
+        return self.__getFile(self.getDataPre(srcDb, annotationSet) + ".pslstats.bz2")
         
-    def getSrcFa(self, srcDb, cdnaType):
-        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".fa.bz2")
+    def getSrcFa(self, srcDb, annotationSet):
+        return self.__getFile(self.getDataPre(srcDb, annotationSet) + ".fa.bz2")
         
-    def getSrcPolyA(self, srcDb, cdnaType):
-        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".polya.bz2")
+    def getSrcPolyA(self, srcDb, annotationSet):
+        return self.__getFile(self.getDataPre(srcDb, annotationSet) + ".polya.bz2")
         
-    def getSrcMeta(self, srcDb, cdnaType):
-        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".meta.bz2")
+    def getSrcMeta(self, srcDb, annotationSet):
+        return self.__getFile(self.getDataPre(srcDb, annotationSet) + ".meta.bz2")
         
-    def getSrcCds(self, srcDb, cdnaType):
-        return self.__getFile(self.getDataPre(srcDb, cdnaType) + ".cds.bz2")
+    def getSrcCds(self, srcDb, annotationSet):
+        return self.__getFile(self.getDataPre(srcDb, annotationSet) + ".cds.bz2")
         
     ###
     # cluster source data (partitioned by prefix).
     ##
-    def getClusterDataDir(self, srcDb, cdnaType):
-        return self.clusterDir + "/data/" + srcDb.name + "/" + str(cdnaType)
+    def getClusterDataDir(self, srcDb, annotationSet):
+        return self.clusterDir + "/data/" + srcDb.name + "/" + str(annotationSet)
 
-    def getClusterDataPre(self, srcDb, cdnaType, cdnaPart):
-        return self.getClusterDataDir(srcDb, cdnaType) + "/" + cdnaPart
+    def getClusterDataPre(self, srcDb, annotationSet, cdnaPart):
+        return self.getClusterDataDir(srcDb, annotationSet) + "/" + cdnaPart
 
-    def getClusterSrcPsl(self, srcDb, cdnaType, cdnaPart):
-        return self.__getFile(self.getClusterDataPre(srcDb, cdnaType, cdnaPart) + ".psl")
+    def getClusterSrcPsl(self, srcDb, annotationSet, cdnaPart):
+        return self.__getFile(self.getClusterDataPre(srcDb, annotationSet, cdnaPart) + ".psl")
         
-    def getClusterSrcFa(self, srcDb, cdnaType, cdnaPart):
-        return self.__getFile(self.getClusterDataPre(srcDb, cdnaType, cdnaPart) + ".fa")
+    def getClusterSrcFa(self, srcDb, annotationSet, cdnaPart):
+        return self.__getFile(self.getClusterDataPre(srcDb, annotationSet, cdnaPart) + ".fa")
 
     ##
     # intermediate transMap alignments before filtering
@@ -78,17 +78,17 @@ class TransMap(object):
     def getClusterMappedDir(self, destDb, srcDb):
         return self.clusterDir + "/aligns/" + destDb.name + "/" + srcDb.name
 
-    def getClusterMappedPre(self, destDb, srcDb, cdnaType, cdnaPart, genomePart=None):
-        p = self.getClusterMappedDir(destDb, srcDb) + "/" + str(cdnaType) + "/" + cdnaPart
+    def getClusterMappedPre(self, destDb, srcDb, annotationSet, cdnaPart, genomePart=None):
+        p = self.getClusterMappedDir(destDb, srcDb) + "/" + str(annotationSet) + "/" + cdnaPart
         if genomePart != None: 
             p += "/" + genomePart
         return p
 
-    def getClusterMappedPsl(self, destDb, srcDb, cdnaType, cdnaPart, genomePart=None):
-        return self.__getFile(self.getClusterMappedPre(destDb, srcDb, cdnaType, cdnaPart, genomePart) + ".psl")
+    def getClusterMappedPsl(self, destDb, srcDb, annotationSet, cdnaPart, genomePart=None):
+        return self.__getFile(self.getClusterMappedPre(destDb, srcDb, annotationSet, cdnaPart, genomePart) + ".psl")
 
-    def getClusterMappedInfo(self, destDb, srcDb, cdnaType, cdnaPart, genomePart=None):
-        return self.__getFile(self.getClusterMappedPre(destDb, srcDb, cdnaType, cdnaPart, genomePart) + ".mapinfo")
+    def getClusterMappedInfo(self, destDb, srcDb, annotationSet, cdnaPart, genomePart=None):
+        return self.__getFile(self.getClusterMappedPre(destDb, srcDb, annotationSet, cdnaPart, genomePart) + ".mapinfo")
 
     ##
     # transMap alignments
@@ -96,14 +96,14 @@ class TransMap(object):
     def getMappedDir(self, destDb, srcDb):
         return self.buildDir + "/aligns/" + destDb.name + "/" + srcDb.name
 
-    def getMappedPre(self, destDb, srcDb, cdnaType):
-        return self.getMappedDir(destDb, srcDb) + "/" + str(cdnaType)
+    def getMappedPre(self, destDb, srcDb, annotationSet):
+        return self.getMappedDir(destDb, srcDb) + "/" + str(annotationSet)
 
-    def getMappedPsl(self, destDb, srcDb, cdnaType):
-        return self.__getFile(self.getMappedPre(destDb, srcDb, cdnaType) + ".psl.bz2")
+    def getMappedPsl(self, destDb, srcDb, annotationSet):
+        return self.__getFile(self.getMappedPre(destDb, srcDb, annotationSet) + ".psl.bz2")
 
-    def getMappedInfo(self, destDb, srcDb, cdnaType):
-        return self.__getFile(self.getMappedPre(destDb, srcDb, cdnaType) + ".mapinfo.bz2")
+    def getMappedInfo(self, destDb, srcDb, annotationSet):
+        return self.__getFile(self.getMappedPre(destDb, srcDb, annotationSet) + ".mapinfo.bz2")
 
 
     ##
@@ -179,38 +179,38 @@ class ChromsCache(dict):
         return chroms
 
 class CDnaPartitions(object):
-    def __init__(self, db, cdnaType, transMap, cdnaTargetSize):
+    def __init__(self, db, annotationSet, transMap, cdnaTargetSize):
         self.db = db
-        self.cdnaType = cdnaType
+        self.annotationSet = annotationSet
         self.transMap = transMap
         self.cdnaTargetSize = cdnaTargetSize
-        self.partList = transMap.getClusterDataDir(db, cdnaType) + "/parts.lst"
+        self.partList = transMap.getClusterDataDir(db, annotationSet) + "/parts.lst"
         if not os.path.exists(self.partList):
             self.__mkPartitions()
         self.parts = fileOps.readFileLines(self.partList)
 
     def __mkPartitions(self):
-        outDir = self.transMap.getClusterDataDir(self.db, self.cdnaType)
+        outDir = self.transMap.getClusterDataDir(self.db, self.annotationSet)
         fileOps.ensureDir(outDir)
         partListTmp = self.partList + getTmpExt()
         runCmds(["pslFaPartition", "-partList="+partListTmp,
                  self.cdnaTargetSize,
-                 self.transMap.getSrcPsl(self.db, self.cdnaType),
-                 self.transMap.getSrcFa(self.db, self.cdnaType),
+                 self.transMap.getSrcPsl(self.db, self.annotationSet),
+                 self.transMap.getSrcFa(self.db, self.annotationSet),
                  outDir])
         os.rename(partListTmp, self.partList)
 
 class CDnaPartitionsCache(dict):
-    "cache of CDnaPartitions, by (GenomeDb, CDnaType)"
+    "cache of CDnaPartitions, by (GenomeDb, AnnotationSet)"
     def __init__(self, transMap, cdnaTargetSize):
         self.transMap = transMap
         self.cdnaTargetSize = cdnaTargetSize
 
-    def obtain(self, db, cdnaType):
-        key = (db, cdnaType)
+    def obtain(self, db, annotationSet):
+        key = (db, annotationSet)
         cdnaParts = self.get(key)
         if cdnaParts == None:
-            cdnaParts = self[key] = CDnaPartitions(db, cdnaType, self.transMap, self.cdnaTargetSize)
+            cdnaParts = self[key] = CDnaPartitions(db, annotationSet, self.transMap, self.cdnaTargetSize)
         return cdnaParts
 
     

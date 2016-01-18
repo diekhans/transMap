@@ -26,7 +26,7 @@ class CmdOpts(object):
 
     def fixEnums(self):
         # FIXME: don't convert Enumerations until GenomeDefs is loaded
-        self.cdnaType = genomeDefs.CDnaType(self.cdnaType)
+        self.cdnaType = genomeDefs.AnnotationSet(self.cdnaType)
 
 opts = CmdOpts()
 # skip if already completed

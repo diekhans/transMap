@@ -33,7 +33,7 @@ class CmdOpts(object):
         if ((opts.firstChrom != None) or (opts.lastChrom != None)) and ((opts.firstChrom == None) or (opts.lastChrom == None)):
             parser.error("must specified either both or neither of --firstChrom and --lastChrom")
         self.chainType = genomeDefs.ChainType(self.chainType)
-        self.cdnaType = genomeDefs.CDnaType(self.cdnaType)
+        self.cdnaType = genomeDefs.AnnotationSet(self.cdnaType)
 
 def bldChroms(opts, dest2bit):
     chromSet = None

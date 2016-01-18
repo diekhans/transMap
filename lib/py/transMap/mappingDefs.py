@@ -19,8 +19,8 @@ class MappingDefsBuild(object):
                           help="""Only generate data for these srcDbs. Can be specified multiple times.""")
         parser.add_option("--onlyDestDb", action="append", dest="onlyDestDbs", default=None,
                           help="""Only generate data for these destDbs. Can be specified multiple times.""")
-        parser.add_option("--cdnaType", action="append", dest="cdnaTypes", default=None,
-                          help="""Only generate data for these cDNA types. Can be specified multiple times, valid values are: """ + ", ".join([str(t) for t in genomeDefs.CDnaType]))
+        parser.add_option("--annotationSet", action="append", dest="annotationSets", default=None,
+                          help="""Only generate data for these annotation sets. Can be specified multiple times, valid values are: """ + ", ".join([str(t) for t in genomeDefs.AnnotationSet]))
 
     def __init__(self, opts):
         "construct GenomeDefs and mappings"
@@ -33,14 +33,14 @@ class MappingDefsBuild(object):
         self.excludeDbs = self.defs.mapDbNamesSet(opts.excludeDbs)
         self.clades = setOps.mkfzset(opts.includeClades) if (opts.includeClades != None) else self.defs.clades
 
-        if opts.cdnaTypes != None:
+        if opts.annotationSets != None:
             # convert to Enumeration
-            self.cdnaTypes = set()
-            for c in opts.cdnaTypes:
-                self.cdnaTypes.add(genomeDefs.CDnaType(c))
+            self.annotationSets = set()
+            for c in opts.annotationSets:
+                self.annotationSets.add(genomeDefs.AnnotationSet(c))
         else:
-            self.cdnaTypes = self.defs.cdnaTypes
-        self.cdnaTypes = frozenset(self.cdnaTypes)
+            self.annotationSets = self.defs.annotationSets
+        self.annotationSets = frozenset(self.annotationSets)
 
         self.mappings = self.__getMappingSets()
 
@@ -79,23 +79,23 @@ class MappingDefsBuild(object):
         # to using these and syntenic filtering.
         return ((chainsSet.srcDb not in self.excludeDbs) and chainsSet.haveChains()
                 and (genomeDefs.ChainType.all in chainsSet.byType)
-                and chainsSet.srcDb.matches(self.clades, self.cdnaTypes))
+                and chainsSet.srcDb.matches(self.clades, self.annotationSets))
 
     def __inclSrcDb(self, srcDb):
         return (self.onlySrcDbs == None) or (srcDb in self.onlySrcDbs)
 
-    def __getSrcOrgDestDbMappings(self, srcOrg, destDb, cdnaType, chainsSets, gms):
+    def __getSrcOrgDestDbMappings(self, srcOrg, destDb, annotationSet, chainsSets, gms):
         # chainsSets are sorted new to oldest srcDb
         for chainsSet in chainsSets:
-            if self.__useMapping(chainsSet) and self.__inclSrcDb(chainsSet.srcDb) and  (cdnaType in chainsSet.srcDb.cdnaTypes):
-                gms.addMapping(chainsSet, cdnaType)
+            if self.__useMapping(chainsSet) and self.__inclSrcDb(chainsSet.srcDb) and  (annotationSet in chainsSet.srcDb.annotationSets):
+                gms.addMapping(chainsSet, annotationSet)
                 break # stop at newest
 
     def __getDestDbMappings(self, destDb, gms):
         "build all GenomeMapping objects for a destDb"
         for srcOrg in destDb.srcChainsSets.iterkeys():
-            for cdnaType in self.cdnaTypes:
-                self.__getSrcOrgDestDbMappings(srcOrg, destDb, cdnaType, destDb.srcChainsSets[srcOrg], gms)
+            for annotationSet in self.annotationSets:
+                self.__getSrcOrgDestDbMappings(srcOrg, destDb, annotationSet, destDb.srcChainsSets[srcOrg], gms)
 
     def __getMappingSets(self):
         """Get a GenomeMappings object with chains describing possible
@@ -107,9 +107,9 @@ class MappingDefsBuild(object):
 
 class GenomeMapping(object):
     "mapping of a cDNA type from a source to desc db"
-    def __init__(self, chainsSet, cdnaType):
+    def __init__(self, chainsSet, annotationSet):
         self.srcDb = chainsSet.srcDb
-        self.cdnaType = cdnaType
+        self.annotationSet = annotationSet
         self.destDb = chainsSet.destDb
         self.chainsSet = chainsSet
 
@@ -128,12 +128,12 @@ class DestDbMappings(object):
 
     def __writeSrcDbMappings(self, fh, srcDb):
         gms = self.mappingsBySrcDb[srcDb]
-        cdnaTypes = frozenset([gm.cdnaType for gm in gms])
+        annotationSets = frozenset([gm.annotationSet for gm in gms])
         chainTypes = frozenset(gms[0].chainsSet.byType.iterkeys())
-        fileOps.prRowv(fh, srcDb.name, self.destDb.name, setOps.setJoin(cdnaTypes, ","),
+        fileOps.prRowv(fh, srcDb.name, self.destDb.name, setOps.setJoin(annotationSets, ","),
                        setOps.setJoin(chainTypes, ","), gms[0].chainsSet.dist)
         
-    mappingsTsvHeader = ("srcDb", "destDb", "cdnaTypes", "chainTypes", "dist")
+    mappingsTsvHeader = ("srcDb", "destDb", "annotationSets", "chainTypes", "dist")
 
     def writeMappingsTsv(self, fh):
         for srcDb in sorted(self.srcDbs, key=lambda a: a.name):
@@ -153,10 +153,10 @@ class GenomeMappings(list):
             self.append(destDbMappings)
         return destDbMappings
     
-    def addMapping(self, chainsSet, cdnaType):
+    def addMapping(self, chainsSet, annotationSet):
         "add a mapping"
         destDbMappings = self.__obtainDestDb(chainsSet.destDb)
-        gm = GenomeMapping(chainsSet, cdnaType)
+        gm = GenomeMapping(chainsSet, annotationSet)
         destDbMappings.addMapping(gm)
         self.bySrcDb.add(gm.srcDb, gm)
 
