@@ -1,10 +1,12 @@
 #!/usr/bin/awk -f
 #
-#  gbRaToMeta
+#  gbRaToMeta srcDb
 #   get metadata from genbank ra files
 #
 BEGIN {
     OFS = "\t";
+    srcDb = ARGV[1]
+    ARGV[1] = ""
 }
 /^acc / {acc = $2}
 /^ver / {ver = $2}
@@ -12,6 +14,6 @@ BEGIN {
 /^gen/ {gen = $2}
 /^mol/ {mol = gensub("^.*-","","g",$2)}
 /^$/ {
-    print acc"."ver,cds,gen,mol;
+    print srcDb":"acc"."ver,cds,gen,mol;
     acc=ver=cds=gen=mol="";
 }

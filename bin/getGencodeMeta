@@ -9,31 +9,32 @@ from pycbio.sys import dbOps
 from pycbio.hgdata import hgDb
 
 class CmdLine(object):
-    usage="""%prog [options] db cdsFile metaOut"""
+    usage="""%prog [options] db attrsTbl cdsFile metaOut"""
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)
         (opts, args) = parser.parse_args()
-        if len(args) != 3:
+        if len(args) != 4:
             parser.error("wrong number of arguments")
-        (self.db, self.cdsFile, self.metaOut) = args
+        (self.db, self.attrsTbl, self.cdsFile, self.metaOut) = args
         self.__dict__.update(opts.__dict__)
 
+# FIXME: column stuff is duplicated in various places commands
 def makeColumnWithSrcDbConcat(db, column):
     return 'concat("' + db + ':", ' + column + ')'
 
-def getUcscGenesMeta(conn, db, cdsFile, metaOut):
+def getGencodeMeta(conn, db, cdsFile, metaOut):
     metaDataTbl = TranscriptMetaDataTbl()
     metaDataTbl.loadCdsFile(cdsFile)
-    metaDataTbl.loadGenesDb(conn, "select " + makeColumnWithSrcDbConcat(db, "kgID") + ", geneSymbol from kgXref")
-    metaDataTbl.loadCatDb(conn, "select " + makeColumnWithSrcDbConcat(db, "name") + ", category from kgTxInfo")
+    metaDataTbl.loadGenesDb(conn, "select " + makeColumnWithSrcDbConcat(db, "transcriptId") + ", geneName from " + opts.attrsTbl)
+    metaDataTbl.loadCatDb(conn, "select " + makeColumnWithSrcDbConcat(db, "transcriptId") + ", transcriptType from " + opts.attrsTbl)
     with open(metaOut, "w") as fh:
         metaDataTbl.write(fh)
-
 
 # entry
 opts = CmdLine()
 conn = hgDb.connect(opts.db)
 try:
-    getUcscGenesMeta(conn, opts.db, opts.cdsFile, opts.metaOut)
+    getGencodeMeta(conn, opts.db, opts.cdsFile, opts.metaOut)
 finally:
     conn.close()
+

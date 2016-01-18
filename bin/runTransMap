@@ -8,10 +8,10 @@ execPath = myBinDir + "/../output/bin/" + os.uname()[4] + "/opt"
 os.environ["PATH"] = execPath + ":" + myBinDir +":"+ os.environ["PATH"]
 
 from optparse import OptionParser
-from pycbio.sys import fileOps, Pipeline, procOps
-from transMap import GenomeDefs, setTMPDIR, getTmpExt, runCmds, copyFile
-from transMap.GenomeDefs import ChainType
-from transMap.TransMap import TransMap,Chroms
+from pycbio.sys import fileOps, procOps
+from transMap import genomeDefs, setTMPDIR, getTmpExt, runCmds, copyFile
+from transMap.genomeDefs import ChainType
+from transMap.transMap import TransMap,Chroms
 
 class CmdOpts(object):
     usage = """%prog [options] genomeDefsPickle srcDb destDb chainType cdnaType cdnaPart clusterDir mappedPsl"""
@@ -32,11 +32,8 @@ class CmdOpts(object):
         self.__dict__.update(opts.__dict__)
         if ((opts.firstChrom != None) or (opts.lastChrom != None)) and ((opts.firstChrom == None) or (opts.lastChrom == None)):
             parser.error("must specified either both or neither of --firstChrom and --lastChrom")
-
-    def fixEnums(self):
-        # FIXME: don't convert Enumerations until GenomeDefs is loaded
-        self.chainType = GenomeDefs.ChainType(self.chainType)
-        self.cdnaType = GenomeDefs.CDnaType(self.cdnaType)
+        self.chainType = genomeDefs.ChainType(self.chainType)
+        self.cdnaType = genomeDefs.CDnaType(self.cdnaType)
 
 def bldChroms(opts, dest2bit):
     chromSet = None
@@ -64,11 +61,10 @@ if os.path.exists(opts.mappedPsl):
     sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")
     sys.exit(0)
 
-genomeDefs = GenomeDefs.load(opts.genomeDefsPickle)
-opts.fixEnums()
-transMap = TransMap(None, genomeDefs, ".", None, opts.clusterDir)
-srcDb = genomeDefs.dbs[opts.srcDb]
-destDb = genomeDefs.dbs[opts.destDb]
+gdefs = genomeDefs.load(opts.genomeDefsPickle)
+transMap = TransMap(None, gdefs, ".", None, opts.clusterDir)
+srcDb = gdefs.dbs[opts.srcDb]
+destDb = gdefs.dbs[opts.destDb]
 
 ##
 # input
@@ -120,7 +116,7 @@ outMapInfo = outPrefix + ".mapinfo"
 chains = chainsSet.getSupportingType(opts.chainType)
 if chains == None:
     chainsSet.dump(sys.stderr)
-    raise Exception("No chains found for type: "+ str(opts.chainType))
+    raise Exception("No chains found compatible with type: "+ str(opts.chainType))
 
 chainPreFiltCmds = []
 chainPreFiltCmds.append(["overlapSelect", "-inFmt=chainq", srcPsl, chains.chainFile, "/dev/stdout"])
@@ -154,10 +150,11 @@ runCmds(preFilt)
 # number of mappings (say > 50,000 for one refseq in mapped to monDom5).
 # Target sort speeds up pslRecalcMatch.
 ##
-pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=" + str(transMap.minQSize), "-minCover=" + str(transMap.minCover),
-                 "-globalNearBest=" + str(transMap.getGlobalNearBestPreFilter(destDb)), pslPreFiltTmp, "stdout"]
-tsort = ["sort","-k","14,14", "-k", "16,16n"]
-runCmds([pslCDnaFilter, tsort], stdout=pslFiltTmp)
+pslCDnaFilter = ["pslCDnaFilter", "-verbose=0", "-minQSize=" + str(transMap.minQSize), "-maxAligns=" + str(transMap.maxAligns),
+                 "-minCover=" + str(transMap.minCover), "-globalNearBest=" + str(transMap.getGlobalNearBestPreFilter(destDb)), pslPreFiltTmp, "stdout"]
+qsortCmd = ["sort","-k","10,10"]
+tsortCmd = ["sort","-k","14,14", "-k", "16,16n"]
+runCmds([qsortCmd, pslCDnaFilter, tsortCmd], stdout=pslFiltTmp)
 
 # select subset of alignments and get matching mapInfo file
 pslMapInfoSelect = ["pslMapInfoSelect", mapInfoPreFiltTmp, pslFiltTmp, mapInfoFiltTmp]

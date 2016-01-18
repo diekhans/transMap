@@ -1,9 +1,9 @@
 import os, sys
-from transMap.GenomeDefs import CDnaType
-from pycbio.sys.Pipeline import Pipeline
+from .genomeDefs import CDnaType
+from pycbio.sys.pipeline import Pipeline
 from pycbio.sys import fileOps
-from pycbio.tsv.TSVReader import TSVReader
-from transMap import getTmpExt, runCmds
+from pycbio.tsv import TSVReader
+from . import getTmpExt, runCmds
 
 
 class TransMap(object):
@@ -16,6 +16,10 @@ class TransMap(object):
         self.clusterDir = clusterDir
         self.mappings = mappings
         self.arch = os.uname()[4]
+
+    minQSize = 20
+    minCover = 0.20
+    maxAligns = 100
 
     def __getFile(self, path):
         if self.exrun != None:
@@ -117,10 +121,6 @@ class TransMap(object):
         "get globalNearBest prefilter cutoff"
         # larger than final filter, since match stats columns not set
         return 2*self.getGlobalNearBest(destDb)
-
-    minQSize = 20
-    minCover = 0.20
-
 
 class Chroms(list):
     """object contain list of chromosomes and sizes, sorted by descending size"""

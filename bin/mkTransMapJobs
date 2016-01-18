@@ -5,11 +5,11 @@ myBinDir = os.path.normpath(os.path.dirname(sys.argv[0]))
 sys.path.append(myBinDir + "/../extern/pycbio/lib")
 sys.path.append(myBinDir + "/../lib/py")
 from optparse import OptionParser
-from pycbio.sys import fileOps, Pipeline
-from transMap import GenomeDefs, getTmpExt
-from transMap.GenomeDefs import ChainType
-from transMap.TransMap import TransMap, ChromsCache, CDnaPartitionsCache
-from transMap.MappingDefs import MappingDefsBuild
+from pycbio.sys import fileOps
+from transMap import genomeDefs, getTmpExt
+from transMap.genomeDefs import ChainType
+from transMap.transMap import TransMap, ChromsCache, CDnaPartitionsCache
+from transMap.mappingDefs import MappingDefsBuild
 
 # N.B. chrom ranges not very useful now that using overlapSelect
 useGenomePart = False
@@ -34,7 +34,7 @@ class CmdOpts(object):
         parser.add_option("--synDist", dest="synDist", action="store", default=None, type="float",
                           help="use syntenic filter for genomes with a distance that is no more than this cutoff")
         parser.add_option("--useAvailableRBest", dest="useAvailableRBest", action="store_true", default=False,
-                          help="use reciprocal best chains when available for filtering")
+                          help="use reciprocal best chains when available for filtering if over syntenic cutoff")
         (opts, args) = parser.parse_args()
         if len(args) != 5:
             parser.error("wrong number of arguments")
@@ -76,13 +76,15 @@ class MkJobs(object):
         self.filterBat.close()
 
     def __getChainType(self, chainsSet):
-        if (self.synDist != None) and (chainsSet.dist != None) and (chainsSet.dist <= self.synDist):
-            if self.useAvailableRBest and (ChainType.rbest in chainsSet.byType):
+        if (self.synDist != None) and (chainsSet.dist != None):
+            if chainsSet.dist <= self.synDist:
+                return ChainType.syn  # can be created from all
+            elif self.useAvailableRBest and (ChainType.rbest in chainsSet.byType):
                 return ChainType.rbest
             else:
-                return ChainType.syn
+                return ChainType.all
         else:
-            return ChainType.all
+            return ChainType.syn
         
     def __mkAlignJob(self, mapping, cdnaPart, genomePart, outPsl):
         cmd = ["doRunTransMap"]

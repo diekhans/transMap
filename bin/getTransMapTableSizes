@@ -3,7 +3,7 @@ import sys, os
 rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
 sys.path.append(rootDir+"/extern/pycbio/lib")
 from optparse import OptionParser
-from pycbio.tsv.TSVTable import TSVTable
+from pycbio.tsv import TSVTable
 from pycbio.sys import fileOps
 from pycbio.sys import Pipeline
 
