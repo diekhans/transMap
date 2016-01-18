@@ -2,6 +2,10 @@
 import os,sys,socket
 from pycbio.sys.pipeline import Procline
 
+# FIXME: how many are still needed?
+
+#def progSetup(
+
 def getTmpExt():
     return "." + socket.gethostname() + "." + str(os.getpid()) + ".tmp"
 

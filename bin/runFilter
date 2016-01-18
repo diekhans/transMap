@@ -14,19 +14,19 @@ from transMap.transMap import TransMap
 
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle srcDb destDb cdnaType alnPslList clusterDir mappedPsl
+    usage = """%prog [options] genomeDefsPickle srcDb destDb annSetType alnPslList clusterDir mappedPsl
 """
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
         (opts, args) = parser.parse_args()
         if len(args) != 7:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self.srcDb, self.destDb, self.cdnaType, self.partsLst, self.clusterDir, self.mappedPsl) = args
+        (self.genomeDefsPickle, self.srcDb, self.destDb, self.annSetType, self.partsLst, self.clusterDir, self.mappedPsl) = args
         self.__dict__.update(opts.__dict__)
 
     def fixEnums(self):
         # FIXME: don't convert Enumerations until GenomeDefs is loaded
-        self.cdnaType = genomeDefs.AnnotationSet(self.cdnaType)
+        self.annSetType = genomeDefs.AnnSetType(self.annSetType)
 
 opts = CmdOpts()
 # skip if already completed
@@ -34,11 +34,11 @@ if os.path.exists(opts.mappedPsl):
     sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")
     sys.exit(0)
 
-def mkInFileLst(baseName, destDb, srcDb, cdnaType, parts, mapFunc):
+def mkInFileLst(baseName, destDb, srcDb, annSetType, parts, mapFunc):
     inTmp = tmpDir + "/" + baseName + tmpExt
     fh = open(inTmp, "w")
     for p in parts:
-        fh.write(mapFunc(destDb, srcDb, cdnaType, p))
+        fh.write(mapFunc(destDb, srcDb, annSetType, p))
         fh.write("\n")
     fh.close()
     return inTmp
@@ -55,8 +55,8 @@ destDb = gdefs.dbs[opts.destDb]
 
 # input
 parts = fileOps.readFileLines(opts.partsLst)
-inPslsTmp = mkInFileLst("psl", destDb, srcDb, opts.cdnaType, parts, transMap.getClusterMappedPsl)
-inMapInfosTmp = mkInFileLst("mapInfo", destDb, srcDb, opts.cdnaType, parts, transMap.getClusterMappedInfo)
+inPslsTmp = mkInFileLst("psl", destDb, srcDb, opts.annSetType, parts, transMap.getClusterMappedPsl)
+inMapInfosTmp = mkInFileLst("mapInfo", destDb, srcDb, opts.annSetType, parts, transMap.getClusterMappedInfo)
 
 # output
 outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]

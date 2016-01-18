@@ -1,6 +1,22 @@
 import re
 from pycbio.sys import fileOps
-from .genomeDefs import AnnotationSet
+from .genomeDefs import AnnSetType
+
+# FIXME: drop unused
+def mkGbGetSeqsCmd(srcDbName, annSetType, what, accFile=None):
+    """create command to run gbGetSeqs.
+    what is the argument to -get="""
+    cmd=["/hive/data/outside/genbank/bin/x86_64/gbGetSeqs",
+         "-db=" + srcDbName,
+         "-get=" + what,
+         "-native", "-inclVersion",
+         "-gbRoot=/hive/data/outside/genbank"]
+    if accFile != None:
+        cmd += ["-accFile="+accFile]
+    cmd += ["refseq" if (annSetType == AnnSetType.refSeq) else "genbank",
+            "est" if (annSetType == AnnSetType.splicedEst) else "mrna",
+            "/dev/stdout"]
+    return cmd
 
 class GenbankConf(object):
     """configuration of genbank for a genome or the defaults.
@@ -56,25 +72,25 @@ class GenbankConfTbl(dict):
     def __processGenbankConf(self, annSetMatch, line):
         "add or update a GenbankConf object given a parsed line"
         db = annSetMatch.group(1)
-        cdna = None
+        annSetType = None
         if annSetMatch.group(2) == "refseq":
-            cdna = AnnotationSet.refSeq
+            annSetType = AnnSetType.refSeq
         elif annSetMatch.group(2) == "genbank":
             if annSetMatch.group(3) == "mrna":
-                cdna = AnnotationSet.mrna
+                annSetType = AnnSetType.mrna
             elif annSetMatch.group(3) == "est":
-                cdna = AnnotationSet.splicedEst
+                annSetType = AnnSetType.splicedEst
         state = None
         if annSetMatch.group(5) == "yes":
             state = True
         elif annSetMatch.group(5) == "no":
             state = False
-        if (cdna == None) or (state == None):
+        if (annSetType == None) or (state == None):
             raise Exception("can't parse genbank.conf line: "+line)
         conf = self.__obtainGenbankConf(db)
         if state:
-            conf.on.add(cdna)
+            conf.on.add(annSetType)
         else:
-            conf.off.add(cdna)
+            conf.off.add(annSetType)
 
 

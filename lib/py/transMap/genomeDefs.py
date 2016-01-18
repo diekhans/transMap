@@ -13,8 +13,8 @@ class ChainType(SymEnum):
     syn = 2
     rbest = 3
 
-class AnnotationSet(SymEnum):
-    "annotation sets"
+class AnnSetType(SymEnum):
+    "annotation set type"
     refSeq = 1
     mrna = 2
     splicedEst = 3
@@ -250,14 +250,14 @@ class GenomeDb(object):
             raise Exception("can't parse database name: " + dbName)
         return (m.group(1), int(m.group(2)))
 
-    def __init__(self, dbName, org, clade, commonName, scientificName, annotationSet=None):
+    def __init__(self, dbName, org, clade, commonName, scientificName, annSetType=None):
         self.name = dbName
         self.org = org
         self.dbNum = self.dbParse(dbName)[1]
         self.clade = clade
         self.commonName = commonName
         self.scientificName = scientificName
-        self.annotationSet = frozenset(annotationSet) if (annotationSet != None) else None
+        self.annSetType = frozenset(annSetType) if (annSetType != None) else None
         # chains to/from this databases, list by Organism, sorted newest to oldest
         self.srcChainsSets = OrgChainsSetMap(self, True)
         self.destChainsSets = OrgChainsSetMap(self, False)
@@ -269,8 +269,8 @@ class GenomeDb(object):
 
     def __str__(self):
         s = self.name + "\t" + self.clade + "\t'" + self.commonName + "'\t'" + self.scientificName + "'\t"
-        if self.annotationSet != None:
-            s += setOps.setJoin(self.annotationSet,",")
+        if self.annSetType != None:
+            s += setOps.setJoin(self.annSetType,",")
         else:
             s += "[]"
         return s
@@ -279,11 +279,11 @@ class GenomeDb(object):
         "is this genome considered finished"
         return self.org.commonName in ("Human", "Mouse")
 
-    def matches(self, clades=None, annotationSet=None):
+    def matches(self, clades=None, annSetType=None):
         "does this match the specified filter sets"
         if (clades != None) and (self.clade not in clades):
             return False
-        if (annotationSet != None) and (len(self.annotationSet & annotationSet) == 0):
+        if (annSetType != None) and (len(self.annSetType & annSetType) == 0):
             return False
         return True
 
@@ -321,16 +321,16 @@ class GenomeDefs(object):
         self.dbs = dict()          # by name
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.clades = set()        # all clades
-        self.annotationSet = set()     # all AnnotationSets
+        self.annSetType = set()     # all AnnSetTypes
 
-    def addGenomeDb(self, dbName, clade, commonName, scientificName, annotationSet):
+    def addGenomeDb(self, dbName, clade, commonName, scientificName, annSetType):
         "add a genome db"
         org = self.obtainOrganism(commonName)
-        db = GenomeDb(dbName, org, clade, commonName, scientificName, annotationSet)
+        db = GenomeDb(dbName, org, clade, commonName, scientificName, annSetType)
         self.dbs[db.name] = db
         org.add(db)
         self.clades.add(db.clade)
-        self.annotationSet |= db.annotationSet
+        self.annSetType |= db.annSetType
 
     def obtainOrganism(self, commonName):
         org = self.orgs.get(commonName)
@@ -357,7 +357,7 @@ class GenomeDefs(object):
 
         # paranoia
         self.clades = frozenset(self.clades)
-        self.annotationSet = frozenset(self.annotationSet)
+        self.annSetType = frozenset(self.annSetType)
 
     def getDbByName(self, dbName):
         "lookup db name or None"
@@ -396,14 +396,14 @@ class GenomeDefs(object):
         fh = open(path, "w")
         #prot = cPickle.HIGHEST_PROTOCOL # FIXME: doesn't work
         prot = 0
-        cPickle.dump((ChainType, AnnotationSet, self), fh, prot)
+        cPickle.dump((ChainType, AnnSetType, self), fh, prot)
         fh.close()
 
 def load(path):
     fh = open(path)
     try:
-        global ChainType, AnnotationSet
-        ChainType, AnnotationSet, defs = cPickle.load(fh)
+        global ChainType, AnnSetType
+        ChainType, AnnSetType, defs = cPickle.load(fh)
         return defs
     finally:
         fh.close()

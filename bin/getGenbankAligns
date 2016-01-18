@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+
+import re
+import transMapProgSetup
+import argparse
+from transMap.genomeDefs import AnnSetType
+from pycbio.sys import procOps, fileOps
+
+genbankDataDir = "/hive/data/outside/genbank/data"
+
+def parseArgs():
+    desc="""Obtain PSL alignments for UCSC GenBank files.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("srcDbName",
+                        help="""Genome database for assembly""")
+    parser.add_argument("annSetType", choices=("mrna", "splicedEst", "refSeq"),
+                        help="""annotation set type to obtain""")
+    parser.add_argument("outPsl",
+                        help="""output PSL, which may have compression
+                        extension.  qName column will be made unique and
+                        srcDb: added to each entry """)
+    parser.add_argument("outSeqAcc",
+                        help="""output file with accessions with version
+                        numbers that can is used as input to other commands that call
+                        gbGetSeqs.  This ensure a matching set is extracted.  Maybe
+                        compressed.""")
+    opts = parser.parse_args()
+    opts.annSetType = AnnSetType(opts.annSetType)
+    return opts
+
+pslSelectTmpl = """select matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
+                """tBaseInsert, strand, concat(qName, ".", version), qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
+                """blockCount, blockSizes, qStarts, tStarts from {}, gbCdnaInfo """ \
+                """where (qName = acc)"""
+
+def getPsl(srcDbName, annSetType, outPslTmp):
+    "get PSL file with unique ids"
+    if annSetType == AnnSetType.mrna:
+        table = "all_mrna"
+    elif annSetType == AnnSetType.splicedEst:
+        table = "intronEst"
+    elif annSetType == AnnSetType.refSeq:
+        table = "refSeqAli"
+    hgsqlCmd = ("hgsql", "-Ne", pslSelectTmpl.format(table), srcDbName)
+    sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
+    uniqCmd = ("pslQueryUniq", "-p", srcDbName+":")
+    cmds = [hgsqlCmd, sortCmd, uniqCmd]
+    if fileOps.isCompressed(outPslTmp):
+        cmds += [fileOps.compressCmd(outPslTmp)]
+    procOps.runProc(cmds, stdout=outPslTmp)
+
+# strips off srcDb: and -.* unique extension
+parseUniqedAccRe = re.compile("^[^:]+:([^-]+).*$")
+
+def parseQName(qName):
+    m = parseUniqedAccRe.match(qName)
+    if m == None:
+        raise Exception("can't parse PSL qName {}".format(qName))
+    return m.group(1)
+
+def processPslLine(pslLine, seqAccFh, doneAcc):
+    pslRow = pslLine.split('\t')
+    acc = parseQName(pslRow[9])
+    if acc not in doneAcc:
+        doneAcc.add(acc)
+        seqAccFh.write(acc)
+        seqAccFh.write('\n')
+
+def getSeqAcc(outPslTmp, outSeqAccTmp):
+    doneAcc = set()
+    with fileOps.opengz(outPslTmp) as pslFh, fileOps.opengz(outSeqAccTmp, "w") as seqAccFh:
+        for pslLine in pslFh:
+            processPslLine(pslLine, seqAccFh, doneAcc)
+
+def getGenbankAligns(srcDbName, annSetType, outPsl, outSeqAcc):
+    outPslTmp = fileOps.atomicTmpFile(outPsl)
+    getPsl(srcDbName, annSetType, outPslTmp)
+    outSeqAccTmp = fileOps.atomicTmpFile(outSeqAcc)
+    getSeqAcc(outPslTmp, outSeqAccTmp)
+    fileOps.atomicInstall(outSeqAccTmp, outSeqAcc)
+    fileOps.atomicInstall(outPslTmp, outPsl)  # must be last to use as flag
+            
+# entry
+opts = parseArgs()
+getGenbankAligns(opts.srcDbName, opts.annSetType, opts.outPsl, opts.outSeqAcc)
+
