@@ -32,3 +32,6 @@ def copyFile(src, dest):
 def getTwoBit(db):
     return "/hive/data/genomes/"+db +"/"+db+".2bit"
 
+def getChromSizes(db):
+    return "/hive/data/genomes/"+db +"/chrom.sizes"
+

@@ -2,22 +2,6 @@ import re
 from pycbio.sys import fileOps
 from .genomeDefs import AnnSetType
 
-# FIXME: drop unused
-def mkGbGetSeqsCmd(srcDbName, annSetType, what, accFile=None):
-    """create command to run gbGetSeqs.
-    what is the argument to -get="""
-    cmd=["/hive/data/outside/genbank/bin/x86_64/gbGetSeqs",
-         "-db=" + srcDbName,
-         "-get=" + what,
-         "-native", "-inclVersion",
-         "-gbRoot=/hive/data/outside/genbank"]
-    if accFile != None:
-        cmd += ["-accFile="+accFile]
-    cmd += ["refseq" if (annSetType == AnnSetType.refSeq) else "genbank",
-            "est" if (annSetType == AnnSetType.splicedEst) else "mrna",
-            "/dev/stdout"]
-    return cmd
-
 class GenbankConf(object):
     """configuration of genbank for a genome or the defaults.
     handles on/off/defaulted"""

@@ -10,18 +10,16 @@ genbankDataDir = "/hive/data/outside/genbank/data"
 
 def parseArgs():
     desc="""Obtain FASTA sequence for for UCSC GenBank alignments.
-    A SAM tools fasta index is built.
     """
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("srcDbName",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=("mrna", "splicedEst", "refSeq"),
+    parser.add_argument("annSetType", choices=("mrna", "refSeq"),
                         help="""annotation set type to obtain""")
     parser.add_argument("seqAccFile",
                         help="""File with accessions with versions""")
-    parser.add_argument("outFa",
-                        help="""Output FASTA, and associated samtools index is
-                        built.  anme column will be prefixed with srcDb:""")
+    parser.add_argument("outMetaDataTSV",
+                        help="""output TSV, which may have compression extension.""")
     opts = parser.parse_args()
     opts.annSetType = AnnSetType(opts.annSetType)
     return opts
@@ -33,19 +31,12 @@ def getSeqFasta(srcDbName, seqAccFile, outFaTmp):
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
     cmds = [getRnaCmd, srcDbCmd]
     if fileOps.isCompressed(outFaTmp):
-        raise Exception("compressed output not support")
+        cmds.append(fileOps.compressCmd(outFaTmp))
     procOps.runProc(cmds, stdout=outFaTmp)
-
-def getFastaIdx(outFaTmp):
-    "index with samtools, return path to index"
-    procOps.runProc(["samtools", "faidx", outFaTmp])
-    return outFaTmp + ".fai"
 
 def getGenbankSeqs(srcDbName, annSetType, seqAccFile, outFa):
     outFaTmp = fileOps.atomicTmpFile(outFa)
     getSeqFasta(srcDbName, seqAccFile, outFaTmp)
-    outFaIdxTmp = getFastaIdx(outFaTmp)
-    fileOps.atomicInstall(outFaIdxTmp, outFa + ".fai")
     fileOps.atomicInstall(outFaTmp, outFa)
             
 # entry

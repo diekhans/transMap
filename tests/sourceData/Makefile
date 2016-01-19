@@ -20,7 +20,8 @@ getGenbankAlignsRnaTest: mkdirs
 	diff expected/$@.acc output/$@.acc
 
 getGenbankAlignsRefSeqTest: mkdirs
-	${getGenbankAligns} felCat8 refSeq output/$@.psl output/$@.acc
+	${getGenbankAligns} felCat8 refSeq output/$@.bigPsl output/$@.acc
+	bigPslToPsl output/$@.bigPsl stdout | sort >output/$@.psl
 	diff expected/$@.psl output/$@.psl
 	diff expected/$@.acc output/$@.acc
 
@@ -42,11 +43,13 @@ getGenbankSeqsRnaTests: mkdirs getGenbankAlignsRnaTest
 	${getGenbankSeqs} felCat8 mrna output/getGenbankAlignsRnaTest.acc output/$@.fa
 	awk '/^>/' output/$@.fa  > output/$@.fa.ids
 	diff expected/$@.fa.ids output/$@.fa.ids
+	test -e output/$@.fa.fai
 
 getGenbankSeqsRefSeqTests: mkdirs getGenbankAlignsRefSeqTest
 	${getGenbankSeqs} felCat8 mrna output/getGenbankAlignsRefSeqTest.acc output/$@.fa
 	awk '/^>/' output/$@.fa  > output/$@.fa.ids
 	diff expected/$@.fa.ids output/$@.fa.ids
+	test -e output/$@.fa.fai
 
 mkdirs:
 	@mkdir -p output

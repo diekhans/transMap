@@ -27,15 +27,16 @@ The following source genome annotations sets maybe are if available:
 
 ** The following data is create for each annotation set:
 \begin{itemize}
-\item PSL alignments of transcripts, with all ids made unique.  These can be actual
+\item PSL alignments of transcripts, with all qNames prefixed with source database and made unique.
+  These can be actual
   alignments or artificial alignments generated from genome annotations. PSLs
   are stored in big PSL format.
 \item Transcript sequences, either transcripts for alignments or predicted transcripts
   from genome sequences.  In FASTA format, indexed by samtools.
-\item Metadata:  The following values in a TSV fike:
+\item Metadata for transcript, these are not obtained for ESTs.  The following values in a TSV fike:
   \begin{itemize}
-  \item base transcript id, less unique suffix
-  \item CDS, in genbank format
+  \item transcript id in the form srcDb:transcript
+  \item CDS, in GenBank format
   \item gene symbol
   \item gene id
   \item gene type

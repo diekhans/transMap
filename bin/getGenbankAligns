@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-import re
+import os, re
 import transMapProgSetup
 import argparse
 from transMap.genomeDefs import AnnSetType
+from transMap import getChromSizes
 from pycbio.sys import procOps, fileOps
 
 genbankDataDir = "/hive/data/outside/genbank/data"
@@ -18,7 +19,8 @@ def parseArgs():
                         help="""annotation set type to obtain""")
     parser.add_argument("outPsl",
                         help="""output PSL, which may have compression
-                        extension.  qName column will be made unique and
+                        extension or if it has an extension of .bigPsl, it will be
+                        a bigPsl format file  qName column will be made unique and
                         srcDb: added to each entry """)
     parser.add_argument("outSeqAcc",
                         help="""output file with accessions with version
@@ -50,6 +52,24 @@ def getPsl(srcDbName, annSetType, outPslTmp):
         cmds.append([fileOps.compressCmd(outPslTmp)])
     procOps.runProc(cmds, stdout=outPslTmp)
 
+def getBigPslAutoSql():
+    autoSql = os.path.expanduser("~/kent/src/hg/lib/bigPsl.as")
+    if not os.path.exists(autoSql):
+        raise Exception("autosql file not found: {}".fornat(autosql))
+    return autoSql
+    
+def pslToBigPsl(srcDbName, inPsl, outBigPsl):
+    tmpBigPsl = fileOps.tmpFileGet("pslToBigPsl")
+    step1Cmds = (["pslToBigPsl", inPsl, "stdout"],
+                 ["sort", "-k1,1", "-k2,2n"])
+    procOps.runProc(step1Cmds, stdout=tmpBigPsl)
+    
+    step2Cmds = ("bedToBigBed", "-type=bed12+12", "-tab", "-as="+getBigPslAutoSql(),
+                 tmpBigPsl, getChromSizes(srcDbName), outBigPsl)
+    print " ".join(step2Cmds)
+    procOps.runProc(step2Cmds)
+    os.unlink(tmpBigPsl)
+    
 # strips off srcDb: and -.* unique extension
 parseUniqedAccRe = re.compile("^[^:]+:([^-]+).*$")
 
@@ -73,12 +93,25 @@ def getSeqAcc(outPslTmp, outSeqAccTmp):
         for pslLine in pslFh:
             processPslLine(pslLine, seqAccFh, doneAcc)
 
+def getGenbankAlignsFlat(srcDbName, annSetType, outPslTmp, outSeqAcc):
+    "flat-file PSL"
+    getPsl(srcDbName, annSetType, outPslTmp)
+    getSeqAcc(outPslTmp, outSeqAcc)
+    
+def getGenbankAlignsBig(srcDbName, annSetType, outPslTmp, outSeqAcc):
+    "bigPsl"
+    outPslTextTmp = fileOps.tmpFileGet("textPsl")
+    getPsl(srcDbName, annSetType, outPslTextTmp)
+    getSeqAcc(outPslTextTmp, outSeqAcc)
+    pslToBigPsl(srcDbName, outPslTextTmp, outPslTmp)
+    os.unlink(outPslTextTmp)
+            
 def getGenbankAligns(srcDbName, annSetType, outPsl, outSeqAcc):
     outPslTmp = fileOps.atomicTmpFile(outPsl)
-    getPsl(srcDbName, annSetType, outPslTmp)
-    outSeqAccTmp = fileOps.atomicTmpFile(outSeqAcc)
-    getSeqAcc(outPslTmp, outSeqAccTmp)
-    fileOps.atomicInstall(outSeqAccTmp, outSeqAcc)
+    if outPsl.endswith(".bigPsl"):
+        getGenbankAlignsBig(srcDbName, annSetType, outPslTmp, outSeqAcc)
+    else:
+        getGenbankAlignsFlat(srcDbName, annSetType, outPslTmp, outSeqAcc)
     fileOps.atomicInstall(outPslTmp, outPsl)  # must be last to use as flag
             
 # entry
