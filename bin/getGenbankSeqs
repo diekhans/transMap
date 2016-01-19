@@ -6,8 +6,6 @@ import argparse
 from transMap.genomeDefs import AnnSetType
 from pycbio.sys import procOps, fileOps
 
-genbankDataDir = "/hive/data/outside/genbank/data"
-
 def parseArgs():
     desc="""Obtain FASTA sequence for for UCSC GenBank alignments.
     A SAM tools fasta index is built.

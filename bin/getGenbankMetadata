@@ -5,11 +5,10 @@ import transMapProgSetup
 import argparse
 from transMap.genomeDefs import AnnSetType
 from pycbio.sys import procOps, fileOps
-
-genbankDataDir = "/hive/data/outside/genbank/data"
+from pycbio.hgdata import hgDb
 
 def parseArgs():
-    desc="""Obtain FASTA sequence for for UCSC GenBank alignments.
+    desc="""Obtain metadata for UCSC GenBank alignments.
     """
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("srcDbName",
@@ -18,28 +17,70 @@ def parseArgs():
                         help="""annotation set type to obtain""")
     parser.add_argument("seqAccFile",
                         help="""File with accessions with versions""")
-    parser.add_argument("outMetaDataTSV",
-                        help="""output TSV, which may have compression extension.""")
+    parser.add_argument("outMetadata",
+                        help="""output table, which may have compression extension.""")
     opts = parser.parse_args()
     opts.annSetType = AnnSetType(opts.annSetType)
     return opts
 
-def getSeqFasta(srcDbName, seqAccFile, outFaTmp):
-    "get fasta file"
-    getRnaCmd = ("getRna", "-inclVer", srcDbName, seqAccFile, "/dev/stdout")
-    srcDbCmd = ("awk", "-v", "srcDb="+srcDbName,
-                '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
-    cmds = [getRnaCmd, srcDbCmd]
-    if fileOps.isCompressed(outFaTmp):
-        cmds.append(fileOps.compressCmd(outFaTmp))
-    procOps.runProc(cmds, stdout=outFaTmp)
+# columns are: ("transcriptId", "cds", "geneName", "geneId", "geneType", "transcriptType")
 
-def getGenbankSeqs(srcDbName, annSetType, seqAccFile, outFa):
-    outFaTmp = fileOps.atomicTmpFile(outFa)
-    getSeqFasta(srcDbName, seqAccFile, outFaTmp)
-    fileOps.atomicInstall(outFaTmp, outFa)
+def valOrEmpty(cds):
+    return "" if cds == "n/a" else cds
+
+def getRefSeqMetaAcc(cur, srcDbName, acc, outFh):
+    baseAcc, version = acc.split(".")
+    sql = """select gb.acc, cds.name, gb.version, rl.name, rl.locusLinkId, gb.mol from """\
+          """ refLink rl, gbCdnaInfo gb, cds where (gb.acc = rl.mrnaAcc) and (cds.id = gb.cds) and (gb.acc = %s)"""
+    cur.execute(sql, (baseAcc,))
+    row = cur.fetchone()
+    if row is None:
+        raise Exception("accession {} not found in refLink and gbCdnaInfo".format(baseAcc))
+    if row["gb.version"] != version:
+        raise Exception("accession version {} does not match database {}.{}".format(acc, acc, row["gb.version"]))
+    fileOps.prRowv(outFh, "{}:{}".format(srcDbName, acc),
+                   valOrEmpty(row["cds.name"]), row["rl.name"], row["rl.locusLinkId"],
+                   "", row["gb.mol"])
+   
+def getRefSeqMeta(cur, srcDbName, seqAccs, outFh):
+    for acc in seqAccs:
+        getRefSeqMetaAcc(cur, srcDbName, acc, outFh)
+
+
+def getMRnaMetaAcc(cur, srcDbName, acc, outFh):
+    baseAcc, version = acc.split(".")
+    sql = """select gb.acc, cds.name as cdsName, gb.version, gn.name as gnName, gb.mol from """\
+          """  gbCdnaInfo gb, cds, geneName gn where (cds.id = gb.cds) and (gn.id = gb.geneName) and (gb.acc = %s)"""
+    cur.execute(sql, (baseAcc,))
+    row = cur.fetchone()
+    if row is None:
+        raise Exception("accession {} not found in gbCdnaInfo".format(baseAcc))
+    if str(row["version"]) != version:
+        raise Exception("accession version {} does not match database {}.{}".format(acc, baseAcc, row["version"]))
+    fileOps.prRowv(outFh, "{}:{}".format(srcDbName, acc),
+                   valOrEmpty(row["cdsName"]), valOrEmpty(row["gnName"]), "",
+                   "", row["mol"])
+   
+def getMRnaMeta(cur, srcDbName, seqAccs, outFh):
+    for acc in seqAccs:
+        getMRnaMetaAcc(cur, srcDbName, acc, outFh)
+        
+def getGenbankMetadata(srcDbName, annSetType, seqAccFile, outMetadata):
+    conn = hgDb.connect(srcDbName, dictCursor=True)
+    cur = conn.cursor()
+    seqAccs = fileOps.readFileLines(seqAccFile)
+    outMetadataTmp = fileOps.atomicTmpFile(outMetadata)
+    with open(outMetadataTmp, "w") as outFh:
+        if annSetType == AnnSetType.refSeq:
+            getRefSeqMeta(cur, srcDbName, seqAccs, outFh)
+        else:
+            getMRnaMeta(cur, srcDbName, seqAccs, outFh)
+    
+    fileOps.atomicInstall(outMetadataTmp, outMetadata)
+    cur.close()
+    conn.close()
             
 # entry
 opts = parseArgs()
-getGenbankSeqs(opts.srcDbName, opts.annSetType, opts.seqAccFile, opts.outFa)
+getGenbankMetadata(opts.srcDbName, opts.annSetType, opts.seqAccFile, opts.outMetadata)
 

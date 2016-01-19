@@ -1,9 +1,9 @@
 
 getGenbankAligns = ../../bin/getGenbankAligns
 getGenbankSeqs = ../../bin/getGenbankSeqs
+getGenbankMetadata = ../../bin/getGenbankMetadata
 
-
-test: getGenbankAlignsTests getGenbankSeqsTests
+test: getGenbankAlignsTests getGenbankSeqsTests getGenbankMetadataTests
 
 
 ###
@@ -39,17 +39,32 @@ getGenbankSeqsTests: \
 	getGenbankSeqsRnaTests \
 	getGenbankSeqsRefSeqTests
 
-getGenbankSeqsRnaTests: mkdirs getGenbankAlignsRnaTest
-	${getGenbankSeqs} felCat8 mrna output/getGenbankAlignsRnaTest.acc output/$@.fa
+getGenbankSeqsRnaTests: mkdirs
+	${getGenbankSeqs} felCat8 mrna expected/getGenbankAlignsRnaTest.acc output/$@.fa
 	awk '/^>/' output/$@.fa  > output/$@.fa.ids
 	diff expected/$@.fa.ids output/$@.fa.ids
 	test -e output/$@.fa.fai
 
-getGenbankSeqsRefSeqTests: mkdirs getGenbankAlignsRefSeqTest
+getGenbankSeqsRefSeqTests: mkdirs
 	${getGenbankSeqs} felCat8 mrna output/getGenbankAlignsRefSeqTest.acc output/$@.fa
 	awk '/^>/' output/$@.fa  > output/$@.fa.ids
 	diff expected/$@.fa.ids output/$@.fa.ids
 	test -e output/$@.fa.fai
+
+###
+# getGenbankMetadata
+###
+getGenbankMetadataTests: \
+	getGenbankMetadataRnaTests \
+	getGenbankMetadataRefSeqTests
+
+getGenbankMetadataRnaTests: mkdirs
+	${getGenbankMetadata} felCat8 mrna expected/getGenbankAlignsRnaTest.acc output/$@.meta
+	diff expected/$@.meta output/$@.meta
+
+getGenbankMetadataRefSeqTests: mkdirs
+	${getGenbankMetadata} felCat8 mrna expected/getGenbankAlignsRefSeqTest.acc output/$@.meta
+	diff expected/$@.meta output/$@.meta
 
 mkdirs:
 	@mkdir -p output
