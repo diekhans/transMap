@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+
+import re
+import transMapProgSetup
+import argparse
+from transMap.genomeDefs import AnnSetType
+from pycbio.sys import procOps, fileOps
+
+genbankDataDir = "/hive/data/outside/genbank/data"
+
+def parseArgs():
+    desc="""Obtain FASTA sequence for for UCSC GenBank alignments.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("srcDbName",
+                        help="""Genome database for assembly""")
+    parser.add_argument("annSetType", choices=("mrna", "splicedEst", "refSeq"),
+                        help="""annotation set type to obtain""")
+    parser.add_argument("seqAccFile",
+                        help="""File with accessions with versions""")
+    parser.add_argument("outFa",
+                        help="""output FASTA, which may have compression
+                        extension.  qName column will be prefixed with srcDb:""")
+    opts = parser.parse_args()
+    opts.annSetType = AnnSetType(opts.annSetType)
+    return opts
+
+def getSeqFasta(srcDbName, seqAccFile, outFaTmp):
+    "get fasta file"
+    getRnaCmd = ("getRna", "-inclVer", srcDbName, seqAccFile, "/dev/stdout")
+    srcDbCmd = ("awk", "-v", "srcDb="+srcDbName,
+                '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
+    cmds = [getRnaCmd, srcDbCmd]
+    if fileOps.isCompressed(outFaTmp):
+        cmds.append(fileOps.compressCmd(outFaTmp))
+    procOps.runProc(cmds, stdout=outFaTmp)
+
+def getGenbankSeqs(srcDbName, annSetType, seqAccFile, outFa):
+    outFaTmp = fileOps.atomicTmpFile(outFa)
+    getSeqFasta(srcDbName, seqAccFile, outFaTmp)
+    fileOps.atomicInstall(outFaTmp, outFa)
+            
+# entry
+opts = parseArgs()
+getGenbankSeqs(opts.srcDbName, opts.annSetType, opts.seqAccFile, opts.outFa)
+

@@ -47,7 +47,7 @@ def getPsl(srcDbName, annSetType, outPslTmp):
     uniqCmd = ("pslQueryUniq", "-p", srcDbName+":")
     cmds = [hgsqlCmd, sortCmd, uniqCmd]
     if fileOps.isCompressed(outPslTmp):
-        cmds += [fileOps.compressCmd(outPslTmp)]
+        cmds.append([fileOps.compressCmd(outPslTmp)])
     procOps.runProc(cmds, stdout=outPslTmp)
 
 # strips off srcDb: and -.* unique extension

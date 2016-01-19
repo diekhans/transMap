@@ -1,8 +1,9 @@
 
 getGenbankAligns = ../../bin/getGenbankAligns
+getGenbankSeqs = ../../bin/getGenbankSeqs
 
 
-test: getGenbankAlignsTests
+test: getGenbankAlignsTests getGenbankSeqsTests
 
 
 ###
@@ -24,9 +25,28 @@ getGenbankAlignsRefSeqTest: mkdirs
 	diff expected/$@.acc output/$@.acc
 
 getGenbankAlignsSplicedEstTest: mkdirs
-	${getGenbankAligns} felCat8 splicedEst output/$@.psl output/$@.acc
+	${getGenbankAligns} felCat8 splicedEst output/$@.psl.bz2 output/$@.acc.bz2
+	bzcat output/$@.psl.bz2 >output/$@.psl
+	bzcat output/$@.acc.bz2 >output/$@.acc
 	diff expected/$@.psl output/$@.psl
 	diff expected/$@.acc output/$@.acc
+
+###
+# getGenbankSeqs
+###
+getGenbankSeqsTests: \
+	getGenbankSeqsRnaTests \
+	getGenbankSeqsRefSeqTests
+
+getGenbankSeqsRnaTests: mkdirs getGenbankAlignsRnaTest
+	${getGenbankSeqs} felCat8 mrna output/getGenbankAlignsRnaTest.acc output/$@.fa
+	awk '/^>/' output/$@.fa  > output/$@.fa.ids
+	diff expected/$@.fa.ids output/$@.fa.ids
+
+getGenbankSeqsRefSeqTests: mkdirs getGenbankAlignsRefSeqTest
+	${getGenbankSeqs} felCat8 mrna output/getGenbankAlignsRefSeqTest.acc output/$@.fa
+	awk '/^>/' output/$@.fa  > output/$@.fa.ids
+	diff expected/$@.fa.ids output/$@.fa.ids
 
 mkdirs:
 	@mkdir -p output
