@@ -19,17 +19,23 @@ getGenbankAlignsTests: \
 getGenbankAlignsRnaTest: mkdirs
 	${getGenbankAligns} --limit=100 felCat8 mrna output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAligns' >output/$@.psl+bin
+	sqlite3 -batch output/$@.db 'select * from srcXRefs' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
+	${diff} expected/$@.xref output/$@.xref
 
 getGenbankAlignsRefSeqTest: mkdirs
 	${getGenbankAligns} --limit=100 felCat8 refSeq output/$@.db
 	sqlite3 -batch output/$@.db 'select * from srcAligns' >output/$@.psl+bin
+	sqlite3 -batch output/$@.db 'select * from srcXRefs' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
+	${diff} expected/$@.xref output/$@.xref
 
 getGenbankAlignsSplicedEstTest: mkdirs
 	${getGenbankAligns} --limit=100 felCat8 splicedEst output/$@.db
 	sqlite3 -batch output/$@.db 'select * from srcAligns' >output/$@.psl+bin
+	sqlite3 -batch output/$@.db 'select * from srcXRefs' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
+	${diff} expected/$@.xref output/$@.xref
 
 ###
 # getGenbankSeqs
@@ -42,14 +48,14 @@ getGenbankSeqsRnaTests: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/rnaAligns.sql
 	${getGenbankSeqs} felCat8 mrna output/$@.db
-	sqlite3 -batch output/$@.db 'select name, length(seq) from srcSeqs' >output/$@.fa.ids
+	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq) as length from srcSeqs order by name' >output/$@.fa.ids
 	${diff} expected/$@.fa.ids output/$@.fa.ids
 
 getGenbankSeqsRefSeqTests: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/rnaAligns.sql
 	${getGenbankSeqs} felCat8 refSeq output/$@.db
-	sqlite3 -batch output/$@.db 'select name, length(seq) from srcSeqs' >output/$@.fa.ids
+	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq)  as length from srcSeqs order by name' >output/$@.fa.ids
 	${diff} expected/$@.fa.ids output/$@.fa.ids
 
 ###

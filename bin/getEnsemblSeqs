@@ -15,7 +15,7 @@ class CmdLine(object):
     for PAR region.
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("srcHgDbName",
+    parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
 
     parser = OptionParser(usage=CmdLine.usage)

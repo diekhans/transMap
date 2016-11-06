@@ -1,3 +1,17 @@
+Terminology
+
+  - source assembly (srcDb) - genome from which transcripts are obtained, identified
+    by UCSC database.
+  - source id (srcId) - identifier for the source transcript sequence in the form
+    srcDb:acc.ver
+  - source alignment id (srcAlnId) - unique id of the source alignment or annotation
+    in the form srcId-uniqmod, where unique mod is integer.
+  - accession (acc) - basic identifier in the source database, this doesn't include version
+  - accession version (accv) - fully accession with version number, which describes
+    a unique sequence.
+  - transMap source database (transMapSrcDb) - A sqlite3 database created to hold all of
+    the source data for the mapping jobs.
+
 
 Overview of TransMap algorithm implementation for cross-species cDNA alignments:
 

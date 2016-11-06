@@ -3,10 +3,11 @@
 import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
+from transMap import getChromSizes
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import SourceDbTables, getTransMapSrcAccs
+from transMap.transMapLite import SourceDbTables, TransMapSrcXRefLite
 from pycbio.sys import fileOps
-from pycbio.hgdata.hgLite import SequenceLite
+from pycbio.hgdata.hgLite import SequenceLite, PslLite
 import pipettor
 
 verbose = False
@@ -18,7 +19,7 @@ def parseArgs():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
-    parser.add_argument("srcHgDbName",
+    parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
     parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.splicedEst, AnnSetType.refSeq), type=AnnSetType,
                         help="""annotation set type to obtain""")
@@ -27,40 +28,74 @@ def parseArgs():
     return parser.parse_args()
 
 
-def getTransMapSrcAccsFile(annSetType, srcDbConn):
-    tmpAccFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
-    accVers = getTransMapSrcAccs(srcDbConn)
-    with open(tmpAccFile, "w") as fh:
-        for accVer in accVers:
-            fh.write("{}\n".format(accVer))
-    return tmpAccFile
+def getSrcAccs(transMapSrcDbConn, accvFh):
+    for accv in TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
+        accvFh.write("{}\n".format(accv))
 
 
-def getSeqFasta(srcHgDbName, annSetType, seqAccFile):
+def getSrcAccsFile(annSetType, transMapSrcDbConn):
+    tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
+    with open(tmpAccvFile, "w") as accvFh:
+        getSrcAccs(transMapSrcDbConn, accvFh)
+    return tmpAccvFile
+
+
+def getSeqFasta(srcHgDb, annSetType, tmpAccFile):
     "get fasta file"
-    seqFa = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".fa")
-    getRnaCmd = ("getRna", "-inclVer", "hgFixed", seqAccFile, "/dev/stdout")
-    srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDbName),
+    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".fa")
+    getRnaCmd = ("getRna", "-inclVer", "hgFixed", tmpAccFile, "/dev/stdout")
+    srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDb),
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
     cmds = [getRnaCmd, srcDbCmd]
-    pipettor.run(cmds, stdout=seqFa)
-    return seqFa
+    pipettor.run(cmds, stdout=tmpSeqFa)
+    return tmpSeqFa
 
 
-def loadSeqFa(seqFa, srcDbConn):
-    seqTbl = SequenceLite(srcDbConn, SourceDbTables.srcSeqTbl, True)
-    seqTbl.loadFastaFile(seqFa)
+def getSeqSizes(annSetType, tmpSeqFa):
+    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".sizes")
+    faSizeCmd = ("faSize", "-detailed", tmpSeqFa)
+    pipettor.run(faSizeCmd, stdout=tmpSeqSizes)
+    return tmpSeqSizes
+
+
+def getPsls(transMapSrcDbConn, pslFh):
+    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
+    for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesStr)):
+        fileOps.prRow(pslFh, row)
+
+
+def getPslFile(annSetType, transMapSrcDbConn):
+    tmpPslFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".psl")
+    with open(tmpPslFile, "w") as pslFh:
+        getPsls(transMapSrcDbConn, pslFh)
+    return tmpPslFile
+
+
+def checkPslWithFasta(srcHgDb, tmpPslFile, tmpSeqFa, tmpSeqSizes):
+    pslCheckCmd = ("pslCheck", "-ignoreQUniq",
+                   "-querySizes={}".format(tmpSeqSizes),
+                   "-targetSizes={}".format(getChromSizes(srcHgDb)),
+                   tmpPslFile)
+    pipettor.run((pslCheckCmd,), stderr=None)
+
+
+def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
+    seqTbl = SequenceLite(transMapSrcDbConn, SourceDbTables.srcSeqTbl, True)
+    seqTbl.loadFastaFile(tmpSeqFa)
     seqTbl.index()
 
 
-def getGenbankSeqs(srcHgDbName, annSetType, transMapSrcDb):
-    srcDbConn = sqlite3.connect(transMapSrcDb)
-    tmpAccFile = getTransMapSrcAccsFile(annSetType, srcDbConn)
-    seqFa = getSeqFasta(srcHgDbName, annSetType, tmpAccFile)
-    loadSeqFa(seqFa, srcDbConn)
-    srcDbConn.close()
-    fileOps.rmFiles(tmpAccFile, seqFa)
+def getGenbankSeqs(srcHgDb, annSetType, transMapSrcDb):
+    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    tmpAccFile = getSrcAccsFile(annSetType, transMapSrcDbConn)
+    tmpSeqFa = getSeqFasta(srcHgDb, annSetType, tmpAccFile)
+    tmpPslFile = getPslFile(annSetType, transMapSrcDbConn)
+    tmpSeqSizes = getSeqSizes(annSetType, tmpSeqFa)
+    checkPslWithFasta(srcHgDb, tmpPslFile, tmpSeqFa, tmpSeqSizes)
+    loadSeqFa(tmpSeqFa, transMapSrcDbConn)
+    transMapSrcDbConn.close()
+    fileOps.rmFiles(tmpAccFile, tmpSeqFa, tmpPslFile, tmpSeqSizes)
 
 # entry
 opts = parseArgs()
-getGenbankSeqs(opts.srcHgDbName, opts.annSetType, opts.transMapSrcDb)
+getGenbankSeqs(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb)

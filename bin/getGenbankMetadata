@@ -5,7 +5,7 @@ import argparse
 import sqlite3
 from transMap import parseAccVer
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import SourceDbTables, TransMapGene, TransMapGeneLite, getTransMapSrcAccs
+from transMap.transMapLite import SourceDbTables, TransMapSrcGene, TransMapSrcGeneLite, TransMapSrcXRefLite
 from pycbio.hgdata import hgDb
 
 verbose = False
@@ -17,7 +17,7 @@ def parseArgs():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
-    parser.add_argument("srcHgDbName",
+    parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
     parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.refSeq), type=AnnSetType,
                         help="""annotation set type to obtain""")
@@ -33,8 +33,8 @@ def valOrNone(val):
     return None if (val == "") or (val == "n/a") else val
 
 
-def getRefSeqMetaAcc(hgCur, srcHgDbName, accVer):
-    acc, ver = parseAccVer(accVer)
+def getRefSeqMetaAcc(hgCur, srcHgDb, accv):
+    acc, ver = parseAccVer(accv)
     sql = """select gb.acc as gb_acc, cds.name as cds_name, gb.version as gb_version, rl.name as rl_name, rl.locusLinkId as rl_locusLinkId from """\
           """ refLink rl, gbCdnaInfo gb, cds where (gb.acc = rl.mrnaAcc) and (cds.id = gb.cds) and (gb.acc = %s)"""
     hgCur.execute(sql, (acc,))
@@ -42,18 +42,20 @@ def getRefSeqMetaAcc(hgCur, srcHgDbName, accVer):
     if row is None:
         raise Exception("accession {} not found in refLink and gbCdnaInfo".format(acc))
     if str(row["gb_version"]) != ver:
-        raise Exception("accession version {} does not match database {}.{}".format(accVer, acc, row["gb_version"]))
-    return TransMapGene("{}:{}".format(srcHgDbName, accVer),
-                        valOrNone(row["cds_name"]), srcHgDbName,
-                        valOrNone(row["rl_name"]), str(row["rl_locusLinkId"]))
+        raise Exception("accession version {} does not match database {}.{}".format(accv, acc, row["gb_version"]))
+    return TransMapSrcGene(srcId="{}:{}".format(srcHgDb, accv),
+                           accv=accv,
+                           cds=valOrNone(row["cds_name"]),
+                           geneName=valOrNone(row["rl_name"]),
+                           geneId=str(row["rl_locusLinkId"]))
 
 
-def getRefSeqMeta(hgCur, srcHgDbName, accVers):
-    return [getRefSeqMetaAcc(hgCur, srcHgDbName, accVer) for accVer in accVers]
+def getRefSeqMeta(hgCur, srcHgDb, accvs):
+    return [getRefSeqMetaAcc(hgCur, srcHgDb, accv) for accv in accvs]
 
 
-def getMRnaMetaAcc(hgCur, srcHgDbName, accVer):
-    acc, ver = parseAccVer(accVer)
+def getMRnaMetaAcc(hgCur, srcHgDb, accv):
+    acc, ver = parseAccVer(accv)
     sql = """select gb.acc, cds.name as cdsName, gb.version, gn.name as gnName from """\
           """  gbCdnaInfo gb, cds, geneName gn where (cds.id = gb.cds) and (gn.id = gb.geneName) and (gb.acc = %s)"""
     hgCur.execute(sql, (acc,))
@@ -61,41 +63,43 @@ def getMRnaMetaAcc(hgCur, srcHgDbName, accVer):
     if row is None:
         raise Exception("accession {} not found in gbCdnaInfo".format(acc))
     if str(row["version"]) != ver:
-        raise Exception("accession version {} does not match database {}.{}".format(accVer, acc, row["version"]))
-    return TransMapGene("{}:{}".format(srcHgDbName, accVer),
-                        valOrNone(row["cdsName"]), srcHgDbName,
-                        valOrNone(row["gnName"]), None)
+        raise Exception("accession version {} does not match database {}.{}".format(accv, acc, row["version"]))
+    return TransMapSrcGene(srcId="{}:{}".format(srcHgDb, accv),
+                           accv=accv,
+                           cds=valOrNone(row["cdsName"]),
+                           geneName=valOrNone(row["gnName"]),
+                           geneId=None)
 
 
-def getMRnaMeta(hgCur, srcHgDbName, accVers):
-    return [getMRnaMetaAcc(hgCur, srcHgDbName, accVer) for accVer in accVers]
+def getMRnaMeta(hgCur, srcHgDb, accvs):
+    return [getMRnaMetaAcc(hgCur, srcHgDb, accv) for accv in accvs]
 
 
-def getMetaData(srcHgDbName, annSetType, accVers):
-    hgConn = hgDb.connect(srcHgDbName, dictCursor=True)
+def getMetaData(srcHgDb, annSetType, accvs):
+    hgConn = hgDb.connect(srcHgDb, dictCursor=True)
     hgCur = hgConn.cursor()
     try:
         if annSetType == AnnSetType.refSeq:
-            return getRefSeqMeta(hgCur, srcHgDbName, accVers)
+            return getRefSeqMeta(hgCur, srcHgDb, accvs)
         else:
-            return getMRnaMeta(hgCur, srcHgDbName, accVers)
+            return getMRnaMeta(hgCur, srcHgDb, accvs)
     finally:
         hgCur.close()
         hgConn.close()
 
 
-def loadMetadata(srcDbConn, metaData):
-    transMapGeneTbl = TransMapGeneLite(srcDbConn, SourceDbTables.srcMetaDataTbl, True)
+def loadMetadata(transMapSrcDbConn, metaData):
+    transMapGeneTbl = TransMapSrcGeneLite(transMapSrcDbConn, SourceDbTables.srcMetaDataTbl, True)
     transMapGeneTbl.loads(metaData)
     transMapGeneTbl.index()
 
 
-def getGenbankMetaData(srcHgDbName, annSetType, transMapSrcDb):
-    srcDbConn = sqlite3.connect(transMapSrcDb)
-    accVers = getTransMapSrcAccs(srcDbConn)
-    metaData = getMetaData(srcHgDbName, annSetType, accVers)
-    loadMetadata(srcDbConn, metaData)
-    srcDbConn.close()
+def getGenbankMetaData(srcHgDb, annSetType, transMapSrcDb):
+    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    accvs = TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs()
+    metaData = getMetaData(srcHgDb, annSetType, accvs)
+    loadMetadata(transMapSrcDbConn, metaData)
+    transMapSrcDbConn.close()
 
 opts = parseArgs()
-getGenbankMetaData(opts.srcHgDbName, opts.annSetType, opts.transMapSrcDb)
+getGenbankMetaData(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb)
