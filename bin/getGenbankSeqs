@@ -1,52 +1,66 @@
 #!/usr/bin/env python
 
-import re
-import transMapProgSetup
+import transMapProgSetup  # noqa: F401
+import sqlite3
 import argparse
 from transMap.genomeDefs import AnnSetType
-from pycbio.sys import procOps, fileOps
+from transMap.transMapLite import SourceDbTables, getTransMapSrcAccs
+from pycbio.sys import fileOps
+from pycbio.hgdata.hgLite import SequenceLite
+import pipettor
+
+verbose = False
+
 
 def parseArgs():
-    desc="""Obtain FASTA sequence for for UCSC GenBank alignments.
-    A SAM tools fasta index is built.
+    desc = """Obtain RNA sequence file for UCSC GenBank alignments.
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("srcDbName",
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="""verbose tracing""")
+    parser.add_argument("srcHgDbName",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=("mrna", "splicedEst", "refSeq"),
+    parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.splicedEst, AnnSetType.refSeq), type=AnnSetType,
                         help="""annotation set type to obtain""")
-    parser.add_argument("seqAccFile",
-                        help="""File with accessions with versions""")
-    parser.add_argument("outFa",
-                        help="""Output FASTA, and associated samtools index is
-                        built.  anme column will be prefixed with srcDb:""")
-    opts = parser.parse_args()
-    opts.annSetType = AnnSetType(opts.annSetType)
-    return opts
+    parser.add_argument("transMapSrcDb",
+                        help="""sqlite3 database for source dataset; must have srcAligns table loaded with alignments""")
+    return parser.parse_args()
 
-def getSeqFasta(srcDbName, seqAccFile, outFaTmp):
+
+def getTransMapSrcAccsFile(annSetType, srcDbConn):
+    tmpAccFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
+    accVers = getTransMapSrcAccs(srcDbConn)
+    with open(tmpAccFile, "w") as fh:
+        for accVer in accVers:
+            fh.write("{}\n".format(accVer))
+    return tmpAccFile
+
+
+def getSeqFasta(srcHgDbName, annSetType, seqAccFile):
     "get fasta file"
-    getRnaCmd = ("getRna", "-inclVer", srcDbName, seqAccFile, "/dev/stdout")
-    srcDbCmd = ("awk", "-v", "srcDb="+srcDbName,
+    seqFa = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".fa")
+    getRnaCmd = ("getRna", "-inclVer", "hgFixed", seqAccFile, "/dev/stdout")
+    srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDbName),
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
     cmds = [getRnaCmd, srcDbCmd]
-    if fileOps.isCompressed(outFaTmp):
-        raise Exception("compressed output not support")
-    procOps.runProc(cmds, stdout=outFaTmp)
+    pipettor.run(cmds, stdout=seqFa)
+    return seqFa
 
-def getFastaIdx(outFaTmp):
-    "index with samtools, return path to index"
-    procOps.runProc(["samtools", "faidx", outFaTmp])
-    return outFaTmp + ".fai"
 
-def getGenbankSeqs(srcDbName, annSetType, seqAccFile, outFa):
-    outFaTmp = fileOps.atomicTmpFile(outFa)
-    getSeqFasta(srcDbName, seqAccFile, outFaTmp)
-    outFaIdxTmp = getFastaIdx(outFaTmp)
-    fileOps.atomicInstall(outFaIdxTmp, outFa + ".fai")
-    fileOps.atomicInstall(outFaTmp, outFa)
-            
+def loadSeqFa(seqFa, srcDbConn):
+    seqTbl = SequenceLite(srcDbConn, SourceDbTables.srcSeqTbl, True)
+    seqTbl.loadFastaFile(seqFa)
+    seqTbl.index()
+
+
+def getGenbankSeqs(srcHgDbName, annSetType, transMapSrcDb):
+    srcDbConn = sqlite3.connect(transMapSrcDb)
+    tmpAccFile = getTransMapSrcAccsFile(annSetType, srcDbConn)
+    seqFa = getSeqFasta(srcHgDbName, annSetType, tmpAccFile)
+    loadSeqFa(seqFa, srcDbConn)
+    srcDbConn.close()
+    fileOps.rmFiles(tmpAccFile, seqFa)
+
 # entry
 opts = parseArgs()
-getGenbankSeqs(opts.srcDbName, opts.annSetType, opts.seqAccFile, opts.outFa)
-
+getGenbankSeqs(opts.srcHgDbName, opts.annSetType, opts.transMapSrcDb)

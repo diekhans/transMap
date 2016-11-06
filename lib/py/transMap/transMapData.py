@@ -2,7 +2,7 @@ import os, sys
 from .genomeDefs import AnnSetType
 from pycbio.sys.pipeline import Pipeline
 from pycbio.sys import fileOps
-from pycbio.tsv import TSVReader
+from pycbio.tsv import TsvReader
 from . import getTmpExt, runCmds
 
 

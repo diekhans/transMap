@@ -2,16 +2,21 @@
 The GenomeDefs object can be constructed and pickled by the genomeDefsMk
 program to speed up loading this data.
 """
-import os, re, cPickle, glob
+import os
+import re
+import cPickle
+import glob
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys.multiDict import MultiDict
-from pycbio.sys import setOps,typeOps,fileOps
+from pycbio.sys import setOps, typeOps, fileOps
+
 
 class ChainType(SymEnum):
     "type of chains, which can either be existing or ones filtered on the fly."
     all = 1
     syn = 2
     rbest = 3
+
 
 class AnnSetType(SymEnum):
     "annotation set type"
@@ -21,9 +26,11 @@ class AnnSetType(SymEnum):
     ucscGenes = 4
     ensembl = 5
 
+
 class Chains(object):
     "Describes a set of chains used in a mapping to a destDb"
     __slots__ = ("srcDb", "destDb", "chtype", "chainFile", "netFile", "dist")
+
     def __init__(self, srcDb, destDb, chtype, chainFile, netFile):
         """srcDb and destDb are GenomeDb objects"""
         assert(isinstance(srcDb, GenomeDb))
@@ -47,10 +54,11 @@ class Chains(object):
     def __setstate__(self, st):
         (self.srcDb, self.destDb, self.chtype, self.chainFile, self.netFile, self.dist) = st
 
+
 class ChainsSet(object):
     """set of chains between two dbs.  There can be multiple chains
     due to different chain types."""
-    
+
     # /hive/data/genomes/hg18/bed/blastz.calJac1/axtChain/
     #     hg18.calJac1.all.chain.gz
     #     hg18.calJac1.net.gz
@@ -58,15 +66,16 @@ class ChainsSet(object):
     #     hg18.calJac1.rbest.net.gz
     # /hive/data/genomes/hg18/bed/blastz.ponAbe2/axtChain/
     #     hg18.ponAbe2.syn.net.gz
-    
+
     __slots__ = ("srcDb", "destDb", "byType", "dist")
+
     def __init__(self, srcDb, destDb):
         self.srcDb = srcDb
         self.destDb = destDb
-        self.byType = dict() # by types
+        self.byType = dict()  # by types
         self.dist = None
         blastzDir = self.__findChainsDir()
-        if blastzDir != None:
+        if blastzDir is not None:
             self.__addIfExists(blastzDir, ChainType.all, "all.chain", "net")
             self.__addIfExists(blastzDir, ChainType.syn, "all.chain", "syn.net")
             self.__addIfExists(blastzDir, ChainType.rbest, "rbest.chain", "rbest.net")
@@ -93,8 +102,8 @@ class ChainsSet(object):
     def __chainsNetsExist(self, blastzDir):
         """ make sure both all.chain.gz and net.gz exist, as there was a case
         with only the rbest without an all.chain in one case"""
-        return ((self.__getBlastzFile(blastzDir, "all.chain") != None)
-                and (self.__getBlastzFile(blastzDir, "net") != None))
+        return ((self.__getBlastzFile(blastzDir, "all.chain") is not None)
+                and (self.__getBlastzFile(blastzDir, "net") is not None))
 
     def __findChainsDirMeth(self, meth):
         "Return path to chain directory for an alignment method."
@@ -123,7 +132,7 @@ class ChainsSet(object):
     def __findChainsDir(self):
         "return path to chain directory if one can be found, otherwise None"
         p = self.__findChainsDirMeth("lastz")
-        if p == None:
+        if p is not None:
             p = self.__findChainsDirMeth("blastz")
         return p
 
@@ -143,9 +152,9 @@ class ChainsSet(object):
     def __addIfExists(self, blastzDir, chtype, chainExt, netExt):
         """add a set of nets/chains if they exist for the specified type"""
         chainFile = self.__getBlastzFile(blastzDir, chainExt)
-        if chainFile != None:
+        if chainFile is not None:
             netFile = self.__getBlastzFile(blastzDir, netExt)
-            if netFile != None:
+            if netFile is not None:
                 self.byType[chtype] = Chains(self.srcDb, self.destDb, chtype, chainFile, netFile)
 
     def getSupportingType(self, chtype):
@@ -153,7 +162,7 @@ class ChainsSet(object):
         the all chains when then require more filtering"""
         assert(isinstance(chtype, ChainType))
         chains = self.byType.get(chtype)
-        if (chains == None) and (chtype == ChainType.syn):
+        if (chains is None) and (chtype == ChainType.syn):
             chains = self.byType[ChainType.all]
         return chains
 
@@ -166,14 +175,14 @@ class ChainsSet(object):
 
     @staticmethod
     def distCmp(cs1, cs2):
-        if (cs1.dist == None) and (cs2.dist == None):
+        if (cs1.dist is None) and (cs2.dist is None):
             d = cmp(cs1.srcDb.name, cs2.srcDb.name)
             if d == 0:
                 d = cmp(cs1.destDb.name, cs2.destDb.name)
             return d
-        elif cs1.dist == None:
+        elif cs1.dist is None:
             return 1
-        elif cs2.dist == None:
+        elif cs2.dist is None:
             return -1
         else:
             return cmp(cs1.dist, cs2.dist)
@@ -184,6 +193,7 @@ class ChainsSet(object):
         else:
             for chains in self.byType.itervalues():
                 fh.write(prefix + str(chains) + "\n")
+
 
 class OrgChainsSetMap(MultiDict):
     """map of Organism to list of ChainsSet, sorted newest to oldest, can be
@@ -216,9 +226,9 @@ class OrgChainsSetMap(MultiDict):
         "sort all entries"
         for ent in self.iterentries():
             if self.srcDbIndexed:
-                ent.sort(lambda a,b: -cmp(a.srcDb.dbNum,b.srcDb.dbNum))
+                ent.sort(lambda a, b: -cmp(a.srcDb. dbNum, b.srcDb.dbNum))
             else:
-                ent.sort(lambda a,b: -cmp(a.destDb.dbNum,b.destDb.dbNum))
+                ent.sort(lambda a, b: -cmp(a.destDb. dbNum, b.destDb.dbNum))
 
     def getChainsSet(self, db):
         entries = self[db.org]
@@ -237,6 +247,7 @@ class OrgChainsSetMap(MultiDict):
         for chainsSet in self.itervalues():
             chainsSet.dump(fh, "\t")
 
+
 class GenomeDb(object):
     "All information about a genome database"
 
@@ -246,7 +257,7 @@ class GenomeDb(object):
     def dbParse(dbName):
         "parse a genomedb name into (orgDbName, dbNum)"
         m = GenomeDb.dbParseRe.match(dbName)
-        if m == None:
+        if m is None:
             raise Exception("can't parse database name: " + dbName)
         return (m.group(1), int(m.group(2)))
 
@@ -257,7 +268,7 @@ class GenomeDb(object):
         self.clade = clade
         self.commonName = commonName
         self.scientificName = scientificName
-        self.annSetType = frozenset(annSetType) if (annSetType != None) else None
+        self.annSetType = frozenset(annSetType) if (annSetType is not None) else None
         # chains to/from this databases, list by Organism, sorted newest to oldest
         self.srcChainsSets = OrgChainsSetMap(self, True)
         self.destChainsSets = OrgChainsSetMap(self, False)
@@ -269,8 +280,8 @@ class GenomeDb(object):
 
     def __str__(self):
         s = self.name + "\t" + self.clade + "\t'" + self.commonName + "'\t'" + self.scientificName + "'\t"
-        if self.annSetType != None:
-            s += setOps.setJoin(self.annSetType,",")
+        if self.annSetType is not None:
+            s += setOps.setJoin(self.annSetType, ",")
         else:
             s += "[]"
         return s
@@ -281,9 +292,9 @@ class GenomeDb(object):
 
     def matches(self, clades=None, annSetType=None):
         "does this match the specified filter sets"
-        if (clades != None) and (self.clade not in clades):
+        if (clades is not None) and (self.clade not in clades):
             return False
-        if (annSetType != None) and (len(self.annSetType & annSetType) == 0):
+        if (annSetType is not None) and (len(self.annSetType & annSetType) == 0):
             return False
         return True
 
@@ -296,7 +307,8 @@ class GenomeDb(object):
         fileOps.prLine(fh, str(self))
         self.__dumpChainsSets(fh, "srcChainsSets", self.srcChainsSets)
         self.__dumpChainsSets(fh, "destChainsSets", self.destChainsSets)
-    
+
+
 class Organism(object):
     """Databases for a given organism. We use common name to tie assembly dbs together, since db prefix
     has changed between releases: Baboon papHam1 ->papAnu2
@@ -313,7 +325,8 @@ class Organism(object):
 
     def sort(self):
         "sort all entries, by reverse dbNum"
-        self.dbs.sort(lambda a,b: -cmp(a.dbNum,b.dbNum))
+        self.dbs.sort(lambda a, b: -cmp(a.dbNum, b.dbNum))
+
 
 class GenomeDefs(object):
     "object containing all genome definitions"
@@ -334,7 +347,7 @@ class GenomeDefs(object):
 
     def obtainOrganism(self, commonName):
         org = self.orgs.get(commonName)
-        if org == None:
+        if org is None:
             org = self.orgs[commonName] = Organism(commonName)
         return org
 
@@ -394,10 +407,11 @@ class GenomeDefs(object):
 
     def save(self, path):
         fh = open(path, "w")
-        #prot = cPickle.HIGHEST_PROTOCOL # FIXME: doesn't work
+        # prot = cPickle.HIGHEST_PROTOCOL  # FIXME: doesn't work
         prot = 0
         cPickle.dump((ChainType, AnnSetType, self), fh, prot)
         fh.close()
+
 
 def load(path):
     fh = open(path)

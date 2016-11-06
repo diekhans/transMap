@@ -3,7 +3,9 @@ getGenbankAligns = ../../bin/getGenbankAligns
 getGenbankSeqs = ../../bin/getGenbankSeqs
 getGenbankMetadata = ../../bin/getGenbankMetadata
 
-test: getGenbankAlignsTests getGenbankSeqsTests getGenbankMetadataTests
+diff = diff
+
+test: getGenbankAlignsTests getGenbankMetadataTests getGenbankSeqsTests
 
 
 ###
@@ -15,22 +17,19 @@ getGenbankAlignsTests: \
 	getGenbankAlignsSplicedEstTest
 
 getGenbankAlignsRnaTest: mkdirs
-	${getGenbankAligns} felCat8 mrna output/$@.psl output/$@.acc
-	diff expected/$@.psl output/$@.psl
-	diff expected/$@.acc output/$@.acc
+	${getGenbankAligns} --limit=100 felCat8 mrna output/$@.db
+	sqlite3 -batch output/$@.db '.header off' 'select * from srcAligns' >output/$@.psl+bin
+	${diff} expected/$@.psl+bin output/$@.psl+bin
 
 getGenbankAlignsRefSeqTest: mkdirs
-	${getGenbankAligns} felCat8 refSeq output/$@.bigPsl output/$@.acc
-	bigPslToPsl output/$@.bigPsl stdout | sort >output/$@.psl
-	diff expected/$@.psl output/$@.psl
-	diff expected/$@.acc output/$@.acc
+	${getGenbankAligns} --limit=100 felCat8 refSeq output/$@.db
+	sqlite3 -batch output/$@.db 'select * from srcAligns' >output/$@.psl+bin
+	${diff} expected/$@.psl+bin output/$@.psl+bin
 
 getGenbankAlignsSplicedEstTest: mkdirs
-	${getGenbankAligns} felCat8 splicedEst output/$@.psl.bz2 output/$@.acc.bz2
-	bzcat output/$@.psl.bz2 >output/$@.psl
-	bzcat output/$@.acc.bz2 >output/$@.acc
-	diff expected/$@.psl output/$@.psl
-	diff expected/$@.acc output/$@.acc
+	${getGenbankAligns} --limit=100 felCat8 splicedEst output/$@.db
+	sqlite3 -batch output/$@.db 'select * from srcAligns' >output/$@.psl+bin
+	${diff} expected/$@.psl+bin output/$@.psl+bin
 
 ###
 # getGenbankSeqs
@@ -40,16 +39,18 @@ getGenbankSeqsTests: \
 	getGenbankSeqsRefSeqTests
 
 getGenbankSeqsRnaTests: mkdirs
-	${getGenbankSeqs} felCat8 mrna expected/getGenbankAlignsRnaTest.acc output/$@.fa
-	awk '/^>/' output/$@.fa  > output/$@.fa.ids
-	diff expected/$@.fa.ids output/$@.fa.ids
-	test -e output/$@.fa.fai
+	rm -f output/$@.db
+	sqlite3 -batch output/$@.db < input/rnaAligns.sql
+	${getGenbankSeqs} felCat8 mrna output/$@.db
+	sqlite3 -batch output/$@.db 'select name, length(seq) from srcSeqs' >output/$@.fa.ids
+	${diff} expected/$@.fa.ids output/$@.fa.ids
 
 getGenbankSeqsRefSeqTests: mkdirs
-	${getGenbankSeqs} felCat8 mrna output/getGenbankAlignsRefSeqTest.acc output/$@.fa
-	awk '/^>/' output/$@.fa  > output/$@.fa.ids
-	diff expected/$@.fa.ids output/$@.fa.ids
-	test -e output/$@.fa.fai
+	rm -f output/$@.db
+	sqlite3 -batch output/$@.db < input/rnaAligns.sql
+	${getGenbankSeqs} felCat8 refSeq output/$@.db
+	sqlite3 -batch output/$@.db 'select name, length(seq) from srcSeqs' >output/$@.fa.ids
+	${diff} expected/$@.fa.ids output/$@.fa.ids
 
 ###
 # getGenbankMetadata
@@ -59,12 +60,28 @@ getGenbankMetadataTests: \
 	getGenbankMetadataRefSeqTests
 
 getGenbankMetadataRnaTests: mkdirs
-	${getGenbankMetadata} felCat8 mrna expected/getGenbankAlignsRnaTest.acc output/$@.meta
-	diff expected/$@.meta output/$@.meta
+	rm -f output/$@.db
+	sqlite3 -batch output/$@.db < input/rnaAligns.sql
+	${getGenbankMetadata} felCat8 mrna output/$@.db
+	sqlite3 -batch output/$@.db  'select * from srcMetaData' >output/$@.meta
+	${diff} expected/$@.meta output/$@.meta
 
 getGenbankMetadataRefSeqTests: mkdirs
-	${getGenbankMetadata} felCat8 mrna expected/getGenbankAlignsRefSeqTest.acc output/$@.meta
-	diff expected/$@.meta output/$@.meta
+	rm -f output/$@.db
+	sqlite3 -batch output/$@.db < input/refSeqAligns.sql
+	${getGenbankMetadata} felCat8 refSeq output/$@.db
+	sqlite3 -batch output/$@.db  'select * from srcMetaData' >output/$@.meta
+	${diff} expected/$@.meta output/$@.meta
+
+##
+# Run this to update test data from basic test re
+##
+update:
+	${MAKE} getGenbankAlignsTests diff=true
+	sqlite3 -batch output/getGenbankAlignsRefSeqTest.db .dump > input/refSeqAligns.sql
+	sqlite3 -batch output/getGenbankAlignsRnaTest.db .dump > input/rnaAligns.sql
+	sqlite3 -batch output/getGenbankAlignsSplicedEstTest.db .dump > input/splitEstAligns.sql
+
 
 mkdirs:
 	@mkdir -p output
