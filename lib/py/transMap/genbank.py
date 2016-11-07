@@ -1,80 +1,114 @@
-import re
-from pycbio.sys import fileOps
-from .genomeDefs import AnnSetType
+from pycbio.hgdata import hgDb
+import pipettor
+from transMap.genomeDefs import AnnSetType
+from transMap.transMapLite import TransMapSrcGene
 
-class GenbankConf(object):
-    """configuration of genbank for a genome or the defaults.
-    handles on/off/defaulted"""
-    __slots__ = ("db", "defaultConf", "on", "off")
-    def __init__(self, db, defaultConf):
-        self.db = db
-        self.defaultConf = defaultConf
-        self.on = set()
-        self.off = set()
 
-    def __str__(self):
-        return self.db + "\ton:" + setOps.setJoin(self.on,",") + "\toff:" + setOps.setJoin(self.off,",")
+def valOrNone(val):
+    return None if (val == "") or (val == "n/a") else val
 
-    def getEnabled(self):
-        return frozenset(self.on | self.defaultConf.on.difference(self.off))
 
-class GenbankConfTbl(dict):
-    "genbank config, indexed by database"
+def strOrNoneIfZero(val):
+    return None if val == 0 else str(val)
 
-    def __init__(self):
-        self.defaultConf = GenbankConf("default", None)
-        self.__load()
 
-    # parse clusterGenome line, used so we find entries that are all defaults
-    parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.clusterGenome\s*=")
+class GenbankHgData(object):
+    "obtain data UCSC browser data from various GenBank or RefSeq tables"
 
-    # parse a cDNA line        1                2                  3                     4                  5
-    parseAnnSetRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
+    pslSelectTmpl = """SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
+                    """tBaseInsert, strand, concat(qName, ".", version), qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
+                    """blockCount, blockSizes, qStarts, tStarts from {}, gbCdnaInfo """ \
+                    """WHERE (qName = acc)"""
 
-    def __load(self):
-        "build dict of Conf objects"
-        for line in fileOps.iterLines("/hive/data/outside/genbank/etc/genbank.conf"):
-            self.__parseRow(line.strip())
+    def __init__(self, srcHgDb, annSetType):
+        self.srcHgDb = srcHgDb
+        self.annSetType = annSetType
 
-    def __parseRow(self, line):
-        geneomeMatch = self.parseGenomeRe.match(line)
-        if geneomeMatch != None:
-            self.__obtainGenbankConf(geneomeMatch.group(1))
-        annSetMatch = self.parseAnnSetRe.match(line)
-        if annSetMatch != None:
-            self.__processGenbankConf(annSetMatch, line)
+    def __getPslTbl(self):
+        if self.annSetType == AnnSetType.mrna:
+            return "all_mrna"
+        elif self.annSetType == AnnSetType.splicedEst:
+            return "intronEst"
+        elif self.annSetType == AnnSetType.refSeq:
+            return "refSeqAli"
 
-    def __obtainGenbankConf(self, db):
-        "get a Conf entry, creating if it doesn't exist"
-        if db == "default":
-            return self.defaultConf
+    def alignReader(self, limit=None):
+        """get generator to return alignments with updated qNames,
+        these are raw rows."""
+        sql = self.pslSelectTmpl.format(self.__getPslTbl())
+        if limit is not None:
+            sql += " LIMIT {}".format(limit)
+        hgsqlCmd = ("hgsql", "-Ne", sql, self.srcHgDb)
+        sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
+        uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
+
+        with pipettor.Popen([hgsqlCmd, sortCmd, uniqCmd]) as fh:
+            for line in fh:
+                yield line.rstrip().split("\t")
+
+    @staticmethod
+    def __getTestSubsetClause(testAccvSubset):
+        if testAccvSubset is None:
+            return ""
         else:
-            if db not in self:
-                self[db] = GenbankConf(db, self.defaultConf)
-            return self[db]
-            
-    def __processGenbankConf(self, annSetMatch, line):
-        "add or update a GenbankConf object given a parsed line"
-        db = annSetMatch.group(1)
-        annSetType = None
-        if annSetMatch.group(2) == "refseq":
-            annSetType = AnnSetType.refSeq
-        elif annSetMatch.group(2) == "genbank":
-            if annSetMatch.group(3) == "mrna":
-                annSetType = AnnSetType.mrna
-            elif annSetMatch.group(3) == "est":
-                annSetType = AnnSetType.splicedEst
-        state = None
-        if annSetMatch.group(5) == "yes":
-            state = True
-        elif annSetMatch.group(5) == "no":
-            state = False
-        if (annSetType == None) or (state == None):
-            raise Exception("can't parse genbank.conf line: "+line)
-        conf = self.__obtainGenbankConf(db)
-        if state:
-            conf.on.add(annSetType)
-        else:
-            conf.off.add(annSetType)
+            return "WHERE qName in ({})".format(",".join(['"{}"'.format(accv) for accv in testAccvSubset]))
 
+    def __metaDataRowGen(self, sql, rowFactory, rowFilter=None):
+        conn = hgDb.connect(self.srcHgDb, dictCursor=True)
+        try:
+            cur = conn.cursor()
+            cur.execute(sql)
+            for row in cur:
+                if (rowFilter is None) or rowFilter(row):
+                    yield rowFactory(row)
+        finally:
+            conn.close()
 
+    def __refSeqToSrcGene(self, row):
+        geneType = "protein_coding" if row["accv"].startswith("NM_") else "non_coding"
+        return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
+                               accv=row["accv"],
+                               cds=valOrNone(row["cds_name"]),
+                               geneId=strOrNoneIfZero(row["rl_locusLinkId"]),
+                               geneName=valOrNone(row["rl_name"]),
+                               geneType=geneType,
+                               transcriptType=geneType)
+
+    def __refSeqMetaDataReader(self, testAccvSubset):
+        sql = """SELECT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, """ \
+              """        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId """ \
+              """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.refLink rl  """ \
+              """WHERE (gb.acc = rl.mrnaAcc) and (cds.id = gb.cds) and """ \
+              """(gb.acc in (SELECT qName FROM refSeqAli {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
+        return self.__metaDataRowGen(sql, self.__refSeqToSrcGene)
+
+    @staticmethod
+    def __mrnaRowFilter(row):
+        "only output rows with some data"
+        return (row["cds_name"] != "n/a") or (row["gn_name"] != "n/a")
+
+    def __mrnaToSrcGene(self, row):
+        geneType = "protein_coding" if row["cds_name"] != "n/a" else "unknown"
+        return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
+                               accv=row["accv"],
+                               cds=valOrNone(row["cds_name"]),
+                               geneId=None,
+                               geneName=valOrNone(row["gn_name"]),
+                               geneType=geneType,
+                               transcriptType=geneType)
+
+    def __refMRnaMetaDataReader(self, testAccvSubset):
+        sql = """select concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, gn.name as gn_name """ \
+              """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.geneName gn """ \
+              """WHERE (cds.id = gb.cds) and (gn.id = gb.geneName) and """ \
+              """(gb.acc in (SELECT qName from all_mrna {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
+        return self.__metaDataRowGen(sql, self.__mrnaToSrcGene, self.__mrnaRowFilter)
+
+    def metaDataReader(self, testAccvSubset=None):
+        "read metadata for type; not valid for ESTs"
+        if self.annSetType == AnnSetType.mrna:
+            return self.__refMRnaMetaDataReader(testAccvSubset)
+        elif self.annSetType == AnnSetType.splicedEst:
+            raise Exception("not for ESTs")
+        elif self.annSetType == AnnSetType.refSeq:
+            return self.__refSeqMetaDataReader(testAccvSubset)

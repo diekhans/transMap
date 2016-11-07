@@ -4,6 +4,8 @@ sqllite3 databases objects for transmap intermediate data.
 
 from collections import namedtuple
 from pycbio.hgdata.hgLite import HgLiteTable
+from transMap import alignIdToSrcId, srcIdToAccv
+from pycbio.hgdata import hgLite
 
 
 class SourceDbTables(object):
@@ -14,7 +16,7 @@ class SourceDbTables(object):
     srcSeqTbl = "srcSeqs"
 
 
-class TransMapSrcGene(namedtuple("TransMapSrcGene", ("srcId", "accv", "cds", "geneName", "geneId"))):
+class TransMapSrcGene(namedtuple("TransMapSrcGene", ("srcId", "accv", "cds", "geneId", "geneName", "geneType", "transcriptType"))):
     """metedata on gene or mRNA """
     __slots__ = ()
 
@@ -27,9 +29,11 @@ class TransMapSrcGeneLite(HgLiteTable):
             srcId text not null,
             accv text not null,
             cds text,
+            geneId text,
             geneName text,
-            geneId text);"""
-    __insertSql = """INSERT INTO {table} (srcId, accv, cds, geneName, geneId) VALUES (?, ?, ?, ?, ?);"""
+            geneType text,
+            transcriptType test);"""
+    __insertSql = """INSERT INTO {table} (srcId, accv, cds, geneId, geneName, geneType, transcriptType) VALUES (?, ?, ?, ?, ?, ?, ?);"""
     __indexSql = """CREATE UNIQUE INDEX {table}_srcId on {table} (srcId);"""
 
     def __init__(self, conn, table, create=False):
@@ -53,6 +57,12 @@ class TransMapSrcGeneLite(HgLiteTable):
 class TransMapSrcXRef(namedtuple("TransMapSrcXRef", ("srcAlnId", "srcId", "accv"))):
     """link between transmap source ids"""
     __slots__ = ()
+
+    @staticmethod
+    def fromSrcAlnId(srcAlnId):
+        "construct from a srcAlnId"
+        srcId = alignIdToSrcId(srcAlnId)
+        return TransMapSrcXRef(srcAlnId, srcId, srcIdToAccv(srcId))
 
 
 class TransMapSrcXRefLite(HgLiteTable):
@@ -95,3 +105,23 @@ class TransMapSrcXRefLite(HgLiteTable):
         sql = "SELECT distinct(accv) FROM {table};"
         for row in self.query(sql):
             yield row[0]
+
+
+def loadAlignsXRefs(transMapSrcDbConn, alignReader):
+    "load the alignments and xrefs from a psl with srcAlnId in qName"
+    psls = list(alignReader)
+    srcXRefs = [TransMapSrcXRef.fromSrcAlnId(psl[9]) for psl in psls]
+
+    srcAlignsTbl = hgLite.PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl, create=True)
+    srcAlignsTbl.loads(psls)
+    srcAlignsTbl.index()
+
+    srcXRefTbl = TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
+    srcXRefTbl.loads(srcXRefs)
+    srcXRefTbl.index()
+
+
+def loadSrcGeneMetaData(transMapSrcDbConn, metaDataReader):
+    transMapGeneTbl = TransMapSrcGeneLite(transMapSrcDbConn, SourceDbTables.srcMetaDataTbl, True)
+    transMapGeneTbl.loads(list(metaDataReader))
+    transMapGeneTbl.index()

@@ -40,3 +40,8 @@ def srcIdToAccv(srcId):
 def parseAccVer(accver):
     """parse acc.ver into (acc, ver)"""
     return accver.split(".")
+
+
+def accVerToAcc(accver):
+    """parse acc.ver into (acc, ver)"""
+    return parseAccVer(accver)[0]

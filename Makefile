@@ -1,7 +1,8 @@
 
 progs = getGenbankAligns getGenbankMetadata getGenbankSeqs \
 	checkTransMapSrcDb
-libs = __init__.py genomeDefs.py transMapLite.py
+# FIXME: change this to do all once cleaned out
+libs = __init__.py genomeDefs.py transMapLite.py genbank.py ensembl.py
 
 all:
 

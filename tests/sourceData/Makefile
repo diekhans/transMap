@@ -72,14 +72,14 @@ getGenbankMetadataTests: \
 getGenbankMetadataRnaTests: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/rnaAligns.sql
-	${getGenbankMetadata} felCat8 mrna output/$@.db
+	${getGenbankMetadata} --testLimit felCat8 mrna output/$@.db
 	sqlite3 -batch output/$@.db  'select * from srcMetaData' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
 
 getGenbankMetadataRefSeqTests: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/refSeqAligns.sql
-	${getGenbankMetadata} felCat8 refSeq output/$@.db
+	${getGenbankMetadata} --testLimit felCat8 refSeq output/$@.db
 	sqlite3 -batch output/$@.db  'select * from srcMetaData' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
 

@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import sys
+import argparse
+import sqlite3
+from transMap.genomeDefs import AnnSetType
+from transMap import alignIdToSrcId, srcIdToAccv
+from transMap.transMapLite import SourceDbTables, TransMapSrcXRefLite
+from pycbio.sys import fileOps
+import pipettor
+from pycbio.hgdata import hgLite
+
+verbose = False
+
+
+def parseArgs():
+    desc = """Obtain PSL alignments for GENCODE or Ensembl from ucsc database files.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="""verbose tracing""")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="""limit to this number of records for testing""")
+    parser.add_argument("srcHgDb",
+                        help="""Genome database for assembly""")
+    parser.add_argument("transMapSrcDb",
+                        help="""sqlite3 database for source dataset""")
+    opts = parser.parse_args()
+    global verbose
+    verbose = opts.verbose
+    return opts
+
+def generatePslFile(srcHgDb, srcHgTable, annSetType, limit, outPslTmp):
+    "get PSL file with unique ids"
+    if annSetType == AnnSetType.mrna:
+        table = "all_mrna"
+    elif annSetType == AnnSetType.splicedEst:
+        table = "intronEst"
+    elif annSetType == AnnSetType.refSeq:
+        table = "refSeqAli"
+    psl = pslSelectTmpl.format(table)
+    if limit is not None:
+        psl += " LIMIT {}".format(limit)
+    hgsqlCmd = ("hgsql", "-Ne", psl, srcHgDb)
+    sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
+    uniqCmd = ("pslQueryUniq", "-p", srcHgDb + ":")
+    pipettor.run([hgsqlCmd, sortCmd, uniqCmd], stdout=outPslTmp)
+
+
+def loadAligns(transMapSrcDbConn, outPslTmp, transMapSrcDb):
+    alignSrcTbl = hgLite.PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl, create=True)
+    alignSrcTbl.loadPslFile(outPslTmp)
+    alignSrcTbl.index()
+
+
+def getSrcXRefs(outPslTmp):
+    srcXRefs = []
+    with pipettor.Popen(["cut", "-f", "10", outPslTmp], "r") as fh:
+        for srcAlnId in fileOps.iterLines(fh):
+            srcId = alignIdToSrcId(srcAlnId)
+            srcXRefs.append((srcAlnId, srcId, srcIdToAccv(srcId)))
+    return srcXRefs
+
+
+def loadSrcXRef(transMapSrcDbConn, srcXRefs):
+    srcXRefTbl = TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
+    srcXRefTbl.loads(srcXRefs)
+    srcXRefTbl.index()
+
+
+def loadSrcDb(outPslTmp, transMapSrcDb):
+    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    loadAligns(transMapSrcDbConn, outPslTmp, transMapSrcDb)
+    srcXRefs = getSrcXRefs(outPslTmp)
+    loadSrcXRef(transMapSrcDbConn, srcXRefs)
+    transMapSrcDbConn.close()
+
+
+def getGenbankAligns(srcHgDb, annSetType, limit, transMapSrcDb):
+    outPslTmp = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".psl")
+    if verbose:
+        sys.stderr.write("tmp psl: {}\n".format(outPslTmp))
+    generatePslFile(srcHgDb, annSetType, limit, outPslTmp)
+    loadSrcDb(outPslTmp, transMapSrcDb)
+    fileOps.rmFiles(outPslTmp)
+
+# entry
+opts = parseArgs()
+getGenbankAligns(opts.srcHgDb, opts.annSetType, opts.limit, opts.transMapSrcDb)
