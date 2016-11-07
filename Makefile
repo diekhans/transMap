@@ -1,5 +1,6 @@
 
-progs = getGenbankAligns getGenbankMetadata getGenbankSeqs
+progs = getGenbankAligns getGenbankMetadata getGenbankSeqs \
+	checkTransMapSrcDb
 libs = __init__.py genomeDefs.py transMapLite.py
 
 all:

@@ -3,11 +3,10 @@
 import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
-from transMap import getChromSizes
 from transMap.genomeDefs import AnnSetType
 from transMap.transMapLite import SourceDbTables, TransMapSrcXRefLite
 from pycbio.sys import fileOps
-from pycbio.hgdata.hgLite import SequenceLite, PslLite
+from pycbio.hgdata.hgLite import SequenceLite
 import pipettor
 
 verbose = False
@@ -19,8 +18,7 @@ def parseArgs():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
-    parser.add_argument("srcHgDb",
-                        help="""Genome database for assembly""")
+    parser.add_argument("srcHgDb", help="""Genome database for assembly""")
     parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.splicedEst, AnnSetType.refSeq), type=AnnSetType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
@@ -51,34 +49,6 @@ def getSeqFasta(srcHgDb, annSetType, tmpAccFile):
     return tmpSeqFa
 
 
-def getSeqSizes(annSetType, tmpSeqFa):
-    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".sizes")
-    faSizeCmd = ("faSize", "-detailed", tmpSeqFa)
-    pipettor.run(faSizeCmd, stdout=tmpSeqSizes)
-    return tmpSeqSizes
-
-
-def getPsls(transMapSrcDbConn, pslFh):
-    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
-    for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesStr)):
-        fileOps.prRow(pslFh, row)
-
-
-def getPslFile(annSetType, transMapSrcDbConn):
-    tmpPslFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".psl")
-    with open(tmpPslFile, "w") as pslFh:
-        getPsls(transMapSrcDbConn, pslFh)
-    return tmpPslFile
-
-
-def checkPslWithFasta(srcHgDb, tmpPslFile, tmpSeqFa, tmpSeqSizes):
-    pslCheckCmd = ("pslCheck", "-ignoreQUniq",
-                   "-querySizes={}".format(tmpSeqSizes),
-                   "-targetSizes={}".format(getChromSizes(srcHgDb)),
-                   tmpPslFile)
-    pipettor.run((pslCheckCmd,), stderr=None)
-
-
 def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
     seqTbl = SequenceLite(transMapSrcDbConn, SourceDbTables.srcSeqTbl, True)
     seqTbl.loadFastaFile(tmpSeqFa)
@@ -89,12 +59,9 @@ def getGenbankSeqs(srcHgDb, annSetType, transMapSrcDb):
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
     tmpAccFile = getSrcAccsFile(annSetType, transMapSrcDbConn)
     tmpSeqFa = getSeqFasta(srcHgDb, annSetType, tmpAccFile)
-    tmpPslFile = getPslFile(annSetType, transMapSrcDbConn)
-    tmpSeqSizes = getSeqSizes(annSetType, tmpSeqFa)
-    checkPslWithFasta(srcHgDb, tmpPslFile, tmpSeqFa, tmpSeqSizes)
     loadSeqFa(tmpSeqFa, transMapSrcDbConn)
     transMapSrcDbConn.close()
-    fileOps.rmFiles(tmpAccFile, tmpSeqFa, tmpPslFile, tmpSeqSizes)
+    fileOps.rmFiles(tmpAccFile, tmpSeqFa)
 
 # entry
 opts = parseArgs()

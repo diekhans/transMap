@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import sqlite3
+import argparse
+from transMap import getChromSizes
+from transMap.genomeDefs import AnnSetType
+from transMap.transMapLite import SourceDbTables
+from pycbio.sys import fileOps
+from pycbio.hgdata.hgLite import SequenceLite, PslLite
+import pipettor
+
+verbose = False
+
+
+def parseArgs():
+    desc = """Validate a transmap source sqlite3 database
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="""verbose tracing""")
+    parser.add_argument("srcHgDb", help="""Genome database for assembly""")
+    parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.splicedEst, AnnSetType.refSeq), type=AnnSetType,
+                        help="""annotation set type to obtain""")
+    parser.add_argument("transMapSrcDb",
+                        help="""sqlite3 database for source dataset; must have srcAligns table loaded with alignments""")
+    return parser.parse_args()
+
+
+def getSeqSizes(transMapSrcDbConn, seqSizesFh):
+    srcSeqTbl = SequenceLite(transMapSrcDbConn, SourceDbTables.srcSeqTbl)
+    sql = "SELECT name, length(seq) FROM {table}"
+    for row in srcSeqTbl.query(sql):
+        fileOps.prRow(seqSizesFh, row)
+
+
+def getSeqSizesFile(annSetType, transMapSrcDbConn):
+    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".sizes")
+    with open(tmpSeqSizes, "w") as seqSizesFh:
+        getSeqSizes(transMapSrcDbConn, seqSizesFh)
+    return tmpSeqSizes
+
+
+def getPsls(transMapSrcDbConn, pslFh):
+    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
+    for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesStr)):
+        fileOps.prRow(pslFh, row)
+
+
+def getPslFile(annSetType, transMapSrcDbConn):
+    tmpPslFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".psl")
+    with open(tmpPslFile, "w") as pslFh:
+        getPsls(transMapSrcDbConn, pslFh)
+    return tmpPslFile
+
+
+def pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes):
+    pslCheckCmd = ("pslCheck", "-ignoreQUniq",
+                   "-querySizes={}".format(tmpSeqSizes),
+                   "-targetSizes={}".format(getChromSizes(srcHgDb)),
+                   tmpPslFile)
+    pipettor.run((pslCheckCmd,), stderr=None)
+
+
+def checkTransMapSrcDb(srcHgDb, annSetType, transMapSrcDb):
+    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    tmpPslFile = getPslFile(annSetType, transMapSrcDbConn)
+    tmpSeqSizes = getSeqSizesFile(annSetType, transMapSrcDbConn)
+    pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes)
+    fileOps.rmFiles(tmpPslFile, tmpSeqSizes)
+
+# entry
+opts = parseArgs()
+checkTransMapSrcDb(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb)

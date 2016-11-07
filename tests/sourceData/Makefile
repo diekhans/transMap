@@ -2,6 +2,8 @@
 getGenbankAligns = ../../bin/getGenbankAligns
 getGenbankSeqs = ../../bin/getGenbankSeqs
 getGenbankMetadata = ../../bin/getGenbankMetadata
+getGenbankMetadata = ../../bin/getGenbankMetadata
+checkTransMapSrcDb = ../../bin/checkTransMapSrcDb
 
 diff = diff
 
@@ -48,6 +50,7 @@ getGenbankSeqsRnaTests: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/rnaAligns.sql
 	${getGenbankSeqs} felCat8 mrna output/$@.db
+	${checkTransMapSrcDb} felCat8 mrna output/$@.db
 	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq) as length from srcSeqs order by name' >output/$@.fa.ids
 	${diff} expected/$@.fa.ids output/$@.fa.ids
 
@@ -55,6 +58,7 @@ getGenbankSeqsRefSeqTests: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/rnaAligns.sql
 	${getGenbankSeqs} felCat8 refSeq output/$@.db
+	${checkTransMapSrcDb} felCat8 refSeq output/$@.db
 	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq)  as length from srcSeqs order by name' >output/$@.fa.ids
 	${diff} expected/$@.fa.ids output/$@.fa.ids
 
