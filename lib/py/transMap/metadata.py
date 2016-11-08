@@ -2,7 +2,7 @@ from pycbio.tsv import TabFileReader
 from pycbio.sys import fileOps, dbOps
 from pycbio.hgdata import hgDb
 
-class TranscriptMetaData(object):
+class TranscriptMetadata(object):
     def __init__(self, id):
         self.id = id
         self.cds = self.gene = self.cat = ""
@@ -10,7 +10,7 @@ class TranscriptMetaData(object):
     def haveData(self):
         return (self.cds != "") or (self.gene != "") or (self.cat != "")
 
-class TranscriptMetaDataTbl(dict):
+class TranscriptMetadataTbl(dict):
     def loadCdsFile(self, cdsFile):
         for row in TabFileReader(cdsFile, hashAreComments=True):
             self.obtain(row[0]).cds = row[1]
@@ -30,7 +30,7 @@ class TranscriptMetaDataTbl(dict):
     def obtain(self, id):
         meta = self.get(id)
         if meta == None:
-            meta = self[id] = TranscriptMetaData(id)
+            meta = self[id] = TranscriptMetadata(id)
         return meta
 
     def write(self, outFh):

@@ -4,15 +4,16 @@ sqllite3 databases objects for transmap intermediate data.
 
 from collections import namedtuple
 from pycbio.hgdata.hgLite import HgLiteTable
-from transMap import alignIdToSrcId, srcIdToAccv
-from pycbio.hgdata import hgLite
+from transMap import alignIdToSrcId, srcIdToAccv, accvToAcc
+from pycbio.hgdata.hgLite import SequenceLite, PslLite
+from pycbio.sys import fileOps
 
 
 class SourceDbTables(object):
     """tables names in a source dataset sqlite3 database"""
     srcAlignsTbl = "srcAligns"
     srcXRefTbl = "srcXRefs"
-    srcMetaDataTbl = "srcMetaData"
+    srcMetadataTbl = "srcMetadata"
     srcSeqTbl = "srcSeqs"
 
 
@@ -112,7 +113,7 @@ def loadAlignsXRefs(transMapSrcDbConn, alignReader):
     psls = list(alignReader)
     srcXRefs = [TransMapSrcXRef.fromSrcAlnId(psl[9]) for psl in psls]
 
-    srcAlignsTbl = hgLite.PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl, create=True)
+    srcAlignsTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl, create=True)
     srcAlignsTbl.loads(psls)
     srcAlignsTbl.index()
 
@@ -121,7 +122,45 @@ def loadAlignsXRefs(transMapSrcDbConn, alignReader):
     srcXRefTbl.index()
 
 
-def loadSrcGeneMetaData(transMapSrcDbConn, metaDataReader):
-    transMapGeneTbl = TransMapSrcGeneLite(transMapSrcDbConn, SourceDbTables.srcMetaDataTbl, True)
-    transMapGeneTbl.loads(list(metaDataReader))
+def loadSrcGeneMetadata(transMapSrcDbConn, metadataReader):
+    transMapGeneTbl = TransMapSrcGeneLite(transMapSrcDbConn, SourceDbTables.srcMetadataTbl, True)
+    transMapGeneTbl.loads(list(metadataReader))
     transMapGeneTbl.index()
+
+
+def getSrcAlignAccv(transMapSrcDbConn):
+    """get set of accv for PSLs that were loaded; use to restrict set for testing"""
+    srcAlignsTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
+    sql = """SELECT qName FROM {table};"""
+    return frozenset([srcIdToAccv(alignIdToSrcId(row[0]))
+                      for row in srcAlignsTbl.query(sql)])
+
+def getSrcAlignAcc(transMapSrcDbConn):
+    """get set of acc (no version) for PSLs that were loaded; use to restrict set for testing"""
+    return frozenset([accvToAcc(accv) for accv in getSrcAlignAccv(transMapSrcDbConn)])
+
+def getAccvSubselectClause(field, accvSet):
+    return """({} in ({}))""".format(field, ",".join(['"{}"'.format(accv) for accv in accvSet]))
+
+
+def getSrcAccs(transMapSrcDbConn, accvFh):
+    for accv in TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
+        accvFh.write("{}\n".format(accv))
+
+
+def getSrcAccsFile(annSetType, transMapSrcDbConn):
+    tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
+    with open(tmpAccvFile, "w") as accvFh:
+        getSrcAccs(transMapSrcDbConn, accvFh)
+    return tmpAccvFile
+
+
+def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
+    seqTbl = SequenceLite(transMapSrcDbConn, SourceDbTables.srcSeqTbl, True)
+    seqTbl.loadFastaFile(tmpSeqFa)
+    seqTbl.index()
+
+
+def querySrcPsls(transMapSrcDbConn):
+    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
+    return srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesSql))

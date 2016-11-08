@@ -23,7 +23,7 @@ class AnnSetType(SymEnum):
     refSeq = 1
     mrna = 2
     splicedEst = 3
-    ucscGenes = 4
+    gencode = 4
     ensembl = 5
 
 

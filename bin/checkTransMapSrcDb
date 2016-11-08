@@ -41,16 +41,16 @@ def getSeqSizesFile(annSetType, transMapSrcDbConn):
     return tmpSeqSizes
 
 
-def getPsls(transMapSrcDbConn, pslFh):
+def writeSrcPsls(transMapSrcDbConn, pslFh):
     srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
-    for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesStr)):
+    for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesSql)):
         fileOps.prRow(pslFh, row)
 
 
-def getPslFile(annSetType, transMapSrcDbConn):
-    tmpPslFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".psl")
+def getPslFile(srcHgDb, annSetType, transMapSrcDbConn):
+    tmpPslFile = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".psl")
     with open(tmpPslFile, "w") as pslFh:
-        getPsls(transMapSrcDbConn, pslFh)
+        writeSrcPsls(transMapSrcDbConn, pslFh)
     return tmpPslFile
 
 
@@ -64,7 +64,7 @@ def pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes):
 
 def checkTransMapSrcDb(srcHgDb, annSetType, transMapSrcDb):
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
-    tmpPslFile = getPslFile(annSetType, transMapSrcDbConn)
+    tmpPslFile = getPslFile(srcHgDb, annSetType, transMapSrcDbConn)
     tmpSeqSizes = getSeqSizesFile(annSetType, transMapSrcDbConn)
     pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes)
     fileOps.rmFiles(tmpPslFile, tmpSeqSizes)

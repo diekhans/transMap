@@ -4,14 +4,14 @@ import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import loadSrcGeneMetadata, getSrcAlignAcc
-from transMap.genbank import GenbankHgData
+from transMap.transMapLite import loadSrcGeneMetadata, getSrcAlignAccv
+from transMap.ensembl import EnsemblHgData
 
 verbose = False
 
 
 def parseArgs():
-    desc = """Obtain metadata for UCSC GenBank alignments.
+    desc = """Obtain metadata for Ensembl or GENCODE source transcripts.
     """
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("--verbose", action="store_true", default=False,
@@ -20,7 +20,7 @@ def parseArgs():
                         help="""limit to alignments that are in srcAligns table for testing""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.refSeq), type=AnnSetType,
+    parser.add_argument("annSetType", choices=(AnnSetType.ensembl, AnnSetType.gencode), type=AnnSetType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset; must have srcAligns table loaded with alignments""")
@@ -30,15 +30,15 @@ def parseArgs():
     return opts
 
 
-def getGenbankMetadata(srcHgDb, annSetType, transMapSrcDb, testLimit):
-    genbankHgData = GenbankHgData(srcHgDb, annSetType)
+def getEnsemblMetadata(srcHgDb, annSetType, transMapSrcDb, testLimit):
+    ensemblHgData = EnsemblHgData(srcHgDb, annSetType)
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
     try:
-        testAccvSubset = getSrcAlignAcc(transMapSrcDbConn) if testLimit else None
-        metadataReader = genbankHgData.metadataReader(testAccvSubset)
+        testAccvSubset = getSrcAlignAccv(transMapSrcDbConn) if testLimit else None
+        metadataReader = ensemblHgData.metadataReader(testAccvSubset)
         loadSrcGeneMetadata(transMapSrcDbConn, metadataReader)
     finally:
         transMapSrcDbConn.close()
 
 opts = parseArgs()
-getGenbankMetadata(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb, opts.testLimit)
+getEnsemblMetadata(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb, opts.testLimit)

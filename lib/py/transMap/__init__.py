@@ -42,6 +42,6 @@ def parseAccVer(accver):
     return accver.split(".")
 
 
-def accVerToAcc(accver):
+def accvToAcc(accver):
     """parse acc.ver into (acc, ver)"""
     return parseAccVer(accver)[0]

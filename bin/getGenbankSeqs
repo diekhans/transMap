@@ -4,16 +4,15 @@ import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import SourceDbTables, TransMapSrcXRefLite
+from transMap.transMapLite import getSrcAccsFile, loadSeqFa
 from pycbio.sys import fileOps
-from pycbio.hgdata.hgLite import SequenceLite
 import pipettor
 
 verbose = False
 
 
 def parseArgs():
-    desc = """Obtain RNA sequence file for UCSC GenBank alignments.
+    desc = """Obtain RNA sequence file for the GenBank and RefSeq alignments.
     """
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("--verbose", action="store_true", default=False,
@@ -26,33 +25,15 @@ def parseArgs():
     return parser.parse_args()
 
 
-def getSrcAccs(transMapSrcDbConn, accvFh):
-    for accv in TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
-        accvFh.write("{}\n".format(accv))
-
-
-def getSrcAccsFile(annSetType, transMapSrcDbConn):
-    tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
-    with open(tmpAccvFile, "w") as accvFh:
-        getSrcAccs(transMapSrcDbConn, accvFh)
-    return tmpAccvFile
-
-
 def getSeqFasta(srcHgDb, annSetType, tmpAccFile):
     "get fasta file"
-    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".fa")
+    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".fa")
     getRnaCmd = ("getRna", "-inclVer", "hgFixed", tmpAccFile, "/dev/stdout")
     srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDb),
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
     cmds = [getRnaCmd, srcDbCmd]
     pipettor.run(cmds, stdout=tmpSeqFa)
     return tmpSeqFa
-
-
-def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
-    seqTbl = SequenceLite(transMapSrcDbConn, SourceDbTables.srcSeqTbl, True)
-    seqTbl.loadFastaFile(tmpSeqFa)
-    seqTbl.index()
 
 
 def getGenbankSeqs(srcHgDb, annSetType, transMapSrcDb):

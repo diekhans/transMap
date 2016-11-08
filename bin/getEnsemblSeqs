@@ -1,58 +1,66 @@
 #!/usr/bin/env python
 
-import transMapProgSetup
-import re
+import transMapProgSetup  # noqa: F401
 import argparse
-from transMap import getTwoBit
-from pycbio.sys import procOps, fileOps
+import sqlite3
+from transMap.genomeDefs import AnnSetType
+from transMap import alignIdToSrcId
+from transMap.transMapLite import querySrcPsls, loadSeqFa
+from pycbio.sys import fileOps
+import pipettor
 
-class CmdLine(object):
-    dest="""obtain FASTA sequence file for Ensembl or GENCODE annotations
-    A SAM tools fasta index is built.
-    First extracts the genePred table to a file to avoid lost mysql
-    connections that maybe happening during long pauses to get sequence.
-    Special handling for GENCODE to avoid duplicate sequence in fasta file
-    for PAR region.
+
+def parseArgs():
+    desc = """Obtain RNA sequence file for the Ensembl and GENCODE alignments.
     """
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
+    parser.add_argument("annSetType", choices=(AnnSetType.ensembl, AnnSetType.gencode), type=AnnSetType,
+                        help="""annotation set type to obtain""")
+    parser.add_argument("transMapSrcDb",
+                        help="""sqlite3 database for source dataset; must have srcAligns table loaded with alignments""")
+    return parser.parse_args()
 
-    parser = OptionParser(usage=CmdLine.usage)
-        (opts, args) = parser.parse_args()
-        if len(args) != 3:
-            parser.error("wrong number of arguments")
-        (self.db, self.geneTable, self.faFile) = args
-        self.__dict__.update(opts.__dict__)
 
-def isGenePredExt(db, gpTbl):
-    # does it contain the exonFrames field?
-    return procOps.callProc(["hgsql", "-Ne", "describe " + gpTbl, db]).find("exonFrames") >= 0
+def writeSrcPsls(transMapSrcDbConn, pslFh):
+    done = set()
+    for row in querySrcPsls(transMapSrcDbConn):
+        qName = alignIdToSrcId(row[9])
+        if qName not in done:
+            row = row[0:9] + (qName,) + row[10:]
+            fileOps.prRow(pslFh, row)
+            done.add(qName)
 
-def getPredFields(db, gpTbl):
-    cols = 'concat("' + db + ':",name), chrom, strand, txStart, txEnd, cdsStart, cdsEnd, exonCount, exonStarts, exonEnds'
-    if isGenePredExt(db, gpTbl):
-        cols += ", score, name2, cdsStartStat, cdsEndStat, exonFrames"
-    return cols
 
-def getGencodeTagsTbl(gpTbl):
-    return re.sub("(Comp|Basic)", "Tag", gpTbl)
+def getSrcGenePred(srcHgDb, annSetType, transMapSrcDbConn):
+    "get genePreds as a file, otherwise database connection might time out during processing"
+    # use alignments rather than original genePreds so if they are filtered, it all bubbles down
+    tmpSrcGp = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".gp")
+    mrnaToGeneCmd = ("mrnaToGene", "-insertMergeSize=-1", "-noCds", "/dev/stdin", tmpSrcGp)
+    with pipettor.Popen([mrnaToGeneCmd], "w") as pslFh:
+        writeSrcPsls(transMapSrcDbConn, pslFh)
+    return tmpSrcGp
 
-def getGenePredSelect(db, gpTbl):
-    sql = "select " + getPredFields(db, gpTbl) + " from " + gpTbl + " gp"
-    if gpTbl.startswith("wgEncodeGencode"):
-        parSubSelect = "select name,chrom from " + gpTbl + " gpsub, " + getGencodeTagsTbl(gpTbl) + ' tag where (gpsub.name=tag.transcriptId) and (gpsub.chrom = "chrY") and (tag.tag = "PAR")'
-        sql += " where ((gp.name, gp.chrom) not in (" + parSubSelect + "))"
-    return sql
 
-def getGenePredFile(db, gpTbl):
-    tmpGenePred = fileOps.tmpFileGet(gpTbl)
-    procOps.runProc(["hgsql", "-Ne", getGenePredSelect(db, gpTbl), db], stdout=tmpGenePred)
-    return tmpGenePred
+def getSeqFasta(srcHgDb, annSetType, srcGp):
+    "get fasta file"
+    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".fa")
+
+    # already has srcId with srcHgDb in it!
+    getRnaPredCmd = ("getRnaPred", srcHgDb, srcGp, "all", "/dev/stdout")
+    pipettor.run([getRnaPredCmd], stdout=tmpSeqFa)
+    return tmpSeqFa
+
+
+def getEnsemblSeqs(srcHgDb, annSetType, transMapSrcDb):
+    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    tmpSrcGp = getSrcGenePred(srcHgDb, annSetType, transMapSrcDbConn)
+    tmpSeqFa = getSeqFasta(srcHgDb, annSetType, tmpSrcGp)
+    loadSeqFa(tmpSeqFa, transMapSrcDbConn)
+    transMapSrcDbConn.close()
+    fileOps.rmFiles(tmpSrcGp, tmpSeqFa)
 
 # entry
-opts = CmdLine()
-
-tmpGenePred = getGenePredFile(opts.db, opts.geneTable)
-procOps.runProc(["getRnaPred", "-genomeSeqs="+getTwoBit(opts.db), opts.db, tmpGenePred, "all", opts.faFile])
-
+opts = parseArgs()
+getEnsemblSeqs(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb)

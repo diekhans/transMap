@@ -1,7 +1,7 @@
 from pycbio.hgdata import hgDb
 import pipettor
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import TransMapSrcGene
+from transMap.transMapLite import TransMapSrcGene, getAccvSubselectClause
 
 
 def valOrNone(val):
@@ -51,9 +51,9 @@ class GenbankHgData(object):
         if testAccvSubset is None:
             return ""
         else:
-            return "WHERE qName in ({})".format(",".join(['"{}"'.format(accv) for accv in testAccvSubset]))
+            return "WHERE {}".format(getAccvSubselectClause("qName", testAccvSubset))
 
-    def __metaDataRowGen(self, sql, rowFactory, rowFilter=None):
+    def __metadataRowGen(self, sql, rowFactory, rowFilter=None):
         conn = hgDb.connect(self.srcHgDb, dictCursor=True)
         try:
             cur = conn.cursor()
@@ -64,7 +64,7 @@ class GenbankHgData(object):
         finally:
             conn.close()
 
-    def __refSeqToSrcGene(self, row):
+    def __refSeqToMetadata(self, row):
         geneType = "protein_coding" if row["accv"].startswith("NM_") else "non_coding"
         return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
                                accv=row["accv"],
@@ -74,20 +74,20 @@ class GenbankHgData(object):
                                geneType=geneType,
                                transcriptType=geneType)
 
-    def __refSeqMetaDataReader(self, testAccvSubset):
+    def __refSeqMetadataReader(self, testAccvSubset):
         sql = """SELECT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, """ \
               """        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId """ \
               """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.refLink rl  """ \
               """WHERE (gb.acc = rl.mrnaAcc) and (cds.id = gb.cds) and """ \
               """(gb.acc in (SELECT qName FROM refSeqAli {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
-        return self.__metaDataRowGen(sql, self.__refSeqToSrcGene)
+        return self.__metadataRowGen(sql, self.__refSeqToMetadata)
 
     @staticmethod
     def __mrnaRowFilter(row):
         "only output rows with some data"
         return (row["cds_name"] != "n/a") or (row["gn_name"] != "n/a")
 
-    def __mrnaToSrcGene(self, row):
+    def __mrnaToSrcMetadata(self, row):
         geneType = "protein_coding" if row["cds_name"] != "n/a" else "unknown"
         return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
                                accv=row["accv"],
@@ -97,18 +97,18 @@ class GenbankHgData(object):
                                geneType=geneType,
                                transcriptType=geneType)
 
-    def __refMRnaMetaDataReader(self, testAccvSubset):
+    def __refMRnaMetadataReader(self, testAccvSubset):
         sql = """select concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, gn.name as gn_name """ \
               """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.geneName gn """ \
               """WHERE (cds.id = gb.cds) and (gn.id = gb.geneName) and """ \
               """(gb.acc in (SELECT qName from all_mrna {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
-        return self.__metaDataRowGen(sql, self.__mrnaToSrcGene, self.__mrnaRowFilter)
+        return self.__metadataRowGen(sql, self.__mrnaToSrcMetadata, self.__mrnaRowFilter)
 
-    def metaDataReader(self, testAccvSubset=None):
-        "read metadata for type; not valid for ESTs"
+    def metadataReader(self, testAccvSubset=None):
+        "reader for metadata for type; not valid for ESTs"
         if self.annSetType == AnnSetType.mrna:
-            return self.__refMRnaMetaDataReader(testAccvSubset)
+            return self.__refMRnaMetadataReader(testAccvSubset)
         elif self.annSetType == AnnSetType.splicedEst:
             raise Exception("not for ESTs")
         elif self.annSetType == AnnSetType.refSeq:
-            return self.__refSeqMetaDataReader(testAccvSubset)
+            return self.__refSeqMetadataReader(testAccvSubset)
