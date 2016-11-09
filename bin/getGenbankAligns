@@ -20,7 +20,7 @@ def parseArgs():
                         help="""limit to this number of records for testing""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.splicedEst, AnnSetType.refSeq), type=AnnSetType,
+    parser.add_argument("annSetType", choices=(AnnSetType.rna, AnnSetType.est, AnnSetType.refseq), type=AnnSetType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset""")

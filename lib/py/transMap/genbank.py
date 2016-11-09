@@ -25,11 +25,11 @@ class GenbankHgData(object):
         self.annSetType = annSetType
 
     def __getPslTbl(self):
-        if self.annSetType == AnnSetType.mrna:
+        if self.annSetType == AnnSetType.rna:
             return "all_mrna"
-        elif self.annSetType == AnnSetType.splicedEst:
+        elif self.annSetType == AnnSetType.est:
             return "intronEst"
-        elif self.annSetType == AnnSetType.refSeq:
+        elif self.annSetType == AnnSetType.refseq:
             return "refSeqAli"
 
     def alignReader(self, limit=None):
@@ -64,7 +64,7 @@ class GenbankHgData(object):
         finally:
             conn.close()
 
-    def __refSeqToMetadata(self, row):
+    def __refseqToMetadata(self, row):
         geneType = "protein_coding" if row["accv"].startswith("NM_") else "non_coding"
         return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
                                accv=row["accv"],
@@ -74,20 +74,20 @@ class GenbankHgData(object):
                                geneType=geneType,
                                transcriptType=geneType)
 
-    def __refSeqMetadataReader(self, testAccvSubset):
+    def __refseqMetadataReader(self, testAccvSubset):
         sql = """SELECT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, """ \
               """        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId """ \
               """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.refLink rl  """ \
               """WHERE (gb.acc = rl.mrnaAcc) and (cds.id = gb.cds) and """ \
               """(gb.acc in (SELECT qName FROM refSeqAli {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
-        return self.__metadataRowGen(sql, self.__refSeqToMetadata)
+        return self.__metadataRowGen(sql, self.__refseqToMetadata)
 
     @staticmethod
-    def __mrnaRowFilter(row):
+    def __rnaRowFilter(row):
         "only output rows with some data"
         return (row["cds_name"] != "n/a") or (row["gn_name"] != "n/a")
 
-    def __mrnaToSrcMetadata(self, row):
+    def __rnaToSrcMetadata(self, row):
         geneType = "protein_coding" if row["cds_name"] != "n/a" else "unknown"
         return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
                                accv=row["accv"],
@@ -97,18 +97,18 @@ class GenbankHgData(object):
                                geneType=geneType,
                                transcriptType=geneType)
 
-    def __refMRnaMetadataReader(self, testAccvSubset):
+    def __refRnaMetadataReader(self, testAccvSubset):
         sql = """select concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, gn.name as gn_name """ \
               """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.geneName gn """ \
               """WHERE (cds.id = gb.cds) and (gn.id = gb.geneName) and """ \
               """(gb.acc in (SELECT qName from all_mrna {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
-        return self.__metadataRowGen(sql, self.__mrnaToSrcMetadata, self.__mrnaRowFilter)
+        return self.__metadataRowGen(sql, self.__rnaToSrcMetadata, self.__rnaRowFilter)
 
     def metadataReader(self, testAccvSubset=None):
         "reader for metadata for type; not valid for ESTs"
-        if self.annSetType == AnnSetType.mrna:
-            return self.__refMRnaMetadataReader(testAccvSubset)
-        elif self.annSetType == AnnSetType.splicedEst:
+        if self.annSetType == AnnSetType.rna:
+            return self.__refRnaMetadataReader(testAccvSubset)
+        elif self.annSetType == AnnSetType.est:
             raise Exception("not for ESTs")
-        elif self.annSetType == AnnSetType.refSeq:
-            return self.__refSeqMetadataReader(testAccvSubset)
+        elif self.annSetType == AnnSetType.refseq:
+            return self.__refseqMetadataReader(testAccvSubset)

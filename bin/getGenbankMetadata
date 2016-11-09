@@ -17,13 +17,13 @@ def parseArgs():
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
     parser.add_argument("--testLimit", action="store_true", default=False,
-                        help="""limit to alignments that are in srcAligns table for testing""")
+                        help="""limit to alignments that are in srcAlign table for testing""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.refSeq), type=AnnSetType,
+    parser.add_argument("annSetType", choices=(AnnSetType.rna, AnnSetType.refseq), type=AnnSetType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
-                        help="""sqlite3 database for source dataset; must have srcAligns table loaded with alignments""")
+                        help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     opts = parser.parse_args()
     global verbose
     verbose = opts.verbose

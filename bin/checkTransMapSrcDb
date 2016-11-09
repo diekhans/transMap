@@ -20,10 +20,10 @@ def parseArgs():
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.mrna, AnnSetType.splicedEst, AnnSetType.refSeq), type=AnnSetType,
+    parser.add_argument("annSetType", choices=(AnnSetType.rna, AnnSetType.est, AnnSetType.refseq, AnnSetType.gencode, AnnSetType.ensembl), type=AnnSetType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
-                        help="""sqlite3 database for source dataset; must have srcAligns table loaded with alignments""")
+                        help="""sqlite3 database for source dataset""")
     return parser.parse_args()
 
 
@@ -34,15 +34,15 @@ def getSeqSizes(transMapSrcDbConn, seqSizesFh):
         fileOps.prRow(seqSizesFh, row)
 
 
-def getSeqSizesFile(annSetType, transMapSrcDbConn):
-    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".sizes")
+def getSeqSizesFile(srcHgDb, annSetType, transMapSrcDbConn):
+    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".sizes")
     with open(tmpSeqSizes, "w") as seqSizesFh:
         getSeqSizes(transMapSrcDbConn, seqSizesFh)
     return tmpSeqSizes
 
 
 def writeSrcPsls(transMapSrcDbConn, pslFh):
-    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
+    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
     for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesSql)):
         fileOps.prRow(pslFh, row)
 
@@ -62,12 +62,50 @@ def pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes):
     pipettor.run((pslCheckCmd,), stderr=None)
 
 
-def checkTransMapSrcDb(srcHgDb, annSetType, transMapSrcDb):
-    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+def checkAlignments(srcHgDb, annSetType, transMapSrcDbConn):
     tmpPslFile = getPslFile(srcHgDb, annSetType, transMapSrcDbConn)
-    tmpSeqSizes = getSeqSizesFile(annSetType, transMapSrcDbConn)
+    tmpSeqSizes = getSeqSizesFile(srcHgDb, annSetType, transMapSrcDbConn)
     pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes)
     fileOps.rmFiles(tmpPslFile, tmpSeqSizes)
+
+
+def checkZeroCount(transMapSrcDbConn, sql):
+    cur = transMapSrcDbConn.cursor()
+    cur.execute(sql)
+    row = cur.fetchone()
+    if row[0] != 0:
+        raise Exception("Expected 0 matching rows, got {} from {}".format(row[0], sql))
+    cur.close()
+
+
+def checkXRef(transMapSrcDbConn):
+    sql = """SELECT count(*) FROM {srcXRefTbl} """ \
+          """WHERE srcAlignId NOT IN (SELECT qName FROM {srcAlignTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                                  srcAlignTbl=SourceDbTables.srcAlignTbl)
+    checkZeroCount(transMapSrcDbConn, sql)
+    sql = """SELECT count(*) FROM {srcAlignTbl} """ \
+          """WHERE qName NOT IN (SELECT srcAlignId FROM {srcXRefTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                                srcAlignTbl=SourceDbTables.srcAlignTbl)
+    checkZeroCount(transMapSrcDbConn, sql)
+
+def checkMetadata(transMapSrcDbConn):
+    sql = """SELECT count(*) FROM {srcXRefTbl} """ \
+          """WHERE srcId NOT IN (SELECT srcId FROM {srcMetadataTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                               srcMetadataTbl=SourceDbTables.srcMetadataTbl)
+    checkZeroCount(transMapSrcDbConn, sql)
+    sql = """SELECT count(*) FROM {srcXRefTbl} """ \
+          """WHERE srcId NOT IN (SELECT srcId FROM {srcMetadataTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                               srcMetadataTbl=SourceDbTables.srcMetadataTbl)
+    checkZeroCount(transMapSrcDbConn, sql)
+
+
+def checkTransMapSrcDb(srcHgDb, annSetType, transMapSrcDb):
+    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    checkAlignments(srcHgDb, annSetType, transMapSrcDbConn)
+    checkXRef(transMapSrcDbConn)
+    if annSetType != AnnSetType.est:
+        checkMetadata(transMapSrcDbConn)
+    transMapSrcDbConn.close()
 
 # entry
 opts = parseArgs()

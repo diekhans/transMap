@@ -4,7 +4,7 @@ Terminology
     by UCSC database.
   - source id (srcId) - identifier for the source transcript sequence in the form
     srcDb:acc.ver
-  - source alignment id (srcAlnId) - unique id of the source alignment or annotation
+  - source alignment id (srcAlignId) - unique id of the source alignment or annotation
     in the form srcId-uniqmod, where unique mod is integer.
   - accession (acc) - basic identifier in the source database, this doesn't include version
   - accession version (accv) - fully accession with version number, which describes

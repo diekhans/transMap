@@ -11,10 +11,10 @@ from pycbio.sys import fileOps
 
 class SourceDbTables(object):
     """tables names in a source dataset sqlite3 database"""
-    srcAlignsTbl = "srcAligns"
-    srcXRefTbl = "srcXRefs"
+    srcAlignTbl = "srcAlign"
+    srcXRefTbl = "srcXRef"
     srcMetadataTbl = "srcMetadata"
-    srcSeqTbl = "srcSeqs"
+    srcSeqTbl = "srcSeq"
 
 
 class TransMapSrcGene(namedtuple("TransMapSrcGene", ("srcId", "accv", "cds", "geneId", "geneName", "geneType", "transcriptType"))):
@@ -55,15 +55,15 @@ class TransMapSrcGeneLite(HgLiteTable):
         self.execute(self.__indexSql)
 
 
-class TransMapSrcXRef(namedtuple("TransMapSrcXRef", ("srcAlnId", "srcId", "accv"))):
+class TransMapSrcXRef(namedtuple("TransMapSrcXRef", ("srcAlignId", "srcId", "accv"))):
     """link between transmap source ids"""
     __slots__ = ()
 
     @staticmethod
-    def fromSrcAlnId(srcAlnId):
-        "construct from a srcAlnId"
-        srcId = alignIdToSrcId(srcAlnId)
-        return TransMapSrcXRef(srcAlnId, srcId, srcIdToAccv(srcId))
+    def fromSrcAlnId(srcAlignId):
+        "construct from a srcAlignId"
+        srcId = alignIdToSrcId(srcAlignId)
+        return TransMapSrcXRef(srcAlignId, srcId, srcIdToAccv(srcId))
 
 
 class TransMapSrcXRefLite(HgLiteTable):
@@ -71,11 +71,11 @@ class TransMapSrcXRefLite(HgLiteTable):
     transmap source id and accession
     """
     __createSql = """CREATE TABLE {table} (
-            srcAlnId text not null,
+            srcAlignId text not null,
             srcId text not null,
             accv text);"""
-    __insertSql = """INSERT INTO {table} (srcAlnId, srcId, accv) VALUES (?, ?, ?);"""
-    __indexSql = ["""CREATE UNIQUE INDEX {table}_srcAlnId on {table} (srcAlnId);""",
+    __insertSql = """INSERT INTO {table} (srcAlignId, srcId, accv) VALUES (?, ?, ?);"""
+    __indexSql = ["""CREATE UNIQUE INDEX {table}_srcAlignId on {table} (srcAlignId);""",
                   """CREATE INDEX {table}_accv on {table} (accv);"""]
 
     def __init__(self, conn, table, create=False):
@@ -109,13 +109,13 @@ class TransMapSrcXRefLite(HgLiteTable):
 
 
 def loadAlignsXRefs(transMapSrcDbConn, alignReader):
-    "load the alignments and xrefs from a psl with srcAlnId in qName"
+    "load the alignments and xrefs from a psl with srcAlignId in qName"
     psls = list(alignReader)
     srcXRefs = [TransMapSrcXRef.fromSrcAlnId(psl[9]) for psl in psls]
 
-    srcAlignsTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl, create=True)
-    srcAlignsTbl.loads(psls)
-    srcAlignsTbl.index()
+    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl, create=True)
+    srcAlignTbl.loads(psls)
+    srcAlignTbl.index()
 
     srcXRefTbl = TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
     srcXRefTbl.loads(srcXRefs)
@@ -130,14 +130,16 @@ def loadSrcGeneMetadata(transMapSrcDbConn, metadataReader):
 
 def getSrcAlignAccv(transMapSrcDbConn):
     """get set of accv for PSLs that were loaded; use to restrict set for testing"""
-    srcAlignsTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
+    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
     sql = """SELECT qName FROM {table};"""
     return frozenset([srcIdToAccv(alignIdToSrcId(row[0]))
-                      for row in srcAlignsTbl.query(sql)])
+                      for row in srcAlignTbl.query(sql)])
+
 
 def getSrcAlignAcc(transMapSrcDbConn):
     """get set of acc (no version) for PSLs that were loaded; use to restrict set for testing"""
     return frozenset([accvToAcc(accv) for accv in getSrcAlignAccv(transMapSrcDbConn)])
+
 
 def getAccvSubselectClause(field, accvSet):
     return """({} in ({}))""".format(field, ",".join(['"{}"'.format(accv) for accv in accvSet]))
@@ -162,5 +164,5 @@ def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
 
 
 def querySrcPsls(transMapSrcDbConn):
-    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignsTbl)
+    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
     return srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesSql))

@@ -101,7 +101,7 @@ class EnsemblHgData(object):
                                transcriptType=row["transcriptType"])
 
     def __gencodeMetadataReader(self, cdsSpecs, testAccvSubset):
-        if testAccvSubset:
+        if testAccvSubset is not None:
             transcriptIdSelect = getAccvSubselectClause("transcriptId", testAccvSubset)
         else:
             transcriptIdSelect = """transcriptId in (SELECT name from wgEncodeGencodeComp{ver})""".format(ver=self.gencodeVersion)
@@ -111,13 +111,15 @@ class EnsemblHgData(object):
         return self.__metadataRowGen(sql, cdsSpecs, self.__toMetadata)
 
     def __ensemblMetadataReader(self, cdsSpecs, testAccvSubset):
-        if testAccvSubset:
-            transcriptIdSelect = " AND " + getAccvSubselectClause("gn.name", testAccvSubset)
+        if testAccvSubset is not None:
+            transcriptIdSelect = " AND " + getAccvSubselectClause("eg.name", testAccvSubset)
         else:
             transcriptIdSelect = ""
         sql = """SELECT eg.name as transcriptId, eg.name2 as geneId, gn.value as geneName, es.source as geneType, es.source as transcriptType """ \
               """FROM ensGene eg LEFT JOIN ensemblToGeneName gn ON gn.name=eg.name, ensemblSource es """ \
               """WHERE (es.name = eg.name) {}""".format(transcriptIdSelect)
+        print len(testAccvSubset), testAccvSubset
+        print sql
         return self.__metadataRowGen(sql, cdsSpecs, self.__toMetadata)
 
     def metadataReader(self, testAccvSubset=None):

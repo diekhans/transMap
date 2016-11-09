@@ -19,7 +19,7 @@ def parseArgs():
     parser.add_argument("annSetType", choices=(AnnSetType.ensembl, AnnSetType.gencode), type=AnnSetType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
-                        help="""sqlite3 database for source dataset; must have srcAligns table loaded with alignments""")
+                        help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     return parser.parse_args()
 
 

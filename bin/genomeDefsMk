@@ -128,7 +128,7 @@ class CDnaInfoTbl(dict):
             pat = self.refSeqAlnDir + "/" + db + "/*/mrna.native.psl.gz"
         elif annSetType == AnnSetType.mrna:
             pat = self.genBankAlnDir + "/" + db + "/*/mrna.native.psl.gz"
-        elif annSetType == AnnSetType.splicedEst:
+        elif annSetType == AnnSetType.est:
             pat = self.genBankAlnDir + "/" + db + "/*/est.*.native.intronPsl.gz"
         return len(glob.glob(pat)) > 0
 

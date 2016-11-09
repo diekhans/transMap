@@ -20,9 +20,9 @@ class ChainType(SymEnum):
 
 class AnnSetType(SymEnum):
     "annotation set type"
-    refSeq = 1
-    mrna = 2
-    splicedEst = 3
+    refseq = 1
+    rna = 2
+    est = 3
     gencode = 4
     ensembl = 5
 
