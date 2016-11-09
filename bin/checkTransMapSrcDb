@@ -81,12 +81,13 @@ def checkZeroCount(transMapSrcDbConn, sql):
 def checkXRef(transMapSrcDbConn):
     sql = """SELECT count(*) FROM {srcXRefTbl} """ \
           """WHERE srcAlignId NOT IN (SELECT qName FROM {srcAlignTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
-                                                                                  srcAlignTbl=SourceDbTables.srcAlignTbl)
+                                                                                 srcAlignTbl=SourceDbTables.srcAlignTbl)
     checkZeroCount(transMapSrcDbConn, sql)
     sql = """SELECT count(*) FROM {srcAlignTbl} """ \
           """WHERE qName NOT IN (SELECT srcAlignId FROM {srcXRefTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
                                                                                 srcAlignTbl=SourceDbTables.srcAlignTbl)
     checkZeroCount(transMapSrcDbConn, sql)
+
 
 def checkMetadata(transMapSrcDbConn):
     sql = """SELECT count(*) FROM {srcXRefTbl} """ \
