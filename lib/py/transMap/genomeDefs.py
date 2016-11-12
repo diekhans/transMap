@@ -3,12 +3,13 @@ The GenomeDefs object can be constructed and pickled by the genomeDefsMk
 program to speed up loading this data.
 """
 import os
-import re
 import cPickle
 import glob
+from collections import namedtuple
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys.multiDict import MultiDict
 from pycbio.sys import setOps, typeOps, fileOps
+from pycbio.hgdata.hgLite import HgLiteTable
 
 
 class ChainType(SymEnum):
@@ -27,32 +28,14 @@ class AnnSetType(SymEnum):
     ensembl = 5
 
 
-class Chains(object):
-    "Describes a set of chains used in a mapping to a destDb"
-    __slots__ = ("srcDb", "destDb", "chtype", "chainFile", "netFile", "dist")
-
-    def __init__(self, srcDb, destDb, chtype, chainFile, netFile):
-        """srcDb and destDb are GenomeDb objects"""
-        assert(isinstance(srcDb, GenomeDb))
-        assert(isinstance(destDb, GenomeDb))
-        self.srcDb = srcDb
-        self.destDb = destDb
-        self.chtype = chtype
-        self.chainFile = chainFile
-        self.netFile = netFile
-        self.dist = None
+class Chains(namedtuple("Chains",
+                        ("srcDb", "destDb", "chtype", "chainFile", "netFile", "dist"))):
+    "Describes the chains used in a mapping to a destDb"
+    # FIXME make srcDb/destDb and chainsFinder.py queryHgDb targetHgDb consistent
+    __slots__ = ()
 
     def __str__(self):
-        return self.srcDb.name + " ==> " + self.destDb.name + " [" + str(self.chtype) + "] |" + str(self.dist) + "|"
-
-    def dump(self, fh):
-        fileOps.prRowv(fh, str(self), self.blastzDir)
-
-    def __getstate__(self):
-        return (self.srcDb, self.destDb, self.chtype, self.chainFile, self.netFile, self.dist)
-
-    def __setstate__(self, st):
-        (self.srcDb, self.destDb, self.chtype, self.chainFile, self.netFile, self.dist) = st
+        return self.srcDb + " ==> " + self.destDb + " [" + str(self.chtype) + "] |" + str(self.dist) + "|"
 
 
 class ChainsSet(object):
@@ -195,7 +178,7 @@ class ChainsSet(object):
                 fh.write(prefix + str(chains) + "\n")
 
 
-class OrgChainsSetMap(MultiDict):
+class ChainsSetMap(MultiDict):
     """map of Organism to list of ChainsSet, sorted newest to oldest, can be
     keyed and sorted by srcDb or destDb"""
 
@@ -243,23 +226,42 @@ class OrgChainsSetMap(MultiDict):
         raise Exception("no chain from for " + str(db))
 
     def dump(self, fh):
-        fileOps.prRowv(fh, "OrgChainsSetMap", self.db)
+        fileOps.prRowv(fh, "ChainsSetMap", self.db)
         for chainsSet in self.itervalues():
             chainsSet.dump(fh, "\t")
 
 
+class ChainsTbl(HgLiteTable):
+    """Interface and cache of data on chains stored in the database"""
+    __createSql = """CREATE TABLE {table} (
+            srcDb text not null,
+            destDb text not null,
+            chtype text not null,
+            chainFile text not null,
+            netFile text not null,
+            dist float);"""
+    __insertSql = """INSERT INTO {table} (srcDb, destDb, chtype, chainFile, netFile, dist) VALUES (?, ?, ?, ?, ?, ?);"""
+    __indexSql = ["""CREATE UNIQUE INDEX {table}_srcDb on {table} (srcDb);""",
+                  """CREATE UNIQUE INDEX {table}_destDb on {table} (destDb);"""]
+
+    def __init__(self, conn, table, create=False):
+        super(ChainsTbl, self).__init__(conn, table)
+        if create:
+            self.create()
+        self.allChains = []
+
+    def create(self):
+        """create table and index"""
+        self._create(self.__createSql)
+        self.execute(self.__indexSql)
+
+    def add(self, chains):
+        self.inserts(self.__indexSql, [chains])
+        self.all
+
+
 class GenomeDb(object):
     "All information about a genome database"
-
-    dbParseRe = re.compile("^([a-zA-Z]+)([0-9]+)$")
-
-    @staticmethod
-    def dbParse(dbName):
-        "parse a genomedb name into (orgDbName, dbNum)"
-        m = GenomeDb.dbParseRe.match(dbName)
-        if m is None:
-            raise Exception("can't parse database name: " + dbName)
-        return (m.group(1), int(m.group(2)))
 
     def __init__(self, dbName, org, clade, commonName, scientificName, annSetType=None):
         self.name = dbName
@@ -270,8 +272,8 @@ class GenomeDb(object):
         self.scientificName = scientificName
         self.annSetType = frozenset(annSetType) if (annSetType is not None) else None
         # chains to/from this databases, list by Organism, sorted newest to oldest
-        self.srcChainsSets = OrgChainsSetMap(self, True)
-        self.destChainsSets = OrgChainsSetMap(self, False)
+        # self.srcChainsSets = OrgChainsSetMap(self, True)
+        # self.destChainsSets = OrgChainsSetMap(self, False)
 
     def finish(self):
         "complete object"
@@ -331,7 +333,7 @@ class Organism(object):
 class GenomeDefs(object):
     "object containing all genome definitions"
     def __init__(self):
-        self.dbs = dict()          # by name
+        self.genomes = dict()          # by name
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.clades = set()        # all clades
         self.annSetType = set()     # all AnnSetTypes

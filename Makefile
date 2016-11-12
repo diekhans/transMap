@@ -1,11 +1,12 @@
 
 progs = getGenbankAligns getGenbankMetadata getGenbankSeqs \
-	getEnsemblAligns getEnsemblSeqs  \
-	checkTransMapSrcDb
+	getEnsemblAligns getEnsemblSeqs checkTransMapSrcDb \
+	getGenomeInfo
 
 # getEnsemblMetadata
 # FIXME: change this to do all once cleaned out
-libs = __init__.py genomeDefs.py transMapLite.py genbank.py ensembl.py
+libs = __init__.py genomeDefs.py transMapLite.py genbank.py ensembl.py \
+	phyloTrees.py chainsFinder.py
 
 all:
 

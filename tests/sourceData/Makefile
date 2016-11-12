@@ -8,7 +8,7 @@ getEnsemblAligns = ../../bin/getEnsemblAligns
 getEnsemblSeqs = ../../bin/getEnsemblSeqs
 getEnsemblMetadata = ../../bin/getEnsemblMetadata
 checkTransMapSrcDb = ../../bin/checkTransMapSrcDb
-
+getGenomeInfo = ../../bin/getGenomeInfo
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
@@ -23,7 +23,7 @@ diff = diff
 
 test: getGenbankAlignsTests getGenbankMetadataTests getGenbankSeqsTests \
 	getEnsemblAlignsTests getEnsemblSeqsTests getEnsemblMetadataTests \
-	checkTransMapSrcDbTests
+	checkTransMapSrcDbTests getGenomeInfoTests
 
 
 ###
@@ -32,6 +32,7 @@ test: getGenbankAlignsTests getGenbankMetadataTests getGenbankSeqsTests \
 getGenbankAlignsTests: ${genbankTypes:%=%_getGenbankAlignsTest}
 
 %_getGenbankAlignsTest: mkdirs
+	rm -f output/$@.db
 	${getGenbankAligns} --limit=100 $(call getTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
 	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
@@ -68,6 +69,7 @@ getGenbankMetadataTests: ${genbankMetaTypes:%=%_getGenbankMetadataTest}
 getEnsemblAlignsTests: ${ensemblTypes:%=%_getEnsemblAlignsTest}
 
 %_getEnsemblAlignsTest: mkdirs
+	rm -f output/$@.db
 	${getEnsemblAligns} --limit=100 $(call getTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
 	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
@@ -140,6 +142,16 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 %_ensemblMetadataUpdate:
 	${MAKE} $*_getEnsemblMetadataTest diff=true
 	sqlite3 -batch output/$*_getEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
+
+##
+# getGenomeInfoTests
+##
+tree1 = /hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh
+getGenomeInfoTests: getGenomeInfoTest
+
+getGenomeInfoTest: mkdirs
+	rm -f output/$@.db
+	${getGenomeInfo} --hgDb=mm10 --hgDb=hg38 --tree=${tree1} hgcentraltest output/$@.db
 
 
 mkdirs:

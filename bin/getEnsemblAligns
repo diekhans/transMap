@@ -5,7 +5,7 @@ import argparse
 import sqlite3
 from transMap.genomeDefs import AnnSetType
 from transMap.ensembl import EnsemblHgData
-from transMap.transMapLite import loadAlignsXRefs
+from transMap.transMapLite import srcAlignXRefLoad
 
 
 verbose = False
@@ -36,7 +36,7 @@ def getEnsemblAligns(srcHgDb, annSetType, limit, transMapSrcDb):
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
     try:
         alignReader = ensemblHgData.alignReader(limit=limit)
-        loadAlignsXRefs(transMapSrcDbConn, alignReader)
+        srcAlignXRefLoad(transMapSrcDbConn, alignReader)
     finally:
         transMapSrcDbConn.close()
 

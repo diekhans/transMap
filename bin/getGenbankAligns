@@ -4,7 +4,7 @@ import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import loadAlignsXRefs
+from transMap.transMapLite import srcAlignXRefLoad
 from transMap.genbank import GenbankHgData
 
 verbose = False
@@ -34,8 +34,7 @@ def getGenbankAligns(srcHgDb, annSetType, transMapSrcDb, limit):
     genbankHgData = GenbankHgData(srcHgDb, annSetType)
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
     try:
-        alignReader = genbankHgData.alignReader(limit=limit)
-        loadAlignsXRefs(transMapSrcDbConn, alignReader)
+        srcAlignXRefLoad(transMapSrcDbConn, genbankHgData.alignReader(limit=limit))
     finally:
         transMapSrcDbConn.close()
 

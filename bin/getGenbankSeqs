@@ -4,7 +4,7 @@ import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import getSrcAccsFile, loadSeqFa
+from transMap.transMapLite import SourceDbTables, TransMapSrcXRefLite, loadSeqFa
 from pycbio.sys import fileOps
 import pipettor
 
@@ -23,6 +23,14 @@ def parseArgs():
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     return parser.parse_args()
+
+
+def getSrcAccsFile(annSetType, transMapSrcDbConn):
+    tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
+    with open(tmpAccvFile, "w") as accvFh:
+        for accv in TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
+            accvFh.write("{}\n".format(accv))
+    return tmpAccvFile
 
 
 def getSeqFasta(srcHgDb, annSetType, tmpAccFile):

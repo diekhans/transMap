@@ -3,10 +3,11 @@ sqllite3 databases objects for transmap intermediate data.
 """
 
 from collections import namedtuple
-from pycbio.hgdata.hgLite import HgLiteTable
 from transMap import alignIdToSrcId, srcIdToAccv, accvToAcc
-from pycbio.hgdata.hgLite import SequenceLite, PslLite
-from pycbio.sys import fileOps
+from pycbio.hgdata.hgLite import HgLiteTable, SequenceLite, PslLite
+
+
+# FIXME: maybe rename from *Lite to *Tables
 
 
 class SourceDbTables(object):
@@ -33,7 +34,7 @@ class TransMapSrcGeneLite(HgLiteTable):
             geneId text,
             geneName text,
             geneType text,
-            transcriptType test);"""
+            transcriptType text);"""
     __insertSql = """INSERT INTO {table} (srcId, accv, cds, geneId, geneName, geneType, transcriptType) VALUES (?, ?, ?, ?, ?, ?, ?);"""
     __indexSql = """CREATE UNIQUE INDEX {table}_srcId on {table} (srcId);"""
 
@@ -46,13 +47,20 @@ class TransMapSrcGeneLite(HgLiteTable):
         """create table"""
         self._create(self.__createSql)
 
-    def loads(self, rows):
-        """load rows into table.  Each element of row is a list, tuple, or TransMapSrcGene objects"""
-        self.inserts(self.__insertSql, rows)
-
     def index(self):
         """create index after loading"""
-        self.execute(self.__indexSql)
+        self._index(self.__indexSql)
+
+    def loads(self, rows):
+        """load rows into table.  Each element of row is a list, tuple, or TransMapSrcGene objects"""
+        self._inserts(self.__insertSql, rows)
+
+    @staticmethod
+    def loadStep(transMapSrcDbConn, metadataReader):
+        "function to load and index"
+        transMapGeneTbl = TransMapSrcGeneLite(transMapSrcDbConn, SourceDbTables.srcMetadataTbl, True)
+        transMapGeneTbl.loads(list(metadataReader))
+        transMapGeneTbl.index()
 
 
 class TransMapSrcXRef(namedtuple("TransMapSrcXRef", ("srcAlignId", "srcId", "accv"))):
@@ -87,13 +95,13 @@ class TransMapSrcXRefLite(HgLiteTable):
         """create table"""
         self._create(self.__createSql)
 
-    def loads(self, rows):
-        """load rows into table.  Each element of row is a list, tuple, or TransMapSrcGene objects"""
-        self.inserts(self.__insertSql, rows)
-
     def index(self):
         """create index after loading"""
-        self.executes(self.__indexSql)
+        self._index(self.__indexSql)
+
+    def loads(self, rows):
+        """load rows into table.  Each element of row is a list, tuple, or TransMapSrcGene objects"""
+        self._inserts(self.__insertSql, rows)
 
     def getSrcIds(self):
         "get generator over unique source ids"
@@ -108,53 +116,39 @@ class TransMapSrcXRefLite(HgLiteTable):
             yield row[0]
 
 
-def loadAlignsXRefs(transMapSrcDbConn, alignReader):
-    "load the alignments and xrefs from a psl with srcAlignId in qName"
+class TransMapSrcAlignLite(PslLite):
+    """source alignments, in PSL format"""
+    def __init__(self, conn, table, create=False):
+        super(TransMapSrcAlignLite, self).__init__(conn, table, create)
+
+    def getAllAccv(self):
+        """get set of accv for PSLs that were loaded; use to restrict set for testing"""
+        sql = """SELECT qName FROM {table};"""
+        return frozenset([srcIdToAccv(alignIdToSrcId(row[0]))
+                          for row in self.query(sql)])
+
+    def getAllAcc(self):
+        """get set of acc (no version) for PSLs that were loaded; use to restrict set for testing"""
+        return frozenset([accvToAcc(accv) for accv in self.getAllAccv()])
+
+
+def srcAlignXRefLoad(transMapSrcDbConn, alignReader):
+    "load function the alignments and xrefs from a psl with srcAlignId in qName"
     psls = list(alignReader)
     srcXRefs = [TransMapSrcXRef.fromSrcAlnId(psl[9]) for psl in psls]
 
-    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl, create=True)
-    srcAlignTbl.loads(psls)
-    srcAlignTbl.index()
+    with transMapSrcDbConn:
+        srcAlignTbl = TransMapSrcAlignLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl, True)
+        srcAlignTbl.loads(psls)
+        srcAlignTbl.index()
 
-    srcXRefTbl = TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
-    srcXRefTbl.loads(srcXRefs)
-    srcXRefTbl.index()
-
-
-def loadSrcGeneMetadata(transMapSrcDbConn, metadataReader):
-    transMapGeneTbl = TransMapSrcGeneLite(transMapSrcDbConn, SourceDbTables.srcMetadataTbl, True)
-    transMapGeneTbl.loads(list(metadataReader))
-    transMapGeneTbl.index()
-
-
-def getSrcAlignAccv(transMapSrcDbConn):
-    """get set of accv for PSLs that were loaded; use to restrict set for testing"""
-    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
-    sql = """SELECT qName FROM {table};"""
-    return frozenset([srcIdToAccv(alignIdToSrcId(row[0]))
-                      for row in srcAlignTbl.query(sql)])
-
-
-def getSrcAlignAcc(transMapSrcDbConn):
-    """get set of acc (no version) for PSLs that were loaded; use to restrict set for testing"""
-    return frozenset([accvToAcc(accv) for accv in getSrcAlignAccv(transMapSrcDbConn)])
+        srcXRefTbl = TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
+        srcXRefTbl.loads(srcXRefs)
+        srcXRefTbl.index()
 
 
 def getAccvSubselectClause(field, accvSet):
     return """({} in ({}))""".format(field, ",".join(['"{}"'.format(accv) for accv in accvSet]))
-
-
-def getSrcAccs(transMapSrcDbConn, accvFh):
-    for accv in TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
-        accvFh.write("{}\n".format(accv))
-
-
-def getSrcAccsFile(annSetType, transMapSrcDbConn):
-    tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
-    with open(tmpAccvFile, "w") as accvFh:
-        getSrcAccs(transMapSrcDbConn, accvFh)
-    return tmpAccvFile
 
 
 def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
@@ -164,5 +158,5 @@ def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
 
 
 def querySrcPsls(transMapSrcDbConn):
-    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
-    return srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesSql))
+    srcAlignTbl = TransMapSrcAlignLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
+    return srcAlignTbl.query("SELECT {} FROM {{table}};".format(TransMapSrcAlignLite.columnsNamesSql))

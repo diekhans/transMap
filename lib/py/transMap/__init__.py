@@ -45,3 +45,11 @@ def parseAccVer(accver):
 def accvToAcc(accver):
     """parse acc.ver into (acc, ver)"""
     return parseAccVer(accver)[0]
+
+
+def hgDbNameParse(hgDb):
+    """parse a hg database name into (orgDbName, orgDbNum)"""
+    m = re.match("^([a-zA-Z]+)([0-9]+)$", hgDb)
+    if m is None:
+        raise Exception("can't parse UCSC database name: " + hgDb)
+    return (m.group(1), int(m.group(2)))
