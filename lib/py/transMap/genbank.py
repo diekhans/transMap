@@ -1,7 +1,7 @@
 from pycbio.hgdata import hgDb
 import pipettor
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import TransMapSrcGene, getAccvSubselectClause
+from transMap.srcData import TransMapSrcGene, getAccvSubselectClause
 
 
 def valOrNone(val):

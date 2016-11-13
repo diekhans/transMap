@@ -4,7 +4,7 @@ import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import srcAlignXRefLoad
+from transMap.srcData import srcAlignXRefLoad
 from transMap.genbank import GenbankHgData
 
 verbose = False

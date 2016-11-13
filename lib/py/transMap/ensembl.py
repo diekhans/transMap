@@ -1,7 +1,7 @@
 from pycbio.hgdata import hgDb
 from pycbio.sys import fileOps
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import TransMapSrcGene, getAccvSubselectClause
+from transMap.srcData import TransMapSrcGene, getAccvSubselectClause
 import pipettor
 
 # FIXME:  filter by biotype to removed small RNAs

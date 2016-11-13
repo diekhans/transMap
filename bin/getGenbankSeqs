@@ -4,7 +4,7 @@ import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
 from transMap.genomeDefs import AnnSetType
-from transMap.transMapLite import SourceDbTables, TransMapSrcXRefLite, loadSeqFa
+from transMap.srcData import SourceDbTables, TransMapSrcXRefLite, loadSeqFa
 from pycbio.sys import fileOps
 import pipettor
 

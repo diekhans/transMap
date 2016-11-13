@@ -5,7 +5,7 @@ import argparse
 import sqlite3
 from transMap.genomeDefs import AnnSetType
 from transMap.ensembl import EnsemblHgData
-from transMap.transMapLite import srcAlignXRefLoad
+from transMap.srcData import srcAlignXRefLoad
 
 
 verbose = False

@@ -26,7 +26,7 @@ class ChainType(SymEnum):
 
 sqlite3.register_adapter(ChainType, lambda chainType: str(chainType))
 sqlite3.register_converter("chainType", ChainType)
-    
+
 
 class AnnSetType(SymEnum):
     "annotation set type"
@@ -414,4 +414,3 @@ class GenomeDefs(object):
             fileOps.prRowv(fh, "", org.commonName)
             for db in org.dbs:
                 fileOps.prRowv(fh, "", "", db)
-
