@@ -1,0 +1,6 @@
+srcDb	destDb	chainType	chainFile	netFile	dist
+hg38	mm10	all	/hive/data/genomes/hg38/bed/lastz.mm10/axtChain/hg38.mm10.all.chain.gz	/hive/data/genomes/hg38/bed/lastz.mm10/axtChain/hg38.mm10.net.gz	0.502391
+hg38	mm10	rbest	/hive/data/genomes/hg38/bed/lastz.mm10/axtChain/hg38.mm10.rbest.chain.gz	/hive/data/genomes/hg38/bed/lastz.mm10/axtChain/hg38.mm10.rbest.net.gz	0.502391
+hg38	mm10	syn	/hive/data/genomes/hg38/bed/lastz.mm10/axtChain/hg38.mm10.all.chain.gz	/hive/data/genomes/hg38/bed/lastz.mm10/axtChain/hg38.mm10.syn.net.gz	0.502391
+mm10	hg38	all	/hive/data/genomes/mm10/bed/lastz.hg38/axtChain/mm10.hg38.all.chain.gz	/hive/data/genomes/mm10/bed/lastz.hg38/axtChain/mm10.hg38.net.gz	0.502391
+mm10	hg38	rbest	/hive/data/genomes/mm10/bed/lastz.hg38/axtChain/mm10.hg38.rbest.chain.gz	/hive/data/genomes/mm10/bed/lastz.hg38/axtChain/mm10.hg38.rbest.net.gz	0.502391

@@ -3,7 +3,7 @@ The GenomeDefs object can be constructed and pickled by the genomeDefsMk
 program to speed up loading this data.
 """
 import os
-import cPickle
+import sqlite3
 import glob
 from collections import namedtuple
 from pycbio.sys.symEnum import SymEnum
@@ -12,12 +12,21 @@ from pycbio.sys import setOps, typeOps, fileOps
 from pycbio.hgdata.hgLite import HgLiteTable
 
 
+class GenomesDbTables(object):
+    """tables names in a genomes sqlite3 database"""
+    chainsTbl = "chains"
+
+
 class ChainType(SymEnum):
     "type of chains, which can either be existing or ones filtered on the fly."
     all = 1
     syn = 2
     rbest = 3
 
+
+sqlite3.register_adapter(ChainType, lambda chainType: str(chainType))
+sqlite3.register_converter("chainType", ChainType)
+    
 
 class AnnSetType(SymEnum):
     "annotation set type"
@@ -29,13 +38,13 @@ class AnnSetType(SymEnum):
 
 
 class Chains(namedtuple("Chains",
-                        ("srcDb", "destDb", "chtype", "chainFile", "netFile", "dist"))):
+                        ("srcDb", "destDb", "chainType", "chainFile", "netFile", "dist"))):
     "Describes the chains used in a mapping to a destDb"
     # FIXME make srcDb/destDb and chainsFinder.py queryHgDb targetHgDb consistent
     __slots__ = ()
 
     def __str__(self):
-        return self.srcDb + " ==> " + self.destDb + " [" + str(self.chtype) + "] |" + str(self.dist) + "|"
+        return self.srcDb + " ==> " + self.destDb + " [" + str(self.chainType) + "] |" + str(self.dist) + "|"
 
 
 class ChainsSet(object):
@@ -132,20 +141,20 @@ class ChainsSet(object):
             return p
         return None
 
-    def __addIfExists(self, blastzDir, chtype, chainExt, netExt):
+    def __addIfExists(self, blastzDir, chainType, chainExt, netExt):
         """add a set of nets/chains if they exist for the specified type"""
         chainFile = self.__getBlastzFile(blastzDir, chainExt)
         if chainFile is not None:
             netFile = self.__getBlastzFile(blastzDir, netExt)
             if netFile is not None:
-                self.byType[chtype] = Chains(self.srcDb, self.destDb, chtype, chainFile, netFile)
+                self.byType[chainType] = Chains(self.srcDb, self.destDb, chainType, chainFile, netFile)
 
-    def getSupportingType(self, chtype):
+    def getSupportingType(self, chainType):
         """get the chains that support the give type, or None.  This can return
         the all chains when then require more filtering"""
-        assert(isinstance(chtype, ChainType))
-        chains = self.byType.get(chtype)
-        if (chains is None) and (chtype == ChainType.syn):
+        assert(isinstance(chainType, ChainType))
+        chains = self.byType.get(chainType)
+        if (chains is None) and (chainType == ChainType.syn):
             chains = self.byType[ChainType.all]
         return chains
 
@@ -176,6 +185,34 @@ class ChainsSet(object):
         else:
             for chains in self.byType.itervalues():
                 fh.write(prefix + str(chains) + "\n")
+
+
+class ChainsTbl(HgLiteTable):
+    """Interface and cache of data on chains stored in the database"""
+    __createSql = """CREATE TABLE {table} (
+            srcDb text not null,
+            destDb text not null,
+            chainType text not null,
+            chainFile text not null,
+            netFile text not null,
+            dist float);"""
+    __insertSql = """INSERT INTO {table} (srcDb, destDb, chainType, chainFile, netFile, dist) VALUES (?, ?, ?, ?, ?, ?);"""
+    __indexSql = ["""CREATE INDEX {table}_srcDb on {table} (srcDb);""",
+                  """CREATE INDEX {table}_destDb on {table} (destDb);"""]
+
+    def __init__(self, conn, table, create=False):
+        super(ChainsTbl, self).__init__(conn, table)
+        if create:
+            self._create(self.__createSql)
+        self.allChains = []
+
+    def index(self):
+        """create index after loading"""
+        self._index(self.__indexSql)
+
+    def loads(self, rows):
+        """load rows into table"""
+        self._inserts(self.__insertSql, rows)
 
 
 class ChainsSetMap(MultiDict):
@@ -229,35 +266,6 @@ class ChainsSetMap(MultiDict):
         fileOps.prRowv(fh, "ChainsSetMap", self.db)
         for chainsSet in self.itervalues():
             chainsSet.dump(fh, "\t")
-
-
-class ChainsTbl(HgLiteTable):
-    """Interface and cache of data on chains stored in the database"""
-    __createSql = """CREATE TABLE {table} (
-            srcDb text not null,
-            destDb text not null,
-            chtype text not null,
-            chainFile text not null,
-            netFile text not null,
-            dist float);"""
-    __insertSql = """INSERT INTO {table} (srcDb, destDb, chtype, chainFile, netFile, dist) VALUES (?, ?, ?, ?, ?, ?);"""
-    __indexSql = ["""CREATE UNIQUE INDEX {table}_srcDb on {table} (srcDb);""",
-                  """CREATE UNIQUE INDEX {table}_destDb on {table} (destDb);"""]
-
-    def __init__(self, conn, table, create=False):
-        super(ChainsTbl, self).__init__(conn, table)
-        if create:
-            self.create()
-        self.allChains = []
-
-    def create(self):
-        """create table and index"""
-        self._create(self.__createSql)
-        self.execute(self.__indexSql)
-
-    def add(self, chains):
-        self.inserts(self.__indexSql, [chains])
-        self.all
 
 
 class GenomeDb(object):
@@ -407,19 +415,3 @@ class GenomeDefs(object):
             for db in org.dbs:
                 fileOps.prRowv(fh, "", "", db)
 
-    def save(self, path):
-        fh = open(path, "w")
-        # prot = cPickle.HIGHEST_PROTOCOL  # FIXME: doesn't work
-        prot = 0
-        cPickle.dump((ChainType, AnnSetType, self), fh, prot)
-        fh.close()
-
-
-def load(path):
-    fh = open(path)
-    try:
-        global ChainType, AnnSetType
-        ChainType, AnnSetType, defs = cPickle.load(fh)
-        return defs
-    finally:
-        fh.close()

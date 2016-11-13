@@ -6,6 +6,7 @@ import argparse
 import sqlite3
 # from transMap.genomeDefs import AnnSetType
 from pycbio.hgdata import hgDb
+from transMap.genomeDefs import GenomesDbTables, ChainsTbl
 from transMap.chainsFinder import ChainsFinder
 from transMap.phyloTrees import PhyloDistances
 
@@ -58,18 +59,20 @@ def checkChainsDist(chains):
         raise Exception("{} chains without phylogenetic distance, add appropriate trees\n".format(errCnt))
 
 
-def loadGenomicChains(transMapGenomeDb, distances, activeHgDbs):
+def loadGenomicChains(transMapGenomeDbConn, distances, activeHgDbs):
     chainsFinder = ChainsFinder(distances)
     chains = chainsFinder.findChains(activeHgDbs)
     checkChainsDist(chains)
-    print "getGenomicChains", "\n".join([str(c) for c in chains])
+    chainsTbl = ChainsTbl(transMapGenomeDbConn, GenomesDbTables.chainsTbl, True)
+    chainsTbl.loads(chains)
+    chainsTbl.index()
 
 
 def getGenomeInfo(hgCentralDb, transMapGenomeDb, trees, subsetHgDbs=None):
     distances = PhyloDistances(trees)
     transMapGenomeDbConn = sqlite3.connect(transMapGenomeDb)
     activeHgDbs = subsetHgDbs if subsetHgDbs is not None else getActiveHgDbs(hgCentralDb)
-    loadGenomicChains(transMapGenomeDb, distances, activeHgDbs)
+    loadGenomicChains(transMapGenomeDbConn, distances, activeHgDbs)
     transMapGenomeDbConn.close()
 
 # entry

@@ -92,19 +92,19 @@ class ChainsFinder(object):
             sys.stderr.write("__getLastzFile: {} {} {}\n".format(targetHgDb, queryHgDb, "notFound"))
         return None
 
-    def __addOneIfExists(self, targetHgDb, queryHgDb, chainsDirs, chtype, chainExt, netExt, chains):
+    def __addOneIfExists(self, targetHgDb, queryHgDb, chainsDirs, chainType, chainExt, netExt, chains):
         "add first existing chain/net on list of chainsDirs"
         for chainsDir in chainsDirs:
-            if self.__addIfExists(targetHgDb, queryHgDb, chainsDir, chtype, chainExt, netExt, chains):
+            if self.__addIfExists(targetHgDb, queryHgDb, chainsDir, chainType, chainExt, netExt, chains):
                 break
 
-    def __addIfExists(self, targetHgDb, queryHgDb, chainsDir, chtype, chainExt, netExt, chains):
+    def __addIfExists(self, targetHgDb, queryHgDb, chainsDir, chainType, chainExt, netExt, chains):
         """add a set of nets/chains if they exist for the specified type"""
         chainFile = self.__getLastzFile(targetHgDb, queryHgDb, chainsDir, chainExt)
         if chainFile is not None:
             netFile = self.__getLastzFile(targetHgDb, queryHgDb, chainsDir, netExt)
             if netFile is not None:
-                chains.append(Chains(targetHgDb, queryHgDb, chtype, chainFile, netFile,
+                chains.append(Chains(targetHgDb, queryHgDb, chainType, chainFile, netFile,
                                      self.__distances.get(targetHgDb, queryHgDb)))
                 return True
         return False

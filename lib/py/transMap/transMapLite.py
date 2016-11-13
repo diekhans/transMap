@@ -11,7 +11,7 @@ from pycbio.hgdata.hgLite import HgLiteTable, SequenceLite, PslLite
 
 
 class SourceDbTables(object):
-    """tables names in a source dataset sqlite3 database"""
+    """tables names in a source data sqlite3 database"""
     srcAlignTbl = "srcAlign"
     srcXRefTbl = "srcXRef"
     srcMetadataTbl = "srcMetadata"

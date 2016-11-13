@@ -152,7 +152,8 @@ getGenomeInfoTests: getGenomeInfoTest
 getGenomeInfoTest: mkdirs
 	rm -f output/$@.db
 	${getGenomeInfo} --hgDb=mm10 --hgDb=hg38 --tree=${tree1} hgcentraltest output/$@.db
-
+	sqlite3 -batch output/$@.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
+	${diff} expected/$@.chainsinfo output/$@.chainsinfo
 
 mkdirs:
 	@mkdir -p output
