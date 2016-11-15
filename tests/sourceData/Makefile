@@ -1,103 +1,103 @@
 
 SHELL = /bin/bash -beEu -o pipefail
 
-getGenbankAligns = ../../bin/getGenbankAligns
-getGenbankSeqs = ../../bin/getGenbankSeqs
-getGenbankMetadata = ../../bin/getGenbankMetadata
-getEnsemblAligns = ../../bin/getEnsemblAligns
-getEnsemblSeqs = ../../bin/getEnsemblSeqs
-getEnsemblMetadata = ../../bin/getEnsemblMetadata
+srcDbLoadGenbankAligns = ../../bin/srcDbLoadGenbankAligns
+srcDbLoadGenbankSeqs = ../../bin/srcDbLoadGenbankSeqs
+srcDbLoadGenbankMetadata = ../../bin/srcDbLoadGenbankMetadata
+srcDbLoadEnsemblAligns = ../../bin/srcDbLoadEnsemblAligns
+srcDbLoadEnsemblSeqs = ../../bin/srcDbLoadEnsemblSeqs
+srcDbLoadEnsemblMetadata = ../../bin/srcDbLoadEnsemblMetadata
 checkTransMapSrcDb = ../../bin/checkTransMapSrcDb
-getGenomeInfo = ../../bin/getGenomeInfo
+genomeDbLoad = ../../bin/genomeDbLoad
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
 ensemblTypes = gencode ensembl
 
 # this obtains the test db to use; gencode must be special cased
-#  $(call getTestDb,setName)
-getTestDb = $(if $(filter $(1),gencode),hg19,felCat5)
+#  $(call srcDbLoadTestDb,setName)
+srcDbLoadTestDb = $(if $(filter $(1),gencode),hg19,felCat5)
 
 
 diff = diff
 
-test: getGenbankAlignsTests getGenbankMetadataTests getGenbankSeqsTests \
-	getEnsemblAlignsTests getEnsemblSeqsTests getEnsemblMetadataTests \
-	checkTransMapSrcDbTests getGenomeInfoTests
+test: srcDbLoadGenbankAlignsTests srcDbLoadGenbankMetadataTests srcDbLoadGenbankSeqsTests \
+	srcDbLoadEnsemblAlignsTests srcDbLoadEnsemblSeqsTests srcDbLoadEnsemblMetadataTests \
+	checkTransMapSrcDbTests genomeDbLoadTests
 
 
 ###
-# getGenbankAligns
+# srcDbLoadGenbankAligns
 ###
-getGenbankAlignsTests: ${genbankTypes:%=%_getGenbankAlignsTest}
+srcDbLoadGenbankAlignsTests: ${genbankTypes:%=%_srcDbLoadGenbankAlignsTest}
 
-%_getGenbankAlignsTest: mkdirs
+%_srcDbLoadGenbankAlignsTest: mkdirs
 	rm -f output/$@.db
-	${getGenbankAligns} --limit=100 $(call getTestDb,$*) $* output/$@.db
+	${srcDbLoadGenbankAligns} --limit=100 $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
 	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
 	${diff} expected/$@.xref output/$@.xref
 
 ###
-# getGenbankSeqs
+# srcDbLoadGenbankSeqs
 ###
-getGenbankSeqsTests: ${genbankTypes:%=%_getGenbankSeqsTest}
+srcDbLoadGenbankSeqsTests: ${genbankTypes:%=%_srcDbLoadGenbankSeqsTest}
 
-%_getGenbankSeqsTest: mkdirs
+%_srcDbLoadGenbankSeqsTest: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
-	${getGenbankSeqs} $(call getTestDb,$*) $* output/$@.db
+	${srcDbLoadGenbankSeqs} $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq) as length from srcSeq order by name' >output/$@.fa.ids
 	${diff} expected/$@.fa.ids output/$@.fa.ids
 
 ###
-# getGenbankMetadata
+# srcDbLoadGenbankMetadata
 ###
-getGenbankMetadataTests: ${genbankMetaTypes:%=%_getGenbankMetadataTest}
+srcDbLoadGenbankMetadataTests: ${genbankMetaTypes:%=%_srcDbLoadGenbankMetadataTest}
 
-%_getGenbankMetadataTest: mkdirs
+%_srcDbLoadGenbankMetadataTest: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
-	${getGenbankMetadata} --testLimit $(call getTestDb,$*) $* output/$@.db
+	${srcDbLoadGenbankMetadata} --testLimit $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
 
 ##
-# getEnsemblAligns
+# srcDbLoadEnsemblAligns
 ##
-getEnsemblAlignsTests: ${ensemblTypes:%=%_getEnsemblAlignsTest}
+srcDbLoadEnsemblAlignsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblAlignsTest}
 
-%_getEnsemblAlignsTest: mkdirs
+%_srcDbLoadEnsemblAlignsTest: mkdirs
 	rm -f output/$@.db
-	${getEnsemblAligns} --limit=100 $(call getTestDb,$*) $* output/$@.db
+	${srcDbLoadEnsemblAligns} --limit=100 $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
 	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
 	${diff} expected/$@.xref output/$@.xref
 
 ##
-# getEnsemblSeqs
+# srcDbLoadEnsemblSeqs
 ##
-getEnsemblSeqsTests: ${ensemblTypes:%=%_getEnsemblSeqsTest}
+srcDbLoadEnsemblSeqsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblSeqsTest}
 
-%_getEnsemblSeqsTest: mkdirs
+%_srcDbLoadEnsemblSeqsTest: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
-	${getEnsemblSeqs} $(call getTestDb,$*) $* output/$@.db
+	${srcDbLoadEnsemblSeqs} $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq) as length from srcSeq order by name' >output/$@.fa.ids
 	${diff} expected/$@.fa.ids output/$@.fa.ids
 
 
 ##
-# getEnsemblMetadata
+# srcDbLoadEnsemblMetadata
 ##
-getEnsemblMetadataTests: ${ensemblTypes:%=%_getEnsemblMetadataTest}
+srcDbLoadEnsemblMetadataTests: ${ensemblTypes:%=%_srcDbLoadEnsemblMetadataTest}
 
-%_getEnsemblMetadataTest: mkdirs
+%_srcDbLoadEnsemblMetadataTest: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
-	${getEnsemblMetadata} --testLimit $(call getTestDb,$*) $* output/$@.db
+	${srcDbLoadEnsemblMetadata} --testLimit $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
 
@@ -109,7 +109,7 @@ checkTransMapSrcDbTests: ${genbankTypes:%=%_checkTransMapSrcDbTest}  ${ensemblTy
 %_checkTransMapSrcDbTest: mkdirs
 	rm -f output/$@.db
 	cat input/$*_align.sql input/$*_seq.sql input/$*_metadata.sql | sqlite3 -batch output/$@.db
-	${checkTransMapSrcDb} $(call getTestDb,$*) $* output/$@.db
+	${checkTransMapSrcDb} $(call srcDbLoadTestDb,$*) $* output/$@.db
 
 
 ##
@@ -120,38 +120,38 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 	${ensemblTypes:%=%_ensemblAlignsUpdate} ${ensemblTypes:%=%_ensemblSeqsUpdate} ${ensemblTypes:%=%_ensemblMetadataUpdate}
 
 %_genbankAlignsUpdate:
-	${MAKE} $*_getGenbankAlignsTest diff=true
-	sqlite3 -batch output/$*_getGenbankAlignsTest.db .dump > input/$*_align.sql
+	${MAKE} $*_srcDbLoadGenbankAlignsTest diff=true
+	sqlite3 -batch output/$*_srcDbLoadGenbankAlignsTest.db .dump > input/$*_align.sql
 
 %_genbankSeqsUpdate:
-	${MAKE} $*_getGenbankSeqsTest diff=true
-	sqlite3 -batch output/$*_getGenbankSeqsTest.db '.dump srcSeq' > input/$*_seq.sql
+	${MAKE} $*_srcDbLoadGenbankSeqsTest diff=true
+	sqlite3 -batch output/$*_srcDbLoadGenbankSeqsTest.db '.dump srcSeq' > input/$*_seq.sql
 
 %_genbankMetadataUpdate:
-	${MAKE} $*_getGenbankMetadataTest diff=true
-	sqlite3 -batch output/$*_getGenbankMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
+	${MAKE} $*_srcDbLoadGenbankMetadataTest diff=true
+	sqlite3 -batch output/$*_srcDbLoadGenbankMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
 %_ensemblAlignsUpdate:
-	${MAKE} $*_getEnsemblAlignsTest diff=true
-	sqlite3 -batch output/$*_getEnsemblAlignsTest.db .dump > input/$*_align.sql
+	${MAKE} $*_srcDbLoadEnsemblAlignsTest diff=true
+	sqlite3 -batch output/$*_srcDbLoadEnsemblAlignsTest.db .dump > input/$*_align.sql
 
 %_ensemblSeqsUpdate:
-	${MAKE} $*_getEnsemblSeqsTest diff=true
-	sqlite3 -batch output/$*_getEnsemblSeqsTest.db '.dump srcSeq' > input/$*_seq.sql
+	${MAKE} $*_srcDbLoadEnsemblSeqsTest diff=true
+	sqlite3 -batch output/$*_srcDbLoadEnsemblSeqsTest.db '.dump srcSeq' > input/$*_seq.sql
 
 %_ensemblMetadataUpdate:
-	${MAKE} $*_getEnsemblMetadataTest diff=true
-	sqlite3 -batch output/$*_getEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
+	${MAKE} $*_srcDbLoadEnsemblMetadataTest diff=true
+	sqlite3 -batch output/$*_srcDbLoadEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
 ##
-# getGenomeInfoTests
+# genomeDbLoadTests
 ##
 tree1 = /hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh
-getGenomeInfoTests: getGenomeInfoTest
+genomeDbLoadTests: genomeDbLoadTest
 
-getGenomeInfoTest: mkdirs
+genomeDbLoadTest: mkdirs
 	rm -f output/$@.db
-	${getGenomeInfo} --hgDb=mm10 --hgDb=hg38 --tree=${tree1} hgcentraltest output/$@.db
+	${genomeDbLoad} --hgDb=mm10 --hgDb=hg38 --tree=${tree1} hgcentraltest output/$@.db
 	sqlite3 -batch output/$@.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
 	${diff} expected/$@.chainsinfo output/$@.chainsinfo
 

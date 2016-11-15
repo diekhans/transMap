@@ -17,7 +17,7 @@ class GenbankHgData(object):
 
     pslSelectTmpl = """SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
                     """tBaseInsert, strand, concat(qName, ".", version), qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
-                    """blockCount, blockSizes, qStarts, tStarts from {}, gbCdnaInfo """ \
+                    """blockCount, blockSizes, qStarts, tStarts from {}, hgFixed.gbCdnaInfo """ \
                     """WHERE (qName = acc)"""
 
     def __init__(self, srcHgDb, annSetType):
@@ -47,11 +47,11 @@ class GenbankHgData(object):
                 yield line.rstrip().split("\t")
 
     @staticmethod
-    def __getTestSubsetClause(testAccvSubset):
+    def __getTestSubsetClause(alignField, testAccvSubset):
         if testAccvSubset is None:
             return ""
         else:
-            return "WHERE {}".format(getAccvSubselectClause("qName", testAccvSubset))
+            return "AND {}".format(getAccvSubselectClause(alignField, testAccvSubset))
 
     def __metadataRowGen(self, sql, rowFactory, rowFilter=None):
         conn = hgDb.connect(self.srcHgDb, dictCursor=True)
@@ -75,11 +75,14 @@ class GenbankHgData(object):
                                transcriptType=geneType)
 
     def __refseqMetadataReader(self, testAccvSubset):
-        sql = """SELECT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, """ \
+        # using sub-select to get aligned sequence took forever, hence join and distinct
+        sql = """SELECT DISTINCT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, """ \
               """        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId """ \
-              """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.refLink rl  """ \
-              """WHERE (gb.acc = rl.mrnaAcc) and (cds.id = gb.cds) and """ \
-              """(gb.acc in (SELECT qName FROM refSeqAli {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
+              """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.refLink rl, {srcHgDb}.refSeqAli ali """ \
+              """WHERE (gb.acc = rl.mrnaAcc) AND (cds.id = gb.cds) AND (ali.qName = gb.acc) """ \
+              """{testAccvSubsetClause};""".format(srcHgDb=self.srcHgDb,
+                                                   testAccvSubsetClause=self.__getTestSubsetClause("ali.qName",
+                                                                                                   testAccvSubset))
         return self.__metadataRowGen(sql, self.__refseqToMetadata)
 
     @staticmethod
@@ -98,10 +101,13 @@ class GenbankHgData(object):
                                transcriptType=geneType)
 
     def __refRnaMetadataReader(self, testAccvSubset):
-        sql = """select concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, gn.name as gn_name """ \
-              """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.geneName gn """ \
-              """WHERE (cds.id = gb.cds) and (gn.id = gb.geneName) and """ \
-              """(gb.acc in (SELECT qName from all_mrna {testAccvSubsetClause}));""".format(testAccvSubsetClause=self.__getTestSubsetClause(testAccvSubset))
+        # using sub-select to get aligned sequence took forever, hence join and distinct
+        sql = """SELECT DISTINCT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, gn.name as gn_name """ \
+              """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.geneName gn, {srcHgDb}.all_mrna rna """ \
+              """WHERE (cds.id = gb.cds) AND (gn.id = gb.geneName) AND (rna.qName =.gb.acc)""" \
+              """{testAccvSubsetClause};""".format(srcHgDb=self.srcHgDb,
+                                                   testAccvSubsetClause=self.__getTestSubsetClause("rna.qName",
+                                                                                                   testAccvSubset))
         return self.__metadataRowGen(sql, self.__rnaToSrcMetadata, self.__rnaRowFilter)
 
     def metadataReader(self, testAccvSubset=None):
