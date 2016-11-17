@@ -7,7 +7,7 @@ CREATE TABLE srcMetadata (
             geneId text,
             geneName text,
             geneType text,
-            transcriptType test);
+            transcriptType text);
 INSERT INTO "srcMetadata" VALUES('hg19:ENST00000326734.1','ENST00000326734.1',NULL,'ENSG00000177757.1','FAM87B','processed_transcript','processed_transcript');
 INSERT INTO "srcMetadata" VALUES('hg19:ENST00000332831.2','ENST00000332831.2','20..958','ENSG00000185097.2','OR4F16','protein_coding','protein_coding');
 INSERT INTO "srcMetadata" VALUES('hg19:ENST00000335137.3','ENST00000335137.3','1..918','ENSG00000186092.3','AL627309.1','protein_coding','protein_coding');

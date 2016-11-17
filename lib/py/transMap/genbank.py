@@ -32,16 +32,15 @@ class GenbankHgData(object):
         elif self.annotationType == AnnotationType.refseq:
             return "refSeqAli"
 
-    def alignReader(self, limit=None):
+    def alignReader(self, testAccSubset=None):
         """get generator to return alignments with updated qNames,
         these are raw rows."""
         sql = self.pslSelectTmpl.format(self.__getPslTbl())
-        if limit is not None:
-            sql += " LIMIT {}".format(limit)
+        if testAccSubset is not None:
+            sql += " AND (qName in ({}))".format(",".join(['"{}"'.format(name) for name in testAccSubset]))
         hgsqlCmd = ("hgsql", "-Ne", sql, self.srcHgDb)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
-
         with pipettor.Popen([hgsqlCmd, sortCmd, uniqCmd]) as fh:
             for line in fh:
                 yield line.rstrip().split("\t")
@@ -67,12 +66,12 @@ class GenbankHgData(object):
     def __refseqToMetadata(self, row):
         geneType = "protein_coding" if row["accv"].startswith("NM_") else "non_coding"
         return SrcMetadata(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
-                               accv=row["accv"],
-                               cds=valOrNone(row["cds_name"]),
-                               geneId=strOrNoneIfZero(row["rl_locusLinkId"]),
-                               geneName=valOrNone(row["rl_name"]),
-                               geneType=geneType,
-                               transcriptType=geneType)
+                           accv=row["accv"],
+                           cds=valOrNone(row["cds_name"]),
+                           geneId=strOrNoneIfZero(row["rl_locusLinkId"]),
+                           geneName=valOrNone(row["rl_name"]),
+                           geneType=geneType,
+                           transcriptType=geneType)
 
     def __refseqMetadataReader(self, testAccvSubset):
         # using sub-select to get aligned sequence took forever, hence join and distinct

@@ -1,21 +1,38 @@
 from pycbio.hgdata import hgDb
-from pycbio.sys import fileOps
+from pycbio.sys import fileOps, dbOps
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
 import pipettor
 
 # FIXME:  filter by biotype to removed small RNAs
 
+gencodeCompTblBase = "wgEncodeGencodeComp"
+ensGeneTbl = "ensGene"
+
 
 def valOrNone(val):
     return None if (val == "") else val
 
+def isEnsemblProjectionBuild(hgDbConn, srcHgDb):
+    """does this ensembl appear to be a projection (full or mixed) gene build?
+    this is determined by there being at least one transcript that is mapped multiple times"""
+    sql = "SELECT count(*) cnt FROM (SELECT name, count(*) AS cnt FROM {srcHgDb}.{ensGeneTbl} GROUP BY name) AS counts WHERE counts.cnt > 2".format(srcHgDb=srcHgDb, ensGeneTbl=ensGeneTbl)
+    rows = list(dbOps.query(hgDbConn, sql))
+    return (rows[0]["cnt"] > 0)
+
+
+def haveEnsemblFull(hgDbConn, srcHgDb):
+    """does this database have an Ensembl full or mixed build? (not projection"""
+    return (dbOps.haveTablesLike(hgDbConn, ensGeneTbl, db=srcHgDb)
+            and not isEnsemblProjectionBuild(hgDbConn, srcHgDb))
+    
+
+def haveGencode(hgDbConn, srcHgDb):
+    return dbOps.haveTablesLike(hgDbConn, "{}%".format(gencodeCompTblBase), db=srcHgDb)
+
 
 class EnsemblHgData(object):
     "obtain data UCSC browser data for GENCODE or Ensembl"
-
-    gencodeCompTblBase = "wgEncodeGencodeComp"
-    ensGeneTbl = "ensGene"
 
     def __init__(self, srcHgDb, annotationType):
         self.srcHgDb = srcHgDb
@@ -23,43 +40,42 @@ class EnsemblHgData(object):
         self.srcHgDbConn = hgDb.connect(srcHgDb, dictCursor=True)
         self.gencodeVersion = self.__getGencodeVersion() if annotationType == AnnotationType.gencode else None
 
-    def __getTablesLike(self, pat):
-        sql = "show tables like \"{}\"".format(pat)
-        key = "Tables_in_{} ({})".format(self.srcHgDb, pat)
-        cur = self.srcHgDbConn.cursor()
-        try:
-            cur.execute(sql)
-            return [row[key] for row in cur]
-        finally:
-            cur.close()
-
     def __getGencodeVersion(self):
         "return latest gencode version, parse from table names, or None"
-        tbls = self.__getTablesLike(self.gencodeCompTblBase + "%")
+        tbls = dbOps.getTablesLike(self.srcHgDbConn, gencodeCompTblBase + "%")
         if len(tbls) == 0:
             return None
         # get most current version number by sorting by reverse string length,
         # then reverse value will get the latest
         tbls.sort(key=lambda t: (len(t), t))
-        return tbls[0][len(self.gencodeCompTblBase):]
+        return tbls[0][len(gencodeCompTblBase):]
 
     def __getGenePredTbl(self):
         if self.gencodeVersion is not None:
-            return self.gencodeCompTblBase + self.gencodeVersion
+            return gencodeCompTblBase + self.gencodeVersion
         else:
-            return self.ensGeneTbl
+            return ensGeneTbl
 
-    def alignReader(self, limit=None):
+    def __getGenePredSql(self, testAccvSubset):
+        sql = "SELECT name, chrom, strand, txStart, txEnd, cdsStart, cdsEnd, "\
+              "exonCount, exonStarts, exonEnds, score, name2, cdsStartStat, cdsEndStat, exonFrames " \
+              "FROM {}".format(self.__getGenePredTbl())
+        if testAccvSubset is not None:
+            sql += " WHERE {}".format(getAccvSubselectClause("name", testAccvSubset))
+        return sql
+
+    def __getGenePredToPslCmds(self, pslOut, cdsOut, testAccvSubset):
+        getGenePredCmd = ("hgsql", "-Ne", self.__getGenePredSql(testAccvSubset), self.srcHgDb)
+        toPslCmd = ("genePredToFakePsl", self.srcHgDb, "/dev/stdin", pslOut, cdsOut)
+        return [getGenePredCmd, toPslCmd]
+
+    def alignReader(self, testAccvSubset):
         """get generator to return alignments with updated qNames,
         these are raw rows."""
-        toPslCmd = ("genePredToFakePsl", self.srcHgDb, self.__getGenePredTbl(), "/dev/stdout", "/dev/null")
+        getGenePredCmd, toPslCmd = self.__getGenePredToPslCmds("/dev/stdout", "/dev/null", testAccvSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
-        cmd = [toPslCmd]
-        if limit is not None:
-            cmd.append(["tawk", "NR<={}".format(limit)])
-        cmd.extend([sortCmd, uniqCmd])
-        with pipettor.Popen(cmd, "r") as fh:
+        with pipettor.Popen([getGenePredCmd, toPslCmd, sortCmd, uniqCmd], "r") as fh:
             for line in fh:
                 yield line.rstrip().split("\t")
 
@@ -73,8 +89,8 @@ class EnsemblHgData(object):
                 cdsSpecs[accv] = cds
 
     def __getCdsSpecs(self, testAccvSubset):
-        toCdsCmd = ["genePredToFakePsl", self.srcHgDb, self.__getGenePredTbl(), "/dev/null", "/dev/stdout"]
-        with pipettor.Popen([toCdsCmd], "r") as cdsFh:
+        getGenePredCmd, toCdsCmd = self.__getGenePredToPslCmds("/dev/null", "/dev/stdout", testAccvSubset)
+        with pipettor.Popen([getGenePredCmd, toCdsCmd], "r") as cdsFh:
             cdsSpecs = {}
             for line in fileOps.iterLines(cdsFh):
                 self.__processCdsSpecLine(line, testAccvSubset, cdsSpecs)
@@ -118,8 +134,6 @@ class EnsemblHgData(object):
         sql = """SELECT eg.name as transcriptId, eg.name2 as geneId, gn.value as geneName, es.source as geneType, es.source as transcriptType """ \
               """FROM ensGene eg LEFT JOIN ensemblToGeneName gn ON gn.name=eg.name, ensemblSource es """ \
               """WHERE (es.name = eg.name) {}""".format(transcriptIdSelect)
-        print len(testAccvSubset), testAccvSubset
-        print sql
         return self.__metadataRowGen(sql, cdsSpecs, self.__toMetadata)
 
     def metadataReader(self, testAccvSubset=None):

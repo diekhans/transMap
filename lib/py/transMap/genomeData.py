@@ -3,6 +3,7 @@ The GenomeDefs object can be constructed and pickled by the genomeDataMk
 program to speed up loading this data.
 """
 import sqlite3
+import re
 from collections import namedtuple
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import typeOps, fileOps
@@ -12,6 +13,7 @@ from pycbio.hgdata.hgLite import HgLiteTable
 class GenomesDbTables(object):
     """tables names in a genomes sqlite3 database"""
     chainsTbl = "chains"
+    genomeAsmsTbl = "genomeAsms"
 
 
 class AnnotationType(SymEnum):
@@ -25,8 +27,6 @@ class AnnotationType(SymEnum):
 
 class AnnotationTypeSet(frozenset):
     "annotation types set for a genome assembly"
-    def __new__(cls, values):
-        return frozenset(values)
 
     def __str__(self):
         values = []
@@ -61,7 +61,7 @@ class Chains(namedtuple("Chains",
     __slots__ = ()
 
 
-class ChainsTbl(HgLiteTable):
+class ChainsDbTable(HgLiteTable):
     """Interface todata on chains stored in the database"""
     __createSql = """CREATE TABLE {table} (
             srcDb text not null,
@@ -75,7 +75,7 @@ class ChainsTbl(HgLiteTable):
                   """CREATE INDEX {table}_destDb on {table} (destDb);"""]
 
     def __init__(self, conn, table, create=False):
-        super(ChainsTbl, self).__init__(conn, table)
+        super(ChainsDbTable, self).__init__(conn, table)
         if create:
             self._create(self.__createSql)
 
@@ -92,12 +92,22 @@ class GenomeAsm(namedtuple("GenomeDb",
                            ("hgDb", "clade", "commonName", "scientificName", "annotationTypeSet"))):
     "Information about a genome assembly, stored in genome database "
 
-    def __init__(self, hgDb, clade, commonName, scientificName, hasRefseq, annotationTypeSet):
+    def __init__(self, hgDb, clade, commonName, scientificName, annotationTypeSet):
         super(GenomeAsm, self).__init__(hgDb, clade, commonName, scientificName, annotationTypeSet)
         self.dbNum = self.dbParse(hgDb)[1]
 
     def __str__(self):
         return "{}\t{}\t{}\t{}\t".format(self.hgDb, self.clade, self.commonName, self.scientificName, str(self.annotationTypeSet))
+
+    dbParseRe = re.compile("^([a-zA-Z]+)([0-9]+)$")
+
+    @staticmethod
+    def dbParse(dbName):
+        "parse a genomedb name into (orgDbName, dbNum)"
+        m = GenomeAsm.dbParseRe.match(dbName)
+        if m == None:
+            raise Exception("can't parse database name: " + dbName)
+        return (m.group(1), int(m.group(2)))
 
     def isFinished(self):
         "is this genome considered finished"
@@ -110,6 +120,33 @@ class GenomeAsm(namedtuple("GenomeDb",
         if (annotationType is not None) and (len(self.annotationType & annotationType) == 0):
             return False
         return True
+
+
+class GenomeAsmsDbTable(HgLiteTable):
+    """Interface todata on chains stored in the database"""
+    __createSql = """CREATE TABLE {table} (
+            hgDb text not null,
+            clade text not null,
+            commonName text not null,
+            scientificName text not null,
+            annotationTypeSet text);"""
+    __insertSql = """INSERT INTO {table} (hgDb, clade, commonName, scientificName, annotationTypeSet) VALUES (?, ?, ?, ?, ?);"""
+    __indexSql = ["""CREATE INDEX {table}_hgDb on {table} (hgDb);""",
+                  """CREATE INDEX {table}_commonName on {table} (commonName);""",
+                  """CREATE INDEX {table}_annotationTypeSet on {table} (annotationTypeSet);"""]
+
+    def __init__(self, conn, table, create=False):
+        super(GenomeAsmsDbTable, self).__init__(conn, table)
+        if create:
+            self._create(self.__createSql)
+
+    def index(self):
+        """create index after loading"""
+        self._index(self.__indexSql)
+
+    def loads(self, rows):
+        """load rows into table"""
+        self._inserts(self.__insertSql, rows)
 
 
 class Organism(object):
@@ -131,10 +168,10 @@ class Organism(object):
         self.dbs.sort(lambda a, b: -cmp(a.dbNum, b.dbNum))
 
 
-class GenomeDefs(object):
+class Genomes(object):
     "object containing all genome definitions"
     def __init__(self):
-        self.genomeDbs = dict()          # by hdDb
+        self.genomeDbs = dict()          # by hgDb
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.clades = set()        # all clades
         self.annotationType = set()     # all AnnotationTypes

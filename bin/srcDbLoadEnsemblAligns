@@ -3,6 +3,7 @@
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
+from pycbio.sys import fileOps
 from transMap.genomeData import AnnotationType
 from transMap.ensembl import EnsemblHgData
 from transMap.srcData import srcAlignXRefLoad
@@ -17,8 +18,8 @@ def parseArgs():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
-    parser.add_argument("--limit", type=int, default=None,
-                        help="""limit to this number of records for testing""")
+    parser.add_argument("--testAccvFile", default=None,
+                        help="""limit to test accession, with version, in this file testing purposes""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
@@ -31,15 +32,16 @@ def parseArgs():
     return opts
 
 
-def getEnsemblAligns(srcHgDb, annotationType, limit, transMapSrcDb):
+def srcDbLoadEnsemblAligns(srcHgDb, annotationType, transMapSrcDb, testAccvFile):
+    testAccvSubset = fileOps.readFileLines(testAccvFile) if testAccvFile is not None else None
     ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
     try:
-        alignReader = ensemblHgData.alignReader(limit=limit)
+        alignReader = ensemblHgData.alignReader(testAccvSubset=testAccvSubset)
         srcAlignXRefLoad(transMapSrcDbConn, alignReader)
     finally:
         transMapSrcDbConn.close()
 
 # entry
 opts = parseArgs()
-getEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.limit, opts.transMapSrcDb)
+srcDbLoadEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb, opts.testAccvFile)

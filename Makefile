@@ -1,6 +1,6 @@
 
 progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
-	srcDbLoadEnsemblAligns srcDbLoadEnsemblSeqs checkTransMapSrcDb \
+	srcDbLoadEnsemblAligns srcDbLoadEnsemblSeqs srcDbCheck \
 	genomeDbLoad
 
 # getEnsemblMetadata

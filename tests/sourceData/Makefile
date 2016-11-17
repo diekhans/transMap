@@ -33,7 +33,7 @@ srcDbLoadGenbankAlignsTests: ${genbankTypes:%=%_srcDbLoadGenbankAlignsTest}
 
 %_srcDbLoadGenbankAlignsTest: mkdirs
 	rm -f output/$@.db
-	${srcDbLoadGenbankAligns} --limit=100 $(call srcDbLoadTestDb,$*) $* output/$@.db
+	${srcDbLoadGenbankAligns} --testAccFile=input/$*.acc $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
 	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
@@ -70,7 +70,7 @@ srcDbLoadEnsemblAlignsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblAlignsTest}
 
 %_srcDbLoadEnsemblAlignsTest: mkdirs
 	rm -f output/$@.db
-	${srcDbLoadEnsemblAligns} --limit=100 $(call srcDbLoadTestDb,$*) $* output/$@.db
+	${srcDbLoadEnsemblAligns} --testAccvFile=input/$*.accv $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
 	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
@@ -149,11 +149,14 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 tree1 = /hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh
 genomeDbLoadTests: genomeDbLoadTest
 
+# felCat3 is projection ensembl
 genomeDbLoadTest: mkdirs
 	rm -f output/$@.db
-	${genomeDbLoad} --hgDb=mm10 --hgDb=hg38 --tree=${tree1} hgcentraltest output/$@.db
+	${genomeDbLoad} --hgDb=mm10 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 --tree=${tree1} hgcentraltest output/$@.db
 	sqlite3 -batch output/$@.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
+	sqlite3 -batch output/$@.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
 	${diff} expected/$@.chainsinfo output/$@.chainsinfo
+	${diff} expected/$@.genomeasms output/$@.genomeasms
 
 mkdirs:
 	@mkdir -p output

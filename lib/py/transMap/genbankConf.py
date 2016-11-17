@@ -6,20 +6,27 @@ from .genomeData import AnnotationType
 class GenbankDbConf(object):
     """configuration of genbank for a genome or the defaults.
     handles on/off/defaulted"""
-    __slots__ = ("hgDb", "defaultConf", "on", "off")
+    __slots__ = ("hgDb", "defaultConf", "__on", "__off")
 
     def __init__(self, hgDb, defaultConf):
         self.hgDb = hgDb
         self.defaultConf = defaultConf
-        self.on = set()
-        self.off = set()
+        # sets of annotation types turned on/off, doesn't include defaults!!
+        self.__on = set()
+        self.__off = set()
+
+    def addOn(self, annotationType):
+        self.__on.add(annotationType)
+
+    def addOff(self, annotationType):
+        self.__off.add(annotationType)
 
     def __str__(self):
-        return "{}\ton:{}\toff:{}".format(self.hgDb, setOps.setJoin(self.on, ","),
-                                          setOps.setJoin(self.off, ","))
+        return "{}\ton:{}\toff:{}".format(self.hgDb, setOps.setJoin(self.__on, ","),
+                                          setOps.setJoin(self.__off, ","))
 
     def getEnabled(self):
-        return frozenset(self.on | self.defaultConf.on.difference(self.off))
+        return frozenset(self.__on | self.defaultConf.__on.difference(self.__off))
 
 
 class GenbankConf(dict):
@@ -43,9 +50,9 @@ class GenbankConf(dict):
             self.__parseRow(line.strip())
 
     def __parseRow(self, line):
-        geneomeMatch = self.parseGenomeRe.match(line)
-        if geneomeMatch is not None:
-            self.__obtainGenbankDbConf(geneomeMatch.group(1))
+        genomeMatch = self.parseGenomeRe.match(line)
+        if genomeMatch is not None:
+            self.__obtainGenbankDbConf(genomeMatch.group(1))
         annSetMatch = self.parseAnnSetRe.match(line)
         if annSetMatch is not None:
             self.__processGenbankDbConf(annSetMatch, line)
@@ -79,6 +86,6 @@ class GenbankConf(dict):
             raise Exception("can't parse genbank.conf line: {}".format(line))
         conf = self.__obtainGenbankDbConf(hgDb)
         if state:
-            conf.on.add(annotationType)
+            conf.addOn(annotationType)
         else:
-            conf.off.add(annotationType)
+            conf.addOff(annotationType)

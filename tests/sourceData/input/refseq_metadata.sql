@@ -7,7 +7,7 @@ CREATE TABLE srcMetadata (
             geneId text,
             geneName text,
             geneType text,
-            transcriptType test);
+            transcriptType text);
 INSERT INTO "srcMetadata" VALUES('felCat5:NM_001009858.1','NM_001009858.1','1..10119','493878','BRCA2','protein_coding','protein_coding');
 INSERT INTO "srcMetadata" VALUES('felCat5:NM_001048155.1','NM_001048155.1','383..757','727691','LRCH1','protein_coding','protein_coding');
 INSERT INTO "srcMetadata" VALUES('felCat5:NM_001114344.1','NM_001114344.1','1..1002','100135769','EFNB2','protein_coding','protein_coding');
