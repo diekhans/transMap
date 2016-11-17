@@ -4,10 +4,10 @@ import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
 from transMap import getChromSizes
-from transMap.genomeDefs import AnnSetType
+from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables
 from pycbio.sys import fileOps
-from pycbio.hgdata.hgLite import SequenceLite, PslLite
+from pycbio.hgdata.hgLite import SequenceDbTable, PslDbTable
 import pipettor
 
 verbose = False
@@ -20,7 +20,7 @@ def parseArgs():
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.rna, AnnSetType.est, AnnSetType.refseq, AnnSetType.gencode, AnnSetType.ensembl), type=AnnSetType,
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset""")
@@ -28,27 +28,27 @@ def parseArgs():
 
 
 def getSeqSizes(transMapSrcDbConn, seqSizesFh):
-    srcSeqTbl = SequenceLite(transMapSrcDbConn, SourceDbTables.srcSeqTbl)
+    srcSeqTbl = SequenceDbTable(transMapSrcDbConn, SourceDbTables.srcSeqTbl)
     sql = "SELECT name, length(seq) FROM {table}"
     for row in srcSeqTbl.query(sql):
         fileOps.prRow(seqSizesFh, row)
 
 
-def getSeqSizesFile(srcHgDb, annSetType, transMapSrcDbConn):
-    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".sizes")
+def getSeqSizesFile(srcHgDb, annotationType, transMapSrcDbConn):
+    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".sizes")
     with open(tmpSeqSizes, "w") as seqSizesFh:
         getSeqSizes(transMapSrcDbConn, seqSizesFh)
     return tmpSeqSizes
 
 
 def writeSrcPsls(transMapSrcDbConn, pslFh):
-    srcAlignTbl = PslLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
-    for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslLite.columnsNamesSql)):
+    srcAlignTbl = PslDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
+    for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslDbTable.columnsNamesSql)):
         fileOps.prRow(pslFh, row)
 
 
-def getPslFile(srcHgDb, annSetType, transMapSrcDbConn):
-    tmpPslFile = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".psl")
+def getPslFile(srcHgDb, annotationType, transMapSrcDbConn):
+    tmpPslFile = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".psl")
     with open(tmpPslFile, "w") as pslFh:
         writeSrcPsls(transMapSrcDbConn, pslFh)
     return tmpPslFile
@@ -62,9 +62,9 @@ def pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes):
     pipettor.run((pslCheckCmd,), stderr=None)
 
 
-def checkAlignments(srcHgDb, annSetType, transMapSrcDbConn):
-    tmpPslFile = getPslFile(srcHgDb, annSetType, transMapSrcDbConn)
-    tmpSeqSizes = getSeqSizesFile(srcHgDb, annSetType, transMapSrcDbConn)
+def checkAlignments(srcHgDb, annotationType, transMapSrcDbConn):
+    tmpPslFile = getPslFile(srcHgDb, annotationType, transMapSrcDbConn)
+    tmpSeqSizes = getSeqSizesFile(srcHgDb, annotationType, transMapSrcDbConn)
     pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes)
     fileOps.rmFiles(tmpPslFile, tmpSeqSizes)
 
@@ -100,14 +100,14 @@ def checkMetadata(transMapSrcDbConn):
     checkZeroCount(transMapSrcDbConn, sql)
 
 
-def checkTransMapSrcDb(srcHgDb, annSetType, transMapSrcDb):
+def checkTransMapSrcDb(srcHgDb, annotationType, transMapSrcDb):
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
-    checkAlignments(srcHgDb, annSetType, transMapSrcDbConn)
+    checkAlignments(srcHgDb, annotationType, transMapSrcDbConn)
     checkXRef(transMapSrcDbConn)
-    if annSetType != AnnSetType.est:
+    if annotationType != AnnotationType.est:
         checkMetadata(transMapSrcDbConn)
     transMapSrcDbConn.close()
 
 # entry
 opts = parseArgs()
-checkTransMapSrcDb(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb)
+checkTransMapSrcDb(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb)

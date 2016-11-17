@@ -10,7 +10,7 @@ import CDnaData
 ## FIXME: for some reason, pslStats didn't run the first time
 
 class CmdLine(object):
-    usage="""%prog [options] genomeDefsPickle mappingsInfo"""
+    usage="""%prog [options] genomeDataPickle mappingsInfo"""
     def __init__(self):
         parser = OptionParser(usage=CmdLine.usage)
         parser.add_option("--dumpGraph", action="store_true", dest="dumpGraph", default=False,
@@ -23,7 +23,7 @@ class CmdLine(object):
         (opts, args) = parser.parse_args()
         if len(args) != 2:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self. mappingsInfo) = args
+        (self.genomeDataPickle, self. mappingsInfo) = args
         self.__dict__.update(opts.__dict__)
 
 # entry

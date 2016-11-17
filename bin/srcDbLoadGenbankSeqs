@@ -3,7 +3,7 @@
 import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
-from transMap.genomeDefs import AnnSetType
+from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, TransMapSrcXRefLite, loadSeqFa
 from pycbio.sys import fileOps
 import pipettor
@@ -18,24 +18,24 @@ def parseArgs():
     parser.add_argument("--verbose", action="store_true", default=False,
                         help="""verbose tracing""")
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.rna, AnnSetType.est, AnnSetType.refseq), type=AnnSetType,
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     return parser.parse_args()
 
 
-def getSrcAccsFile(annSetType, transMapSrcDbConn):
-    tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annSetType), ".acc")
+def getSrcAccsFile(annotationType, transMapSrcDbConn):
+    tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annotationType), ".acc")
     with open(tmpAccvFile, "w") as accvFh:
         for accv in TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
             accvFh.write("{}\n".format(accv))
     return tmpAccvFile
 
 
-def getSeqFasta(srcHgDb, annSetType, tmpAccFile):
+def getSeqFasta(srcHgDb, annotationType, tmpAccFile):
     "get fasta file"
-    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".fa")
+    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".fa")
     getRnaCmd = ("getRna", "-inclVer", "hgFixed", tmpAccFile, "/dev/stdout")
     srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDb),
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
@@ -44,14 +44,14 @@ def getSeqFasta(srcHgDb, annSetType, tmpAccFile):
     return tmpSeqFa
 
 
-def getGenbankSeqs(srcHgDb, annSetType, transMapSrcDb):
+def getGenbankSeqs(srcHgDb, annotationType, transMapSrcDb):
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
-    tmpAccFile = getSrcAccsFile(annSetType, transMapSrcDbConn)
-    tmpSeqFa = getSeqFasta(srcHgDb, annSetType, tmpAccFile)
+    tmpAccFile = getSrcAccsFile(annotationType, transMapSrcDbConn)
+    tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpAccFile)
     loadSeqFa(tmpSeqFa, transMapSrcDbConn)
     transMapSrcDbConn.close()
     fileOps.rmFiles(tmpAccFile, tmpSeqFa)
 
 # entry
 opts = parseArgs()
-getGenbankSeqs(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb)
+getGenbankSeqs(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb)

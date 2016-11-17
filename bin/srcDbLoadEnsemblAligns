@@ -3,7 +3,7 @@
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
-from transMap.genomeDefs import AnnSetType
+from transMap.genomeData import AnnotationType
 from transMap.ensembl import EnsemblHgData
 from transMap.srcData import srcAlignXRefLoad
 
@@ -21,7 +21,7 @@ def parseArgs():
                         help="""limit to this number of records for testing""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.gencode, AnnSetType.ensembl), type=AnnSetType,
+    parser.add_argument("annotationType", choices=(AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset""")
@@ -31,8 +31,8 @@ def parseArgs():
     return opts
 
 
-def getEnsemblAligns(srcHgDb, annSetType, limit, transMapSrcDb):
-    ensemblHgData = EnsemblHgData(srcHgDb, annSetType)
+def getEnsemblAligns(srcHgDb, annotationType, limit, transMapSrcDb):
+    ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
     try:
         alignReader = ensemblHgData.alignReader(limit=limit)
@@ -42,4 +42,4 @@ def getEnsemblAligns(srcHgDb, annSetType, limit, transMapSrcDb):
 
 # entry
 opts = parseArgs()
-getEnsemblAligns(opts.srcHgDb, opts.annSetType, opts.limit, opts.transMapSrcDb)
+getEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.limit, opts.transMapSrcDb)

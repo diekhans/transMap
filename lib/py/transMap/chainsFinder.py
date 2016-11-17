@@ -1,7 +1,7 @@
 import os
 import sys
 import glob
-from transMap.genomeDefs import ChainType, Chains
+from transMap.genomeData import ChainType, Chains
 
 
 debug = False
@@ -23,7 +23,7 @@ class ChainsFinder(object):
         self.__distances = distances
 
     def findChains(self, hgDbs):
-        """get genomeDefs.Chains for all pairings between provided databases"""
+        """get genomeData.Chains for all pairings between provided databases"""
         chains = []
 
         # look for all combinations in both directions

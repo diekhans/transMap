@@ -2,5 +2,10 @@ all:
 
 test: sourceData.test
 
-sourceData.test:
-	(cd sourceData && ${MAKE} test)
+%.test:
+	(cd $* && ${MAKE} test)
+
+clean: sourceData.clean
+
+%.clean:
+	(cd $* && ${MAKE} clean)

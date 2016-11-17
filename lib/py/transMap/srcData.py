@@ -4,7 +4,7 @@ sqllite3 databases objects for transmap intermediate data.
 
 from collections import namedtuple
 from transMap import alignIdToSrcId, srcIdToAccv, accvToAcc
-from pycbio.hgdata.hgLite import HgLiteTable, SequenceLite, PslLite
+from pycbio.hgdata.hgLite import HgLiteTable, SequenceDbTable, PslDbTable
 
 
 # FIXME: maybe rename from *Lite to *Tables
@@ -116,7 +116,7 @@ class TransMapSrcXRefLite(HgLiteTable):
             yield row[0]
 
 
-class TransMapSrcAlignLite(PslLite):
+class TransMapSrcAlignLite(PslDbTable):
     """source alignments, in PSL format"""
     def __init__(self, conn, table, create=False):
         super(TransMapSrcAlignLite, self).__init__(conn, table, create)
@@ -152,7 +152,7 @@ def getAccvSubselectClause(field, accvSet):
 
 
 def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
-    seqTbl = SequenceLite(transMapSrcDbConn, SourceDbTables.srcSeqTbl, True)
+    seqTbl = SequenceDbTable(transMapSrcDbConn, SourceDbTables.srcSeqTbl, True)
     seqTbl.loadFastaFile(tmpSeqFa)
     seqTbl.index()
 

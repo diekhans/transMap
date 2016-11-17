@@ -5,13 +5,13 @@ from optparse import OptionParser
 import glob,re
 from pycbio.sys.fileOps import prRowv
 from pycbio.sys import setOps, fileOps
-from transMap.genomeDefs import GenomeDefs, GenomeDb
+from transMap.genomeData import GenomeDefs, GenomeDb
 from transMap import phyloTreeOps
 
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle newickFileList reportTsv
-    Search for Newick trees to satisfy the missing pairs in the genomeDefs.
+    usage = """%prog [options] genomeDataPickle newickFileList reportTsv
+    Search for Newick trees to satisfy the missing pairs in the genomeData.
      """
 
     def __init__(self):
@@ -24,7 +24,7 @@ class CmdOpts(object):
         (opts, args) = parser.parse_args()
         if len(args) != 3:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self.newickFileList, self.reportTsv) = args
+        (self.genomeDataPickle, self.newickFileList, self.reportTsv) = args
         self.__dict__.update(opts.__dict__)
 
 class Tree(object):
@@ -58,5 +58,5 @@ class Trees(object):
 
 
 opts = CmdOpts()
-genomeDefs = GenomeDefs.load(genomeDefsPath)
+genomeData = GenomeDefs.load(genomeDataPath)
 

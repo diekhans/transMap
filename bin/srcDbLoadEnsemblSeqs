@@ -3,7 +3,7 @@
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
-from transMap.genomeDefs import AnnSetType
+from transMap.genomeData import AnnotationType
 from transMap import alignIdToSrcId
 from transMap.srcData import querySrcPsls, loadSeqFa
 from pycbio.sys import fileOps
@@ -16,7 +16,7 @@ def parseArgs():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.ensembl, AnnSetType.gencode), type=AnnSetType,
+    parser.add_argument("annotationType", choices=(AnnotationType.ensembl, AnnotationType.gencode), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
@@ -33,19 +33,19 @@ def writeSrcPsls(transMapSrcDbConn, pslFh):
             done.add(qName)
 
 
-def getSrcGenePred(srcHgDb, annSetType, transMapSrcDbConn):
+def getSrcGenePred(srcHgDb, annotationType, transMapSrcDbConn):
     "get genePreds as a file, otherwise database connection might time out during processing"
     # use alignments rather than original genePreds so if they are filtered, it all bubbles down
-    tmpSrcGp = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".gp")
+    tmpSrcGp = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".gp")
     mrnaToGeneCmd = ("mrnaToGene", "-insertMergeSize=-1", "-noCds", "/dev/stdin", tmpSrcGp)
     with pipettor.Popen([mrnaToGeneCmd], "w") as pslFh:
         writeSrcPsls(transMapSrcDbConn, pslFh)
     return tmpSrcGp
 
 
-def getSeqFasta(srcHgDb, annSetType, srcGp):
+def getSeqFasta(srcHgDb, annotationType, srcGp):
     "get fasta file"
-    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annSetType), ".fa")
+    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".fa")
 
     # already has srcId with srcHgDb in it!
     getRnaPredCmd = ("getRnaPred", srcHgDb, srcGp, "all", "/dev/stdout")
@@ -53,14 +53,14 @@ def getSeqFasta(srcHgDb, annSetType, srcGp):
     return tmpSeqFa
 
 
-def getEnsemblSeqs(srcHgDb, annSetType, transMapSrcDb):
+def getEnsemblSeqs(srcHgDb, annotationType, transMapSrcDb):
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
-    tmpSrcGp = getSrcGenePred(srcHgDb, annSetType, transMapSrcDbConn)
-    tmpSeqFa = getSeqFasta(srcHgDb, annSetType, tmpSrcGp)
+    tmpSrcGp = getSrcGenePred(srcHgDb, annotationType, transMapSrcDbConn)
+    tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpSrcGp)
     loadSeqFa(tmpSeqFa, transMapSrcDbConn)
     transMapSrcDbConn.close()
     fileOps.rmFiles(tmpSrcGp, tmpSeqFa)
 
 # entry
 opts = parseArgs()
-getEnsemblSeqs(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb)
+getEnsemblSeqs(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb)

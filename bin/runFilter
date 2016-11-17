@@ -3,24 +3,24 @@
 import transMapProgSetup
 from optparse import OptionParser
 from pycbio.sys import fileOps, procOps
-from transMap import genomeDefs, setTMPDIR, getTmpExt, runCmds
+from transMap import genomeData, setTMPDIR, getTmpExt, runCmds
 from transMap.transMap import TransMap
 
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle srcDb destDb annSetType alnPslList clusterDir mappedPsl
+    usage = """%prog [options] genomeDataPickle srcDb destDb annSetType alnPslList clusterDir mappedPsl
 """
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
         (opts, args) = parser.parse_args()
         if len(args) != 7:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self.srcDb, self.destDb, self.annSetType, self.partsLst, self.clusterDir, self.mappedPsl) = args
+        (self.genomeDataPickle, self.srcDb, self.destDb, self.annSetType, self.partsLst, self.clusterDir, self.mappedPsl) = args
         self.__dict__.update(opts.__dict__)
 
     def fixEnums(self):
         # FIXME: don't convert Enumerations until GenomeDefs is loaded
-        self.annSetType = genomeDefs.AnnSetType(self.annSetType)
+        self.annotationType = genomeData.AnnotationType(self.annotationType)
 
 opts = CmdOpts()
 # skip if already completed
@@ -28,11 +28,11 @@ if os.path.exists(opts.mappedPsl):
     sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")
     sys.exit(0)
 
-def mkInFileLst(baseName, destDb, srcDb, annSetType, parts, mapFunc):
+def mkInFileLst(baseName, destDb, srcDb, annotationType, parts, mapFunc):
     inTmp = tmpDir + "/" + baseName + tmpExt
     fh = open(inTmp, "w")
     for p in parts:
-        fh.write(mapFunc(destDb, srcDb, annSetType, p))
+        fh.write(mapFunc(destDb, srcDb, annotationType, p))
         fh.write("\n")
     fh.close()
     return inTmp
@@ -41,16 +41,16 @@ def mkInFileLst(baseName, destDb, srcDb, annSetType, parts, mapFunc):
 tmpDir = setTMPDIR()
 tmpExt = getTmpExt()
 
-gdefs = genomeDefs.load(opts.genomeDefsPickle)
+gdefs = genomeData.load(opts.genomeDataPickle)
 opts.fixEnums()
-transMap = TransMap(None, genomeDefs, ".", None, opts.clusterDir)
+transMap = TransMap(None, genomeData, ".", None, opts.clusterDir)
 srcDb = gdefs.dbs[opts.srcDb]
 destDb = gdefs.dbs[opts.destDb]
 
 # input
 parts = fileOps.readFileLines(opts.partsLst)
-inPslsTmp = mkInFileLst("psl", destDb, srcDb, opts.annSetType, parts, transMap.getClusterMappedPsl)
-inMapInfosTmp = mkInFileLst("mapInfo", destDb, srcDb, opts.annSetType, parts, transMap.getClusterMappedInfo)
+inPslsTmp = mkInFileLst("psl", destDb, srcDb, opts.annotationType, parts, transMap.getClusterMappedPsl)
+inMapInfosTmp = mkInFileLst("mapInfo", destDb, srcDb, opts.annotationType, parts, transMap.getClusterMappedInfo)
 
 # output
 outPrefix = os.path.splitext(fileOps.uncompressedBase(opts.mappedPsl))[0]

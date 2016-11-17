@@ -1,12 +1,12 @@
 
-progs = getGenbankAligns getGenbankMetadata getGenbankSeqs \
-	getEnsemblAligns getEnsemblSeqs checkTransMapSrcDb \
-	getGenomeInfo
+progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
+	srcDbLoadEnsemblAligns srcDbLoadEnsemblSeqs checkTransMapSrcDb \
+	genomeDbLoad
 
 # getEnsemblMetadata
 # FIXME: change this to do all once cleaned out
-libs = __init__.py genomeDefs.py srcData.py genbank.py ensembl.py \
-	phyloTrees.py chainsFinder.py
+libs = __init__.py genomeData.py srcData.py genbank.py ensembl.py \
+	phyloTrees.py chainsFinder.py genbankConf.py
 
 all:
 
@@ -15,3 +15,7 @@ test:
 
 lint:
 	flake8 ${libs:%=lib/py/transMap/%} ${progs:%=bin/%}
+
+clean:
+	(cd tests && ${MAKE} clean)
+	rm -f lib/py/transMap/*.pyc

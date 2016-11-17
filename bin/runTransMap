@@ -3,12 +3,12 @@
 import transMapProgSetup
 from optparse import OptionParser
 from pycbio.sys import fileOps, procOps
-from transMap import genomeDefs, setTMPDIR, getTmpExt, runCmds, copyFile
-from transMap.genomeDefs import ChainType
+from transMap import genomeData, setTMPDIR, getTmpExt, runCmds, copyFile
+from transMap.genomeData import ChainType
 from transMap.transMap import TransMap,Chroms
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle srcDb destDb chainType annSetType cdnaPart clusterDir mappedPsl"""
+    usage = """%prog [options] genomeDataPickle srcDb destDb chainType annSetType cdnaPart clusterDir mappedPsl"""
     def __init__(self):
         parser = OptionParser(usage=CmdOpts.usage)
         parser.add_option("--chrom", dest="chroms", action="append", default=None,
@@ -22,12 +22,12 @@ class CmdOpts(object):
         (opts, args) = parser.parse_args()
         if len(args) != 8:
             parser.error("wrong number of arguments: got " + str(len(args)) + ", expect 8")
-        (self.genomeDefsPickle, self.srcDb, self.destDb, self.chainType, self.annSetType, self.cdnaPart, self.clusterDir, self.mappedPsl) = args
+        (self.genomeDataPickle, self.srcDb, self.destDb, self.chainType, self.annSetType, self.cdnaPart, self.clusterDir, self.mappedPsl) = args
         self.__dict__.update(opts.__dict__)
         if ((opts.firstChrom != None) or (opts.lastChrom != None)) and ((opts.firstChrom == None) or (opts.lastChrom == None)):
             parser.error("must specified either both or neither of --firstChrom and --lastChrom")
-        self.chainType = genomeDefs.ChainType(self.chainType)
-        self.annSetType = genomeDefs.AnnSetType(self.annSetType)
+        self.chainType = genomeData.ChainType(self.chainType)
+        self.annotationType = genomeData.AnnotationType(self.annotationType)
 
 def bldChroms(opts, dest2bit):
     chromSet = None
@@ -55,7 +55,7 @@ if os.path.exists(opts.mappedPsl):
     sys.stderr.write("Note: output already exists, skipping: " + opts.mappedPsl + "\n")
     sys.exit(0)
 
-gdefs = genomeDefs.load(opts.genomeDefsPickle)
+gdefs = genomeData.load(opts.genomeDataPickle)
 transMap = TransMap(None, gdefs, ".", None, opts.clusterDir)
 srcDb = gdefs.dbs[opts.srcDb]
 destDb = gdefs.dbs[opts.destDb]
@@ -68,8 +68,8 @@ destDb = gdefs.dbs[opts.destDb]
 chainsSet = srcDb.destChainsSets.getChainsSet(destDb)
 
 # cDNA
-srcPsl = transMap.getClusterSrcPsl(srcDb, opts.annSetType, opts.cdnaPart)
-srcFa = transMap.getClusterSrcFa(srcDb, opts.annSetType, opts.cdnaPart)
+srcPsl = transMap.getClusterSrcPsl(srcDb, opts.annotationType, opts.cdnaPart)
+srcFa = transMap.getClusterSrcFa(srcDb, opts.annotationType, opts.cdnaPart)
 
 # genome sequence
 relTargetSeqs = destDb.name + "/" + destDb.name + ".2bit"
@@ -158,7 +158,7 @@ runCmds(pslMapInfoSelect)
 # calculate match stats; qsort here, just to make runFilter qsort a bit quicker.
 ##
 pslRecalcMatch = ["pslRecalcMatch", "-ignoreQUniq", pslFiltTmp, targetSeqs,
-                  transMap.getClusterSrcFa(srcDb, opts.annSetType, opts.cdnaPart), "/dev/stdout"]
+                  transMap.getClusterSrcFa(srcDb, opts.annotationType, opts.cdnaPart), "/dev/stdout"]
 
 qsort = ["sort", "-k","10,10", "-k", "12,12n", "-k", "13,13n"]
 runCmds([pslRecalcMatch, qsort], stdout=pslRecalcTmp)

@@ -3,8 +3,8 @@
 import transMapProgSetup
 from optparse import OptionParser
 from pycbio.sys import fileOps
-from transMap import genomeDefs, getTmpExt
-from transMap.genomeDefs import ChainType
+from transMap import genomeData, getTmpExt
+from transMap.genomeData import ChainType
 from transMap.transMap import TransMap, ChromsCache, CDnaPartitionsCache
 from transMap.mappingDefs import MappingDefsBuild
 
@@ -21,7 +21,7 @@ genomePartMaxPerJob = 25000
 cdnaTargetSize = 1000000
 
 class CmdOpts(object):
-    usage = """%prog [options] genomeDefsPickle alignBatchDir filterBatchDir tmpOutDir resultsDir
+    usage = """%prog [options] genomeDataPickle alignBatchDir filterBatchDir tmpOutDir resultsDir
      builds two batches, once to do the alignments, the other to filter and combine
      the results
      """
@@ -35,7 +35,7 @@ class CmdOpts(object):
         (opts, args) = parser.parse_args()
         if len(args) != 5:
             parser.error("wrong number of arguments")
-        (self.genomeDefsPickle, self.alignBatchDir, self.filterBatchDir, self.tmpOutDir, self.resultsDir) = args
+        (self.genomeDataPickle, self.alignBatchDir, self.filterBatchDir, self.tmpOutDir, self.resultsDir) = args
         self.__dict__.update(opts.__dict__)
 
 class Batch(object):
@@ -91,7 +91,7 @@ class MkJobs(object):
             else:
                 cmd.append("--firstChrom="+genomePart[0])
                 cmd.append("--lastChrom="+genomePart[1])
-        cmd.extend((opts.genomeDefsPickle, mapping.srcDb.name, mapping.destDb.name,
+        cmd.extend((opts.genomeDataPickle, mapping.srcDb.name, mapping.destDb.name,
                     str(self.__getChainType(mapping.chainsSet)), str(mapping.cdnaType), cdnaPart,
                     self.transMap.clusterDir, outPsl))
         self.alignBat.addJob(cmd)
@@ -115,7 +115,7 @@ class MkJobs(object):
 
     def __mkFilterJob(self, mapping, outPsl):
         cdnaParts  = self.cdnaPartsCache.obtain(mapping.srcDb, mapping.cdnaType)
-        self.filterBat.addJob(("doRunFilter", opts.genomeDefsPickle, mapping.srcDb.name, mapping.destDb.name, str(mapping.cdnaType), cdnaParts.partList, self.transMap.clusterDir, outPsl))
+        self.filterBat.addJob(("doRunFilter", opts.genomeDataPickle, mapping.srcDb.name, mapping.destDb.name, str(mapping.cdnaType), cdnaParts.partList, self.transMap.clusterDir, outPsl))
 
     def __doMapping(self, mapping):
         outPsl = self.transMap.getMappedPsl(mapping.destDb, mapping.srcDb, mapping.cdnaType)

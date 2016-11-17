@@ -3,7 +3,7 @@
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
-from transMap.genomeDefs import AnnSetType
+from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, TransMapSrcGeneLite, TransMapSrcAlignLite
 from transMap.ensembl import EnsemblHgData
 
@@ -20,7 +20,7 @@ def parseArgs():
                         help="""limit to alignments that are in srcAlign table for testing""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
-    parser.add_argument("annSetType", choices=(AnnSetType.ensembl, AnnSetType.gencode), type=AnnSetType,
+    parser.add_argument("annotationType", choices=(AnnotationType.ensembl, AnnotationType.gencode), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
@@ -33,8 +33,8 @@ def parseArgs():
 def getTestLimitAccv(transMapSrcDbConn):
     return TransMapSrcAlignLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
 
-def getEnsemblMetadata(srcHgDb, annSetType, transMapSrcDb, testLimit):
-    ensemblHgData = EnsemblHgData(srcHgDb, annSetType)
+def getEnsemblMetadata(srcHgDb, annotationType, transMapSrcDb, testLimit):
+    ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
     transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
     try:
         testAccvSubset = getTestLimitAccv(transMapSrcDbConn) if testLimit else None
@@ -44,4 +44,4 @@ def getEnsemblMetadata(srcHgDb, annSetType, transMapSrcDb, testLimit):
         transMapSrcDbConn.close()
 
 opts = parseArgs()
-getEnsemblMetadata(opts.srcHgDb, opts.annSetType, opts.transMapSrcDb, opts.testLimit)
+getEnsemblMetadata(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb, opts.testLimit)

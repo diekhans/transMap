@@ -6,7 +6,7 @@ import glob, re
 from pycbio.sys.fileOps import prRowv
 from pycbio.sys import setOps, fileOps, dbOps
 from pycbio.hgdata import hgDb
-from transMap.genomeDefs import GenomeDefs,GenomeDb,AnnSetType,Chains,ChainsSet
+from transMap.genomeData import GenomeDefs,GenomeDb,AnnotationType,Chains,ChainsSet
 from transMap import phyloTreeOps,genbank
 
 class CmdOpts(object):
@@ -91,7 +91,7 @@ class GenomeDbReader(object):
             return True
 
 class CDnaInfoTbl(dict):
-    """table of db to set of AnnSetType, table from genbank.conf and alignments
+    """table of db to set of AnnotationType, table from genbank.conf and alignments
     on file systems.  Also fill in ucscGenes and ensembl"""
 
     def __init__(self):
@@ -110,10 +110,10 @@ class CDnaInfoTbl(dict):
     empty = frozenset()
     def obtain(self, db):
         "get set of db, or an empty set if not found"
-        annSetTypes = self.get(db)
-        if annSetTypes == None:
-            annSetTypes = self.empty
-        return annSetTypes
+        annotationTypes = self.get(db)
+        if annotationTypes == None:
+            annotationTypes = self.empty
+        return annotationTypes
 
     def __newestAlnSrcDbDir(self, srcDb):
         pat = "/hive/data/outside/genbank/data/aligned/" + srcDb + ".*"
@@ -123,12 +123,12 @@ class CDnaInfoTbl(dict):
         dirs.sort()
         return dirs[len(dirs)-1]
 
-    def __isGenbankAligned(self, db, annSetType):
-        if annSetType == AnnSetType.refSeq:
+    def __isGenbankAligned(self, db, annotationType):
+        if annotationType == AnnotationType.refSeq:
             pat = self.refSeqAlnDir + "/" + db + "/*/mrna.native.psl.gz"
-        elif annSetType == AnnSetType.mrna:
+        elif annotationType == AnnotationType.mrna:
             pat = self.genBankAlnDir + "/" + db + "/*/mrna.native.psl.gz"
-        elif annSetType == AnnSetType.est:
+        elif annotationType == AnnotationType.est:
             pat = self.genBankAlnDir + "/" + db + "/*/est.*.native.intronPsl.gz"
         return len(glob.glob(pat)) > 0
 
@@ -155,15 +155,15 @@ class CDnaInfoTbl(dict):
         return self.__haveTableLike(db, "wgEncodeGencodeComp%") or (self.__haveTableLike(db, "ensGene") and not self.__isEnsemblProjectionBuild(db))
 
     def __getSrcSet(self, db, genbankConf):
-        "return set of AnnSetType configured and aligned for db"
+        "return set of AnnotationType configured and aligned for db"
         aligned = set()
-        for annSetType in genbankConf.getEnabled():
-            if self.__isGenbankAligned(db, annSetType):
-                aligned.add(annSetType)
+        for annotationType in genbankConf.getEnabled():
+            if self.__isGenbankAligned(db, annotationType):
+                aligned.add(annotationType)
         if self.__haveTableLike(db, "knownGene"):
-            aligned.add(AnnSetType.ucscGenes)
+            aligned.add(AnnotationType.ucscGenes)
         if self.__hasEnsembl(db):
-            aligned.add(AnnSetType.ensembl)
+            aligned.add(AnnotationType.ensembl)
         return frozenset(aligned)
 
 class DistTbl(object):
@@ -280,17 +280,17 @@ class GenomeDefsMk(object):
             for chset in srcDb.destChainsSets.itervalues():
                 self.__setChainsSetDist(distTbl, chset)
 
-    def __getCdnaTypeDesc(self, annSetTypes):
-        if annSetTypes != None:
-            return setOps.setJoin(annSetTypes,",")
+    def __getCdnaTypeDesc(self, annotationTypes):
+        if annotationTypes != None:
+            return setOps.setJoin(annotationTypes,",")
         else:
             return ""
 
     def writeGenomeInfo(self, fh):
-        fileOps.prRowv(fh, "db", "clade", "commonName", "scientificName", "annSetTypes")
+        fileOps.prRowv(fh, "db", "clade", "commonName", "scientificName", "annotationTypes")
         for orgName in sorted(self.defs.orgs.iterkeys()):
             for db in sorted(self.defs.orgs[orgName].dbs):
-                fileOps.prRowv(fh, db.name, db.clade, db.commonName, db.scientificName, self.__getCdnaTypeDesc(db.annSetTypes))
+                fileOps.prRowv(fh, db.name, db.clade, db.commonName, db.scientificName, self.__getCdnaTypeDesc(db.annotationTypes))
 
     def writeChains(self, fh):
         fileOps.prRowv(fh, "srcDb", "destDb", "dist", "chainTypes", "srcClade", "destClade")

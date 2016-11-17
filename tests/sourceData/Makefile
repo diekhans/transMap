@@ -7,7 +7,7 @@ srcDbLoadGenbankMetadata = ../../bin/srcDbLoadGenbankMetadata
 srcDbLoadEnsemblAligns = ../../bin/srcDbLoadEnsemblAligns
 srcDbLoadEnsemblSeqs = ../../bin/srcDbLoadEnsemblSeqs
 srcDbLoadEnsemblMetadata = ../../bin/srcDbLoadEnsemblMetadata
-checkTransMapSrcDb = ../../bin/checkTransMapSrcDb
+srcDbCheck = ../../bin/srcDbCheck
 genomeDbLoad = ../../bin/genomeDbLoad
 
 genbankTypes = rna refseq est
@@ -23,7 +23,7 @@ diff = diff
 
 test: srcDbLoadGenbankAlignsTests srcDbLoadGenbankMetadataTests srcDbLoadGenbankSeqsTests \
 	srcDbLoadEnsemblAlignsTests srcDbLoadEnsemblSeqsTests srcDbLoadEnsemblMetadataTests \
-	checkTransMapSrcDbTests genomeDbLoadTests
+	srcDbCheckTests genomeDbLoadTests
 
 
 ###
@@ -102,14 +102,14 @@ srcDbLoadEnsemblMetadataTests: ${ensemblTypes:%=%_srcDbLoadEnsemblMetadataTest}
 	${diff} expected/$@.meta output/$@.meta
 
 ##
-# checkTransMapSrcDb
+# srcDbCheck
 ##
-checkTransMapSrcDbTests: ${genbankTypes:%=%_checkTransMapSrcDbTest}  ${ensemblTypes:%=%_checkTransMapSrcDbTest}
+srcDbCheckTests: ${genbankTypes:%=%_srcDbCheckTest}  ${ensemblTypes:%=%_srcDbCheckTest}
 
-%_checkTransMapSrcDbTest: mkdirs
+%_srcDbCheckTest: mkdirs
 	rm -f output/$@.db
 	cat input/$*_align.sql input/$*_seq.sql input/$*_metadata.sql | sqlite3 -batch output/$@.db
-	${checkTransMapSrcDb} $(call srcDbLoadTestDb,$*) $* output/$@.db
+	${srcDbCheck} $(call srcDbLoadTestDb,$*) $* output/$@.db
 
 
 ##

@@ -1,4 +1,4 @@
-from . import genomeDefs
+from . import genomeData
 
 from pycbio.sys import setOps,fileOps
 from pycbio.sys.multiDict import MultiDict
@@ -20,11 +20,11 @@ class MappingDefsBuild(object):
         parser.add_option("--onlyDestDb", action="append", dest="onlyDestDbs", default=None,
                           help="""Only generate data for these destDbs. Can be specified multiple times.""")
         parser.add_option("--annSetType", action="append", dest="annSetTypes", default=None,
-                          help="""Only generate data for these annotation sets. Can be specified multiple times, valid values are: """ + ", ".join([str(t) for t in genomeDefs.AnnSetType]))
+                          help="""Only generate data for these annotation sets. Can be specified multiple times, valid values are: """ + ", ".join([str(t) for t in genomeData.AnnotationType]))
 
     def __init__(self, opts):
         "construct GenomeDefs and mappings"
-        self.defs = genomeDefs.load(opts.genomeDefsPickle)
+        self.defs = genomeData.load(opts.genomeDataPickle)
 
         # restrictions; default to full set of items to make code simpler
         self.onlySrcDbs = self.defs.mapDbNamesSet(opts.onlySrcDbs) if (opts.onlySrcDbs != None) else None
@@ -33,14 +33,14 @@ class MappingDefsBuild(object):
         self.excludeDbs = self.defs.mapDbNamesSet(opts.excludeDbs)
         self.clades = setOps.mkfzset(opts.includeClades) if (opts.includeClades != None) else self.defs.clades
 
-        if opts.annSetTypes != None:
+        if opts.annotationTypes != None:
             # convert to Enumeration
-            self.annSetTypes = set()
-            for c in opts.annSetTypes:
-                self.annSetTypes.add(genomeDefs.AnnSetType(c))
+            self.annotationTypes = set()
+            for c in opts.annotationTypes:
+                self.annotationTypes.add(genomeData.AnnotationType(c))
         else:
-            self.annSetTypes = self.defs.annSetTypes
-        self.annSetTypes = frozenset(self.annSetTypes)
+            self.annotationTypes = self.defs.annotationTypes
+        self.annotationTypes = frozenset(self.annotationTypes)
 
         self.mappings = self.__getMappingSets()
 
@@ -78,24 +78,24 @@ class MappingDefsBuild(object):
         # make sure we have `all' chains (this was missing once), as we fall back
         # to using these and syntenic filtering.
         return ((chainsSet.srcDb not in self.excludeDbs) and chainsSet.haveChains()
-                and (genomeDefs.ChainType.all in chainsSet.byType)
-                and chainsSet.srcDb.matches(self.clades, self.annSetTypes))
+                and (genomeData.ChainType.all in chainsSet.byType)
+                and chainsSet.srcDb.matches(self.clades, self.annotationTypes))
 
     def __inclSrcDb(self, srcDb):
         return (self.onlySrcDbs == None) or (srcDb in self.onlySrcDbs)
 
-    def __getSrcOrgDestDbMappings(self, srcOrg, destDb, annSetType, chainsSets, gms):
+    def __getSrcOrgDestDbMappings(self, srcOrg, destDb, annotationType, chainsSets, gms):
         # chainsSets are sorted new to oldest srcDb
         for chainsSet in chainsSets:
-            if self.__useMapping(chainsSet) and self.__inclSrcDb(chainsSet.srcDb) and  (annSetType in chainsSet.srcDb.annSetTypes):
-                gms.addMapping(chainsSet, annSetType)
+            if self.__useMapping(chainsSet) and self.__inclSrcDb(chainsSet.srcDb) and  (annotationType in chainsSet.srcDb.annotationTypes):
+                gms.addMapping(chainsSet, annotationType)
                 break # stop at newest
 
     def __getDestDbMappings(self, destDb, gms):
         "build all GenomeMapping objects for a destDb"
         for srcOrg in destDb.srcChainsSets.iterkeys():
-            for annSetType in self.annSetTypes:
-                self.__getSrcOrgDestDbMappings(srcOrg, destDb, annSetType, destDb.srcChainsSets[srcOrg], gms)
+            for annotationType in self.annotationTypes:
+                self.__getSrcOrgDestDbMappings(srcOrg, destDb, annotationType, destDb.srcChainsSets[srcOrg], gms)
 
     def __getMappingSets(self):
         """Get a GenomeMappings object with chains describing possible
@@ -107,9 +107,9 @@ class MappingDefsBuild(object):
 
 class GenomeMapping(object):
     "mapping of a cDNA type from a source to desc db"
-    def __init__(self, chainsSet, annSetType):
+    def __init__(self, chainsSet, annotationType):
         self.srcDb = chainsSet.srcDb
-        self.annSetType = annSetType
+        self.annotationType = annotationType
         self.destDb = chainsSet.destDb
         self.chainsSet = chainsSet
 
@@ -128,12 +128,12 @@ class DestDbMappings(object):
 
     def __writeSrcDbMappings(self, fh, srcDb):
         gms = self.mappingsBySrcDb[srcDb]
-        annSetTypes = frozenset([gm.annSetType for gm in gms])
+        annotationTypes = frozenset([gm.annotationType for gm in gms])
         chainTypes = frozenset(gms[0].chainsSet.byType.iterkeys())
-        fileOps.prRowv(fh, srcDb.name, self.destDb.name, setOps.setJoin(annSetTypes, ","),
+        fileOps.prRowv(fh, srcDb.name, self.destDb.name, setOps.setJoin(annotationTypes, ","),
                        setOps.setJoin(chainTypes, ","), gms[0].chainsSet.dist)
         
-    mappingsTsvHeader = ("srcDb", "destDb", "annSetTypes", "chainTypes", "dist")
+    mappingsTsvHeader = ("srcDb", "destDb", "annotationTypes", "chainTypes", "dist")
 
     def writeMappingsTsv(self, fh):
         for srcDb in sorted(self.srcDbs, key=lambda a: a.name):
@@ -153,10 +153,10 @@ class GenomeMappings(list):
             self.append(destDbMappings)
         return destDbMappings
     
-    def addMapping(self, chainsSet, annSetType):
+    def addMapping(self, chainsSet, annotationType):
         "add a mapping"
         destDbMappings = self.__obtainDestDb(chainsSet.destDb)
-        gm = GenomeMapping(chainsSet, annSetType)
+        gm = GenomeMapping(chainsSet, annotationType)
         destDbMappings.addMapping(gm)
         self.bySrcDb.add(gm.srcDb, gm)
 

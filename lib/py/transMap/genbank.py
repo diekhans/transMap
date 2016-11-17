@@ -1,6 +1,6 @@
 from pycbio.hgdata import hgDb
 import pipettor
-from transMap.genomeDefs import AnnSetType
+from transMap.genomeData import AnnotationType
 from transMap.srcData import TransMapSrcGene, getAccvSubselectClause
 
 
@@ -20,16 +20,16 @@ class GenbankHgData(object):
                     """blockCount, blockSizes, qStarts, tStarts from {}, hgFixed.gbCdnaInfo """ \
                     """WHERE (qName = acc)"""
 
-    def __init__(self, srcHgDb, annSetType):
+    def __init__(self, srcHgDb, annotationType):
         self.srcHgDb = srcHgDb
-        self.annSetType = annSetType
+        self.annotationType = annotationType
 
     def __getPslTbl(self):
-        if self.annSetType == AnnSetType.rna:
+        if self.annotationType == AnnotationType.rna:
             return "all_mrna"
-        elif self.annSetType == AnnSetType.est:
+        elif self.annotationType == AnnotationType.est:
             return "intronEst"
-        elif self.annSetType == AnnSetType.refseq:
+        elif self.annotationType == AnnotationType.refseq:
             return "refSeqAli"
 
     def alignReader(self, limit=None):
@@ -112,9 +112,9 @@ class GenbankHgData(object):
 
     def metadataReader(self, testAccvSubset=None):
         "reader for metadata for type; not valid for ESTs"
-        if self.annSetType == AnnSetType.rna:
+        if self.annotationType == AnnotationType.rna:
             return self.__refRnaMetadataReader(testAccvSubset)
-        elif self.annSetType == AnnSetType.est:
+        elif self.annotationType == AnnotationType.est:
             raise Exception("not for ESTs")
-        elif self.annSetType == AnnSetType.refseq:
+        elif self.annotationType == AnnotationType.refseq:
             return self.__refseqMetadataReader(testAccvSubset)

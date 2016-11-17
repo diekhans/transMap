@@ -1,6 +1,6 @@
 from pycbio.hgdata import hgDb
 from pycbio.sys import fileOps
-from transMap.genomeDefs import AnnSetType
+from transMap.genomeData import AnnotationType
 from transMap.srcData import TransMapSrcGene, getAccvSubselectClause
 import pipettor
 
@@ -17,11 +17,11 @@ class EnsemblHgData(object):
     gencodeCompTblBase = "wgEncodeGencodeComp"
     ensGeneTbl = "ensGene"
 
-    def __init__(self, srcHgDb, annSetType):
+    def __init__(self, srcHgDb, annotationType):
         self.srcHgDb = srcHgDb
-        self.annSetType = annSetType
+        self.annotationType = annotationType
         self.srcHgDbConn = hgDb.connect(srcHgDb, dictCursor=True)
-        self.gencodeVersion = self.__getGencodeVersion() if annSetType == AnnSetType.gencode else None
+        self.gencodeVersion = self.__getGencodeVersion() if annotationType == AnnotationType.gencode else None
 
     def __getTablesLike(self, pat):
         sql = "show tables like \"{}\"".format(pat)

@@ -58,20 +58,20 @@ fileOps.ensureDir(buildDir)
 
 
 # FIXME: should make this a rule, but data needed to generate rules; test this later
-genomeDefsPath= buildDir + "/genomeDefs.pickle"
-if not os.path.exists(genomeDefsPath):
-    cmd = ("./bin/genomeDefsMk", "--info="+buildDir + "/genomeDefs.info"
-           , genomeDefsPath)
+genomeDataPath= buildDir + "/genomeData.pickle"
+if not os.path.exists(genomeDataPath):
+    cmd = ("./bin/genomeDataMk", "--info="+buildDir + "/genomeData.info"
+           , genomeDataPath)
     fileOps.prsErr(" ".join(cmd))
     procOps.runProc(cmd)
 
-genomeDefs = GenomeDefs.load(genomeDefsPath)
-mappings = genomeDefs.getMappingSets(onlyDestDbs=onlyDestDbs,
+genomeData = GenomeDefs.load(genomeDataPath)
+mappings = genomeData.getMappingSets(onlyDestDbs=onlyDestDbs,
                                      otherDestDbs=otherDestDbs, 
                                      clades=clades,
                                      skipDbs=skipDbs)
 # so we can warn about these
-allMappings = genomeDefs.getMappingSets(onlyDestDbs=onlyDestDbs,
+allMappings = genomeData.getMappingSets(onlyDestDbs=onlyDestDbs,
                                         otherDestDbs=otherDestDbs, 
                                         clades=clades,
                                         skipDbs=skipDbs,
@@ -83,7 +83,7 @@ if not opts.noBuild or (opts.graph != None):
     # build rules
     exrun = ExRun()
     exrun.verb.flags.add(Verb.details)
-    transMap = TransMap.TransMap(exrun, genomeDefs, buildDir, mappings)
+    transMap = TransMap.TransMap(exrun, genomeData, buildDir, mappings)
 
 
     for srcDb in mappings.srcDbs:
