@@ -1,7 +1,7 @@
 from pycbio.hgdata import hgDb
 import pipettor
 from transMap.genomeData import AnnotationType
-from transMap.srcData import TransMapSrcGene, getAccvSubselectClause
+from transMap.srcData import SrcMetadata, getAccvSubselectClause
 
 
 def valOrNone(val):
@@ -66,7 +66,7 @@ class GenbankHgData(object):
 
     def __refseqToMetadata(self, row):
         geneType = "protein_coding" if row["accv"].startswith("NM_") else "non_coding"
-        return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
+        return SrcMetadata(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
                                accv=row["accv"],
                                cds=valOrNone(row["cds_name"]),
                                geneId=strOrNoneIfZero(row["rl_locusLinkId"]),
@@ -92,13 +92,13 @@ class GenbankHgData(object):
 
     def __rnaToSrcMetadata(self, row):
         geneType = "protein_coding" if row["cds_name"] != "n/a" else "unknown"
-        return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
-                               accv=row["accv"],
-                               cds=valOrNone(row["cds_name"]),
-                               geneId=None,
-                               geneName=valOrNone(row["gn_name"]),
-                               geneType=geneType,
-                               transcriptType=geneType)
+        return SrcMetadata(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
+                           accv=row["accv"],
+                           cds=valOrNone(row["cds_name"]),
+                           geneId=None,
+                           geneName=valOrNone(row["gn_name"]),
+                           geneType=geneType,
+                           transcriptType=geneType)
 
     def __refRnaMetadataReader(self, testAccvSubset):
         # using sub-select to get aligned sequence took forever, hence join and distinct

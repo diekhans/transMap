@@ -4,7 +4,7 @@ import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
 from transMap.genomeData import AnnotationType
-from transMap.srcData import SourceDbTables, TransMapSrcGeneLite, TransMapSrcAlignLite
+from transMap.srcData import SourceDbTables, SrcMetadataDbTable, SrcAlignDbTable
 from transMap.ensembl import EnsemblHgData
 
 verbose = False
@@ -31,7 +31,7 @@ def parseArgs():
 
 
 def getTestLimitAccv(transMapSrcDbConn):
-    return TransMapSrcAlignLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
+    return SrcAlignDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
 
 def getEnsemblMetadata(srcHgDb, annotationType, transMapSrcDb, testLimit):
     ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
@@ -39,7 +39,7 @@ def getEnsemblMetadata(srcHgDb, annotationType, transMapSrcDb, testLimit):
     try:
         testAccvSubset = getTestLimitAccv(transMapSrcDbConn) if testLimit else None
         metadataReader = ensemblHgData.metadataReader(testAccvSubset)
-        TransMapSrcGeneLite.loadStep(transMapSrcDbConn, metadataReader)
+        SrcMetadataDbTable.loadStep(transMapSrcDbConn, metadataReader)
     finally:
         transMapSrcDbConn.close()
 

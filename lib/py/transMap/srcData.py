@@ -18,14 +18,14 @@ class SourceDbTables(object):
     srcSeqTbl = "srcSeq"
 
 
-class TransMapSrcGene(namedtuple("TransMapSrcGene", ("srcId", "accv", "cds", "geneId", "geneName", "geneType", "transcriptType"))):
+class SrcMetadata(namedtuple("SrcMetadata", ("srcId", "accv", "cds", "geneId", "geneName", "geneType", "transcriptType"))):
     """metedata on gene or mRNA """
     __slots__ = ()
 
 
-class TransMapSrcGeneLite(HgLiteTable):
+class SrcMetadataDbTable(HgLiteTable):
     """
-    Source gene information
+    Source metadata database table
     """
     __createSql = """CREATE TABLE {table} (
             srcId text not null,
@@ -39,7 +39,7 @@ class TransMapSrcGeneLite(HgLiteTable):
     __indexSql = """CREATE UNIQUE INDEX {table}_srcId on {table} (srcId);"""
 
     def __init__(self, conn, table, create=False):
-        super(TransMapSrcGeneLite, self).__init__(conn, table)
+        super(SrcMetadataDbTable, self).__init__(conn, table)
         if create:
             self.create()
 
@@ -52,29 +52,29 @@ class TransMapSrcGeneLite(HgLiteTable):
         self._index(self.__indexSql)
 
     def loads(self, rows):
-        """load rows into table.  Each element of row is a list, tuple, or TransMapSrcGene objects"""
+        """load rows into table.  Each element of row is a list, tuple, or SrcMetadata objects"""
         self._inserts(self.__insertSql, rows)
 
     @staticmethod
     def loadStep(transMapSrcDbConn, metadataReader):
         "function to load and index"
-        transMapGeneTbl = TransMapSrcGeneLite(transMapSrcDbConn, SourceDbTables.srcMetadataTbl, True)
-        transMapGeneTbl.loads(list(metadataReader))
-        transMapGeneTbl.index()
+        srcMetadataTbl = SrcMetadataDbTable(transMapSrcDbConn, SourceDbTables.srcMetadataTbl, True)
+        srcMetadataTbl.loads(list(metadataReader))
+        srcMetadataTbl.index()
 
 
-class TransMapSrcXRef(namedtuple("TransMapSrcXRef", ("srcAlignId", "srcId", "accv"))):
+class SrcXRef(namedtuple("SrcXRef", ("srcAlignId", "srcId", "accv"))):
     """link between transmap source ids"""
     __slots__ = ()
 
     @staticmethod
-    def fromSrcAlnId(srcAlignId):
+    def fromSrcAlignId(srcAlignId):
         "construct from a srcAlignId"
         srcId = alignIdToSrcId(srcAlignId)
-        return TransMapSrcXRef(srcAlignId, srcId, srcIdToAccv(srcId))
+        return SrcXRef(srcAlignId, srcId, srcIdToAccv(srcId))
 
 
-class TransMapSrcXRefLite(HgLiteTable):
+class SrcXRefDbTable(HgLiteTable):
     """
     transmap source id and accession
     """
@@ -87,7 +87,7 @@ class TransMapSrcXRefLite(HgLiteTable):
                   """CREATE INDEX {table}_accv on {table} (accv);"""]
 
     def __init__(self, conn, table, create=False):
-        super(TransMapSrcXRefLite, self).__init__(conn, table)
+        super(SrcXRefDbTable, self).__init__(conn, table)
         if create:
             self.create()
 
@@ -100,7 +100,7 @@ class TransMapSrcXRefLite(HgLiteTable):
         self._index(self.__indexSql)
 
     def loads(self, rows):
-        """load rows into table.  Each element of row is a list, tuple, or TransMapSrcGene objects"""
+        """load rows into table.  Each element of row is a list, tuple, or SrcMetadata objects"""
         self._inserts(self.__insertSql, rows)
 
     def getSrcIds(self):
@@ -116,10 +116,10 @@ class TransMapSrcXRefLite(HgLiteTable):
             yield row[0]
 
 
-class TransMapSrcAlignLite(PslDbTable):
+class SrcAlignDbTable(PslDbTable):
     """source alignments, in PSL format"""
     def __init__(self, conn, table, create=False):
-        super(TransMapSrcAlignLite, self).__init__(conn, table, create)
+        super(SrcAlignDbTable, self).__init__(conn, table, create)
 
     def getAllAccv(self):
         """get set of accv for PSLs that were loaded; use to restrict set for testing"""
@@ -135,14 +135,14 @@ class TransMapSrcAlignLite(PslDbTable):
 def srcAlignXRefLoad(transMapSrcDbConn, alignReader):
     "load function the alignments and xrefs from a psl with srcAlignId in qName"
     psls = list(alignReader)
-    srcXRefs = [TransMapSrcXRef.fromSrcAlnId(psl[9]) for psl in psls]
+    srcXRefs = [SrcXRef.fromSrcAlignId(psl[9]) for psl in psls]
 
     with transMapSrcDbConn:
-        srcAlignTbl = TransMapSrcAlignLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl, True)
+        srcAlignTbl = SrcAlignDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl, True)
         srcAlignTbl.loads(psls)
         srcAlignTbl.index()
 
-        srcXRefTbl = TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
+        srcXRefTbl = SrcXRefDbTable(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
         srcXRefTbl.loads(srcXRefs)
         srcXRefTbl.index()
 
@@ -158,5 +158,5 @@ def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
 
 
 def querySrcPsls(transMapSrcDbConn):
-    srcAlignTbl = TransMapSrcAlignLite(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
-    return srcAlignTbl.query("SELECT {} FROM {{table}};".format(TransMapSrcAlignLite.columnsNamesSql))
+    srcAlignTbl = SrcAlignDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
+    return srcAlignTbl.query("SELECT {} FROM {{table}};".format(SrcAlignDbTable.columnsNamesSql))

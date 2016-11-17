@@ -1,7 +1,7 @@
 from pycbio.hgdata import hgDb
 from pycbio.sys import fileOps
 from transMap.genomeData import AnnotationType
-from transMap.srcData import TransMapSrcGene, getAccvSubselectClause
+from transMap.srcData import SrcMetadata, getAccvSubselectClause
 import pipettor
 
 # FIXME:  filter by biotype to removed small RNAs
@@ -92,13 +92,13 @@ class EnsemblHgData(object):
 
     def __toMetadata(self, cdsSpecs, row):
         cds = cdsSpecs.get(row["transcriptId"])
-        return TransMapSrcGene(srcId="{}:{}".format(self.srcHgDb, row["transcriptId"]),
-                               accv=row["transcriptId"],
-                               cds=cds,
-                               geneId=row["geneId"],
-                               geneName=row["geneName"],
-                               geneType=row["geneType"],
-                               transcriptType=row["transcriptType"])
+        return SrcMetadata(srcId="{}:{}".format(self.srcHgDb, row["transcriptId"]),
+                           accv=row["transcriptId"],
+                           cds=cds,
+                           geneId=row["geneId"],
+                           geneName=row["geneName"],
+                           geneType=row["geneType"],
+                           transcriptType=row["transcriptType"])
 
     def __gencodeMetadataReader(self, cdsSpecs, testAccvSubset):
         if testAccvSubset is not None:

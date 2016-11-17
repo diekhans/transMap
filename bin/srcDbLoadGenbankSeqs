@@ -4,7 +4,7 @@ import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
 from transMap.genomeData import AnnotationType
-from transMap.srcData import SourceDbTables, TransMapSrcXRefLite, loadSeqFa
+from transMap.srcData import SourceDbTables, SrcXRefDbTable, loadSeqFa
 from pycbio.sys import fileOps
 import pipettor
 
@@ -28,7 +28,7 @@ def parseArgs():
 def getSrcAccsFile(annotationType, transMapSrcDbConn):
     tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annotationType), ".acc")
     with open(tmpAccvFile, "w") as accvFh:
-        for accv in TransMapSrcXRefLite(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
+        for accv in SrcXRefDbTable(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
             accvFh.write("{}\n".format(accv))
     return tmpAccvFile
 
