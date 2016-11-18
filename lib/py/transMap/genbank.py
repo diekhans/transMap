@@ -52,14 +52,13 @@ class GenbankHgData(object):
         else:
             return "AND {}".format(getAccvSubselectClause(alignField, testAccvSubset))
 
-    def __metadataRowGen(self, sql, rowFactory, rowFilter=None):
+    def __metadataRowGen(self, sql, rowFactory):
         conn = hgDb.connect(self.srcHgDb, dictCursor=True)
         try:
             cur = conn.cursor()
             cur.execute(sql)
             for row in cur:
-                if (rowFilter is None) or rowFilter(row):
-                    yield rowFactory(row)
+                yield rowFactory(row)
         finally:
             conn.close()
 
@@ -84,11 +83,6 @@ class GenbankHgData(object):
                                                                                                    testAccvSubset))
         return self.__metadataRowGen(sql, self.__refseqToMetadata)
 
-    @staticmethod
-    def __rnaRowFilter(row):
-        "only output rows with some data"
-        return (row["cds_name"] != "n/a") or (row["gn_name"] != "n/a")
-
     def __rnaToSrcMetadata(self, row):
         geneType = "protein_coding" if row["cds_name"] != "n/a" else "unknown"
         return SrcMetadata(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
@@ -107,7 +101,7 @@ class GenbankHgData(object):
               """{testAccvSubsetClause};""".format(srcHgDb=self.srcHgDb,
                                                    testAccvSubsetClause=self.__getTestSubsetClause("rna.qName",
                                                                                                    testAccvSubset))
-        return self.__metadataRowGen(sql, self.__rnaToSrcMetadata, self.__rnaRowFilter)
+        return self.__metadataRowGen(sql, self.__rnaToSrcMetadata)
 
     def metadataReader(self, testAccvSubset=None):
         "reader for metadata for type; not valid for ESTs"

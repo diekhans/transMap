@@ -14,9 +14,9 @@ genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
 ensemblTypes = gencode ensembl
 
-# this obtains the test db to use; gencode must be special cased
+# this obtains the test db to use; ensemble must be special cased
 #  $(call srcDbLoadTestDb,setName)
-srcDbLoadTestDb = $(if $(filter $(1),gencode),hg19,felCat5)
+srcDbLoadTestDb = $(if $(filter $(1),ensembl),felCat5,hg19)
 
 
 diff = diff

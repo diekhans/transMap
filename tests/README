@@ -1,3 +1,20 @@
+- test data:
+  - hg19.chr7:113480010-114709562 -     PPP1R3A/foxp2/MDFIC
+
+    hgGetAnn hg19 wgEncodeGencodeCompV19 chr7:113480010-114709562 stdout | cut -f 1 >input/gencode.accv
+    hgGetAnn hg19 refSeqAli chr7:113480010-114709562 stdout | cut -f 10 | sort -u >input/refseq.acc
+    hgGetAnn hg19 all_mrna chr7:113480010-114709562 stdout | cut -f 10 | sort -u | head -15 >input/rna.acc 
+    hgGetAnn hg19 all_est chr7:113480010-114709562 stdout | cut -f 10 | sort -u | head -20 >input/est.acc 
+
+  - felCat5:chrA1:224986-4861235
+    hgGetAnn felCat5 ensGene chrA1:224986-4861235  stdout | cut -f 1 >input/ensembl.accv
+
+input/refseq.acc
+input/rna.acc
+input/est.acc
+
+input/ensembl.accv
+
 
 - creating test nets and chains for hg19 to mm10 test that
   match GENCODE in database
