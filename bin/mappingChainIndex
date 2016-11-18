@@ -3,10 +3,8 @@
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
+from collections import namedtuple
 from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable, MappingChainLoc
-
-
-verbose = False
 
 
 def parseArgs():
@@ -19,15 +17,13 @@ def parseArgs():
     parser.add_argument("chainFile",
                         help="""chain file to index, maybe piped""")
     opts = parser.parse_args()
-    global verbose
-    verbose = opts.verbose
     return opts
 
 
 def buildChainLoc(startLine, offset, length):
     # chain 1009 chr9 136372045 + 68288114 68330909 BC040840 1033 - 0 1018 1
     words = startLine.split()
-    return MappingChainLoc.factory(words[7], words[10], words[11], offset, length)
+    return MappingChainLoc.factory(words[7], int(words[10]), int(words[11]), offset, length)
 
 
 def generateChainIndex(chainFh):
@@ -36,11 +32,12 @@ def generateChainIndex(chainFh):
     offset = 0
     for line in chainFh:
         if line.startswith("chain"):
-            if startOff is not None:
+            if startLine is not None:
                 chainsLocs.append(buildChainLoc(startLine, startOff, offset - startOff))
             startLine = line
             startOff = offset
-    if startOff is not None:
+        offset += len(line)
+    if startLine is not None:
         chainsLocs.append(buildChainLoc(startLine, startOff, offset - startOff))
     return chainsLocs
 
@@ -48,11 +45,11 @@ def generateChainIndex(chainFh):
 def mappingChainIndex(mappingChainsIndexDb, chainFile):
     with open(chainFile) as chainFh:
         chainsLocs = generateChainIndex(chainFh)
-    indexDbConn = sqlite3.connect(mappingChainIndex)
+    indexDbConn = sqlite3.connect(mappingChainsIndexDb)
     indexDbTbl = MappingChainsIndexDbTable(indexDbConn, MappingChainsDbTables.mappingChainsTbl, create=True)
     indexDbTbl.loads(chainsLocs)
     indexDbTbl.index()
 
 # entry
 opts = parseArgs()
-mappingChainIndex(opts.mappingChainIndex, opts.chainFile)
+mappingChainIndex(opts.mappingChainsIndexDb, opts.chainFile)

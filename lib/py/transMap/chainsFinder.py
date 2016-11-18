@@ -104,7 +104,8 @@ class ChainsFinder(object):
         if chainFile is not None:
             netFile = self.__getLastzFile(targetHgDb, queryHgDb, chainsDir, netExt)
             if netFile is not None:
-                chains.append(Chains(targetHgDb, queryHgDb, chainType, chainFile, netFile,
+                # note: queryHgDb = srcDb, targetHgDb = destDb
+                chains.append(Chains(queryHgDb, targetHgDb, chainType, chainFile, netFile,
                                      self.__distances.get(targetHgDb, queryHgDb)))
                 return True
         return False

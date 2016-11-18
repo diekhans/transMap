@@ -57,7 +57,10 @@ class Chains(namedtuple("Chains",
     # FIXME make srcDb/destDb and chainsFinder.py queryHgDb targetHgDb consistent
     __slots__ = ()
 
-
+    @staticmethod
+    def rowFactory(cur, row):
+        return Chains(*row)
+    
 class ChainsDbTable(HgLiteTable):
     """Interface todata on chains stored in the database"""
     __createSql = """CREATE TABLE {table} (
@@ -86,12 +89,12 @@ class ChainsDbTable(HgLiteTable):
 
     def queryByDbs(self, srcDb, destDb):
         sql = "SELECT * FROM {table} WHERE (srcDb=?) AND (destDb=?)"
-        return self.queryRows(sql, Chains, srcDb, destDb)
+        return self.queryRows(sql, Chains.rowFactory, srcDb, destDb)
 
     def queryByDbsType(self, srcDb, destDb, chainType):
         "return Chain or None"
         sql = "SELECT * FROM {table} WHERE (srcDb=?) AND (destDb=?) AND (chainType=?)"
-        rows = self.queryRows(sql, Chains, srcDb, destDb)
+        rows = list(self.queryRows(sql, Chains.rowFactory, srcDb, destDb, chainType))
         if len(rows) == 0:
             return None
         elif len(rows) == 1:

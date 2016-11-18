@@ -16,6 +16,6 @@ _addExtern("pipettor", "build/lib")
 sys.path.insert(0, os.path.join(rootDir,  "lib/py"))
 
 # executable PATH
-os.putenv("PATH", "{}:{}:{}".format(os.path.join(rootDir, "bin"),
-                                    "/cluster/bin/x86_64",
-                                    os.getenv("PATH")))
+os.environ["PATH"] = "{}:{}:{}".format(os.path.join(rootDir, "bin"),
+                                       "/cluster/bin/x86_64",
+                                       os.environ["PATH"])

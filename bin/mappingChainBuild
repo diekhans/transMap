@@ -34,16 +34,19 @@ def parseArgs():
 
 
 def getChains(genomeDbConn, srcDb, destDb, chainType):
+    # all except rbest are derived from all chains
+    inChainType = ChainType.rbest if chainType == ChainType.rbest else ChainType.all
     chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl)
-    chains = chainsTbl.queryByDbsType(srcDb, destDb, chainType)
+    chains = chainsTbl.queryByDbsType(srcDb, destDb, inChainType)
     if chains is None:
         raise Exception("chains in database not found for {} {} {}".format(srcDb, destDb, chainType))
     return chains
 
 
-def buildChainFilterCommands(chains):
+def buildChainFilterCommands(chains, chainType):
+    """build commands to convert chains to the specified type"""
     cmds = []
-    if (chains.chainType == ChainType.all) or (chains.chainType == ChainType.rbest):
+    if (chainType == ChainType.all) or (chainType == ChainType.rbest):
         # no filtering
         cmds.append(["chainFilter", "-noHap", chains.chainFile])
     else:
@@ -53,17 +56,17 @@ def buildChainFilterCommands(chains):
     return cmds
 
 
-def buildChainOuputCommands(outChain, outDb):
+def buildChainOutputCommands(outChain, outDb):
     return [("tee", outChain),
-            ("mappingChainIndex", outDb)]
+            ("mappingChainIndex", outDb, "/dev/stdin")]
 
 
 def mappingChainBuild(genomeDb, srcDb, destDb, chainType, outPrefix):
     outChain = "{}.chain".format(outPrefix)
-    outDb = "{}.db}".format(outPrefix)
+    outDb = "{}.db".format(outPrefix)
     genomeDbConn = sqlite3.connect(genomeDb)
     chains = getChains(genomeDbConn, srcDb, destDb, chainType)
-    cmds = buildChainFilterCommands(chains) + buildChainOuputCommands(outChain, outDb)
+    cmds = buildChainFilterCommands(chains, chainType) + buildChainOutputCommands(outChain, outDb)
     pipettor.run(cmds)
 
 # entry

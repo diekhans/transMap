@@ -9,6 +9,7 @@ srcDbLoadEnsemblSeqs = ../bin/srcDbLoadEnsemblSeqs
 srcDbLoadEnsemblMetadata = ../bin/srcDbLoadEnsemblMetadata
 srcDbCheck = ../bin/srcDbCheck
 genomeDbLoad = ../bin/genomeDbLoad
+mappingChainBuild = ../bin/mappingChainBuild
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
@@ -18,10 +19,16 @@ ensemblTypes = gencode ensembl
 #  $(call srcDbLoadTestDb,setName)
 srcDbLoadTestDb = $(if $(filter $(1),ensembl),felCat5,hg19)
 
+treeHg38 = /hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh
+treeHg19 = /hive/data/genomes/hg19/bed/multiz4way/44way.nh
+
 
 diff = diff
 
-test: srcDbLoadGenbankAlignsTests srcDbLoadGenbankMetadataTests srcDbLoadGenbankSeqsTests \
+test: srcDbTests
+
+#########################################################################################
+srcDbTests: srcDbLoadGenbankAlignsTests srcDbLoadGenbankMetadataTests srcDbLoadGenbankSeqsTests \
 	srcDbLoadEnsemblAlignsTests srcDbLoadEnsemblSeqsTests srcDbLoadEnsemblMetadataTests \
 	srcDbCheckTests genomeDbLoadTests
 
@@ -111,23 +118,58 @@ srcDbCheckTests: ${genbankTypes:%=%_srcDbCheckTest}  ${ensemblTypes:%=%_srcDbChe
 	cat input/$*_align.sql input/$*_seq.sql input/$*_metadata.sql | sqlite3 -batch output/$@.db
 	${srcDbCheck} $(call srcDbLoadTestDb,$*) $* output/$@.db
 
+##
+# genomeDbLoadTests
+##
+genomeDbLoadTests: genomeDbLoadTest
+
+# felCat3 is projection ensembl
+genomeDbLoadTest: mkdirs
+	rm -f output/$@.db
+	${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 --tree=${treeHg38} --tree=${treeHg19} hgcentraltest output/$@.db
+	sqlite3 -batch output/$@.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
+	sqlite3 -batch output/$@.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
+	${diff} expected/$@.chainsinfo output/$@.chainsinfo
+	${diff} expected/$@.genomeasms output/$@.genomeasms
+
+#########################################################################################
+mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest
+
+mappingChainsBuildSynTest: mkdirs
+	rm -f output/$@.genome.db
+	sqlite3 -batch output/$@.genome.db < input/mappingGenomeDb.sql
+	${mappingChainBuild} output/$@.genome.db hg19 mm10 syn output/$@.syn
+	sqlite3 -batch output/$@.syn.db  'select * from mappingChains' >output/$@.chainidx
+	${diff} expected/$@.chainidx output/$@.chainidx
+
+# never use `all' in actually transmap, but excerise rbest code path
+mappingChainsBuildAllTest: mkdirs
+	rm -f output/$@.genome.db
+	sqlite3 -batch output/$@.genome.db < input/mappingGenomeDb.sql
+	${mappingChainBuild} output/$@.genome.db hg19 mm10 all output/$@.all
+	sqlite3 -batch output/$@.all.db  'select * from mappingChains' >output/$@.chainidx
+	${diff} expected/$@.chainidx output/$@.chainidx
+
+
+#########################################################################################
 
 ##
 # Run this to update test data from basic tests.  We avoid duplicating tables, as
-# metadata and seqs both have align data
+# metadata and seqs test both have align data
 ##
 update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUpdate} ${genbankMetaTypes:%=%_genbankMetadataUpdate} \
-	${ensemblTypes:%=%_ensemblAlignsUpdate} ${ensemblTypes:%=%_ensemblSeqsUpdate} ${ensemblTypes:%=%_ensemblMetadataUpdate}
+	${ensemblTypes:%=%_ensemblAlignsUpdate} ${ensemblTypes:%=%_ensemblSeqsUpdate} ${ensemblTypes:%=%_ensemblMetadataUpdate} \
+	mappingGenomeDbUpdate
 
 %_genbankAlignsUpdate:
 	${MAKE} $*_srcDbLoadGenbankAlignsTest diff=true
 	sqlite3 -batch output/$*_srcDbLoadGenbankAlignsTest.db .dump > input/$*_align.sql
 
-%_genbankSeqsUpdate:
+%_genbankSeqsUpdate: %_genbankAlignsUpdate
 	${MAKE} $*_srcDbLoadGenbankSeqsTest diff=true
 	sqlite3 -batch output/$*_srcDbLoadGenbankSeqsTest.db '.dump srcSeq' > input/$*_seq.sql
 
-%_genbankMetadataUpdate:
+%_genbankMetadataUpdate: %_genbankAlignsUpdate
 	${MAKE} $*_srcDbLoadGenbankMetadataTest diff=true
 	sqlite3 -batch output/$*_srcDbLoadGenbankMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
@@ -135,29 +177,21 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 	${MAKE} $*_srcDbLoadEnsemblAlignsTest diff=true
 	sqlite3 -batch output/$*_srcDbLoadEnsemblAlignsTest.db .dump > input/$*_align.sql
 
-%_ensemblSeqsUpdate:
+%_ensemblSeqsUpdate: %_ensemblAlignsUpdate
 	${MAKE} $*_srcDbLoadEnsemblSeqsTest diff=true
 	sqlite3 -batch output/$*_srcDbLoadEnsemblSeqsTest.db '.dump srcSeq' > input/$*_seq.sql
 
-%_ensemblMetadataUpdate:
+%_ensemblMetadataUpdate: %_ensemblAlignsUpdate
 	${MAKE} $*_srcDbLoadEnsemblMetadataTest diff=true
 	sqlite3 -batch output/$*_srcDbLoadEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
-##
-# genomeDbLoadTests
-##
-tree1 = /hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh
-genomeDbLoadTests: genomeDbLoadTest
+mappingGenomeDbUpdate: mkdirs
+	${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 --tree=${treeHg19} hgcentraltest output/$@.db
+	sqlite3 -batch output/$@.db \
+	   'update chains set chainFile="input/mm10.hg38.chain", netFile="input/mm10.hg38.net" where srcDb="hg19"' \
+	   '.dump' > input/mappingGenomeDb.sql
 
-# felCat3 is projection ensembl
-genomeDbLoadTest: mkdirs
-	rm -f output/$@.db
-	${genomeDbLoad} --hgDb=mm10 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 --tree=${tree1} hgcentraltest output/$@.db
-	sqlite3 -batch output/$@.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
-	sqlite3 -batch output/$@.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
-	${diff} expected/$@.chainsinfo output/$@.chainsinfo
-	${diff} expected/$@.genomeasms output/$@.genomeasms
-
+#########################################################################################
 mkdirs:
 	@mkdir -p output
 
