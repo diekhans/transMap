@@ -1,0 +1,9 @@
+
+- creating test nets and chains for hg19 to mm10 test that
+  match GENCODE in database
+
+  hg19 query range:  chr22:17027128-17277120
+
+netFilter -q=chr22 -qOverlapStart=17027128 -qOverlapEnd=17277120  /hive/data/genomes/mm10/bed/lastz.hg38/axtChain/mm10.hg38.net.gz > mm10.hg38.cecr.net
+
+Human position: chr22:17084921-18177998

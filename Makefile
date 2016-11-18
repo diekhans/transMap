@@ -1,12 +1,12 @@
 
 progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
 	srcDbLoadEnsemblAligns srcDbLoadEnsemblSeqs srcDbCheck \
-	genomeDbLoad
+	genomeDbLoad mappingChainBuild mappingChainIndex
 
 # getEnsemblMetadata
 # FIXME: change this to do all once cleaned out
 libs = __init__.py genomeData.py srcData.py genbank.py ensembl.py \
-	phyloTrees.py chainsFinder.py genbankConf.py
+	phyloTrees.py chainsFinder.py genbankConf.py mappingChainData.py
 
 all:
 

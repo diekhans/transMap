@@ -13,6 +13,7 @@ ensGeneTbl = "ensGene"
 def valOrNone(val):
     return None if (val == "") else val
 
+
 def isEnsemblProjectionBuild(hgDbConn, srcHgDb):
     """does this ensembl appear to be a projection (full or mixed) gene build?
     this is determined by there being at least one transcript that is mapped multiple times"""
@@ -25,7 +26,7 @@ def haveEnsemblFull(hgDbConn, srcHgDb):
     """does this database have an Ensembl full or mixed build? (not projection"""
     return (dbOps.haveTablesLike(hgDbConn, ensGeneTbl, db=srcHgDb)
             and not isEnsemblProjectionBuild(hgDbConn, srcHgDb))
-    
+
 
 def haveGencode(hgDbConn, srcHgDb):
     return dbOps.haveTablesLike(hgDbConn, "{}%".format(gencodeCompTblBase), db=srcHgDb)

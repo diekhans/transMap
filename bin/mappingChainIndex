@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import argparse
+import sqlite3
+from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable, MappingChainLoc
+
+
+verbose = False
+
+
+def parseArgs():
+    desc = """Get information about genomes.  This finds all available chains and
+    source data for all active genomes.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("mappingChainsIndexDb",
+                        help="""sqlite3 database for indexing chains""")
+    parser.add_argument("chainFile",
+                        help="""chain file to index, maybe piped""")
+    opts = parser.parse_args()
+    global verbose
+    verbose = opts.verbose
+    return opts
+
+
+def buildChainLoc(startLine, offset, length):
+    # chain 1009 chr9 136372045 + 68288114 68330909 BC040840 1033 - 0 1018 1
+    words = startLine.split()
+    return MappingChainLoc.factory(words[7], words[10], words[11], offset, length)
+
+
+def generateChainIndex(chainFh):
+    chainsLocs = []
+    startLine = startOff = None
+    offset = 0
+    for line in chainFh:
+        if line.startswith("chain"):
+            if startOff is not None:
+                chainsLocs.append(buildChainLoc(startLine, startOff, offset - startOff))
+            startLine = line
+            startOff = offset
+    if startOff is not None:
+        chainsLocs.append(buildChainLoc(startLine, startOff, offset - startOff))
+    return chainsLocs
+
+
+def mappingChainIndex(mappingChainsIndexDb, chainFile):
+    with open(chainFile) as chainFh:
+        chainsLocs = generateChainIndex(chainFh)
+    indexDbConn = sqlite3.connect(mappingChainIndex)
+    indexDbTbl = MappingChainsIndexDbTable(indexDbConn, MappingChainsDbTables.mappingChainsTbl, create=True)
+    indexDbTbl.loads(chainsLocs)
+    indexDbTbl.index()
+
+# entry
+opts = parseArgs()
+mappingChainIndex(opts.mappingChainIndex, opts.chainFile)

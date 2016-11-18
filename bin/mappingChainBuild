@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import argparse
+import sqlite3
+import pipettor
+from transMap.genomeData import GenomesDbTables, ChainsDbTable, ChainType
+
+
+verbose = False
+
+
+def parseArgs():
+    desc = """Get information about genomes.  This finds all available chains and
+    source data for all active genomes.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="""verbose tracing""")
+    parser.add_argument("genomeDb",
+                        help="""sqlite3 database for genome information""")
+    parser.add_argument("srcDb",
+                        help="""source database name""")
+    parser.add_argument("destDb",
+                        help="""destination database name""")
+    parser.add_argument("chainType", type=ChainType,
+                        help="""type of chain""")
+    parser.add_argument("outPrefix",
+                        help="""output file prefix, create .chain and .db files""")
+    opts = parser.parse_args()
+    global verbose
+    verbose = opts.verbose
+    return opts
+
+
+def getChains(genomeDbConn, srcDb, destDb, chainType):
+    chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl)
+    chains = chainsTbl.queryByDbsType(srcDb, destDb, chainType)
+    if chains is None:
+        raise Exception("chains in database not found for {} {} {}".format(srcDb, destDb, chainType))
+    return chains
+
+
+def buildChainFilterCommands(chains):
+    cmds = []
+    if (chains.chainType == ChainType.all) or (chains.chainType == ChainType.rbest):
+        # no filtering
+        cmds.append(["chainFilter", "-noHap", chains.chainFile])
+    else:
+        # syntenic filtering
+        cmds.append(["netFilter", "-syn", "-noHap", chains.netFile])
+        cmds.append(["netChainSubset", "-wholeChains", "-skipMissing", "-verbose=0", "/dev/stdin", chains.chainFile, "/dev/stdout"])
+    return cmds
+
+
+def buildChainOuputCommands(outChain, outDb):
+    return [("tee", outChain),
+            ("mappingChainIndex", outDb)]
+
+
+def mappingChainBuild(genomeDb, srcDb, destDb, chainType, outPrefix):
+    outChain = "{}.chain".format(outPrefix)
+    outDb = "{}.db}".format(outPrefix)
+    genomeDbConn = sqlite3.connect(genomeDb)
+    chains = getChains(genomeDbConn, srcDb, destDb, chainType)
+    cmds = buildChainFilterCommands(chains) + buildChainOuputCommands(outChain, outDb)
+    pipettor.run(cmds)
+
+# entry
+opts = parseArgs()
+mappingChainBuild(opts.genomeDb, opts.srcDb, opts.destDb, opts.chainType, opts.outPrefix)

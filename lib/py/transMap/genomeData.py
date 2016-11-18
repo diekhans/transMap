@@ -1,12 +1,9 @@
-""""Objects used to define genomes and what mappings can be performed.
-The GenomeDefs object can be constructed and pickled by the genomeDataMk
-program to speed up loading this data.
-"""
+""""Database with genomes and chains."""
 import sqlite3
 import re
 from collections import namedtuple
 from pycbio.sys.symEnum import SymEnum
-from pycbio.sys import typeOps, fileOps
+from pycbio.sys import fileOps
 from pycbio.hgdata.hgLite import HgLiteTable
 
 
@@ -87,6 +84,21 @@ class ChainsDbTable(HgLiteTable):
         """load rows into table"""
         self._inserts(self.__insertSql, rows)
 
+    def queryByDbs(self, srcDb, destDb):
+        sql = "SELECT * FROM {table} WHERE (srcDb=?) AND (destDb=?)"
+        return self.queryRows(sql, Chains, srcDb, destDb)
+
+    def queryByDbsType(self, srcDb, destDb, chainType):
+        "return Chain or None"
+        sql = "SELECT * FROM {table} WHERE (srcDb=?) AND (destDb=?) AND (chainType=?)"
+        rows = self.queryRows(sql, Chains, srcDb, destDb)
+        if len(rows) == 0:
+            return None
+        elif len(rows) == 1:
+            return rows[0]
+        else:
+            raise Exception("too many rows returned")
+
 
 class GenomeAsm(namedtuple("GenomeDb",
                            ("hgDb", "clade", "commonName", "scientificName", "annotationTypeSet"))):
@@ -105,7 +117,7 @@ class GenomeAsm(namedtuple("GenomeDb",
     def dbParse(dbName):
         "parse a genomedb name into (orgDbName, dbNum)"
         m = GenomeAsm.dbParseRe.match(dbName)
-        if m == None:
+        if m is None:
             raise Exception("can't parse database name: " + dbName)
         return (m.group(1), int(m.group(2)))
 
@@ -156,34 +168,30 @@ class Organism(object):
 
     def __init__(self, commonName):
         self.commonName = commonName
-        self.dbs = []
+        self.genomeAsms = []
 
-    def add(self, db):
-        "add a new database"
-        assert(db.org == self)
-        self.dbs.append(db)
+    def add(self, genomeAsm):
+        "add a genome assembly"
+        self.genomeAsms.append(genomeAsm)
 
     def sort(self):
         "sort all entries, by reverse dbNum"
-        self.dbs.sort(lambda a, b: -cmp(a.dbNum, b.dbNum))
+        self.genomeAsms.sort(lambda a, b: -cmp(a.dbNum, b.dbNum))
 
 
 class Genomes(object):
-    "object containing all genome definitions"
+    "object containing all genome definitions, loaded from database"
     def __init__(self):
-        self.genomeDbs = dict()          # by hgDb
+        self.genomeAsms = dict()          # by hgDb
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.clades = set()        # all clades
-        self.annotationType = set()     # all AnnotationTypes
 
-    def addGenomeDb(self, hgDb, clade, commonName, scientificName, annotationType):
+    def addGenomeAsm(self, genomeAsm):
         "add a genome db"
-        org = self.obtainOrganism(commonName)
-        db = GenomeDb(hgDb, org, clade, commonName, scientificName, annotationType)
-        self.dbs[db.hgDb] = hgDb
-        org.add(hgDb)
-        self.clades.add(hgDb.clade)
-        self.annotationType |= db.annotationType
+        self.genomeAsms[genomeAsm.hgDb] = genomeAsm
+        org = self.obtainOrganism(genomeAsm.commonName)
+        org.add(genomeAsm)
+        self.clades.add(genomeAsm.clade)
 
     def obtainOrganism(self, commonName):
         org = self.orgs.get(commonName)
@@ -191,51 +199,17 @@ class Genomes(object):
             org = self.orgs[commonName] = Organism(commonName)
         return org
 
-    def buildChainSets(self):
-        "build chain sets between all databases"
-        for srcDb in self.dbs.itervalues():
-            for destDb in self.dbs.itervalues():
-                if srcDb.org != destDb.org:
-                    chset = ChainsSet(srcDb, destDb)
-                    if chset.haveChains():
-                        srcDb.destChainsSets.addChainSet(chset)
-                        destDb.srcChainsSets.addChainSet(chset)
-
     def finish(self):
         """Finish up, making all links"""
         for org in self.orgs.itervalues():
             org.sort()
-        for db in self.dbs.itervalues():
-            db.finish()
 
         # paranoia
         self.clades = frozenset(self.clades)
-        self.annotationType = frozenset(self.annotationType)
 
     def getDbByName(self, hgDb):
         "lookup db name or None"
-        return self.dbs.get(hgDb)
-
-    def mapDbName(self, db):
-        "change string db name to GenomeDb, if its not already a GenomeDb"
-        if isinstance(db, str):
-            return self.dbs[db]
-        else:
-            assert(isinstance(db, GenomeDb))
-            return db
-
-    def mapDbNames(self, dbs):
-        """change list of db references, which can be either string names
-        or GenomeDb objects, to a list of GenomeDb objects"""
-        objs = []
-        for db in dbs:
-            objs.append(self.mapDbName(db))
-        return objs
-
-    def mapDbNamesSet(self, dbs):
-        """take list of db names or GenomeDb object, or None
-        and return frozenset."""
-        return frozenset(self.mapDbNames(typeOps.mkset(dbs)))
+        return self.genomeAsms.get(hgDb)
 
     def dump(self, fh):
         "print for debugging purposes"
