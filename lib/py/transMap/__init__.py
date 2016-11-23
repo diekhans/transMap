@@ -1,10 +1,16 @@
 """standard setup for TransMap programs"""
 
 import re
+import os
 
 
 def getTwoBit(db):
-    return "/hive/data/genomes/{db}/{db}.2bit".format(db=db)
+    paths = ["/scratch/data/{db}/{db}.2bit".format(db=db),
+             "/hive/data/genomes/{db}/{db}.2bit".format(db=db)]
+    for twoBit in paths:
+        if os.path.exists(twoBit):
+            return twoBit
+    raise Exception("can't find 2bit for db{}".format(db=db))
 
 
 def getChromSizes(db):
@@ -17,16 +23,22 @@ def parseAlignId(alignId):
     """
     m = re.match("^([a-zA-Z0-9]+):([A-Z0-9_]+\\.[0-9]+)-([0-9.]+)$", alignId)
     if m is None:
-        raise Exception("can not parse transmap id \"{}\"".format(alignId))
+        raise Exception("can not parse transmap alignment id \"{}\"".format(alignId))
     return m.groups()
+
+def alignIdDropOneUniq(alignId):
+    "drop one level of alignment id uniqueness"
+    parts = parseAlignId(alignId)
+    idot = parts[1].rindex('.')
+    if idot < 0:
+        return parts[0]
+    else:
+        return "{}-{}".format(parts[0], parts[1][0:idot])
 
 
 def alignIdToSrcId(alignId):
     "remove the unique suffix only, return srcId, including srcDb"
-    m = re.match("^([a-zA-Z0-9]+:[A-Z0-9_]+\\.[0-9]+)-([0-9.]+)$", alignId)
-    if m is None:
-        raise Exception("can not parse alignment id \"{}\"".format(alignId))
-    return m.group(1)
+    return parseAlignId(alignId)[0]
 
 
 def srcIdToAccv(srcId):

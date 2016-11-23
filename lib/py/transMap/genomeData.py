@@ -60,7 +60,8 @@ class Chains(namedtuple("Chains",
     @staticmethod
     def rowFactory(cur, row):
         return Chains(*row)
-    
+
+
 class ChainsDbTable(HgLiteTable):
     """Interface todata on chains stored in the database"""
     __createSql = """CREATE TABLE {table} (

@@ -7,7 +7,8 @@ from transMap import alignIdToSrcId, srcIdToAccv, accvToAcc
 from pycbio.hgdata.hgLite import HgLiteTable, SequenceDbTable, PslDbTable
 
 
-# FIXME: maybe rename from *Lite to *Tables
+# FIXME: just use standard table names here.
+
 
 
 class SourceDbTables(object):
@@ -55,6 +56,14 @@ class SrcMetadataDbTable(HgLiteTable):
         """load rows into table.  Each element of row is a list, tuple, or SrcMetadata objects"""
         self._inserts(self.__insertSql, rows)
 
+    def getBySrcId(self, srcId):
+        "return row or error if not found"
+        sql = """SELECT * FROM {{table}} WHERE srcId = ?"""
+        rows = self.queryRows(sql, SrcMetadataDbTable, srcId)
+        if len(rows) == 0:
+            raise Exception("can't find metadata for {}".format(srcId))
+        return rows[0]
+        
     @staticmethod
     def loadStep(transMapSrcDbConn, metadataReader):
         "function to load and index"
@@ -117,7 +126,8 @@ class SrcXRefDbTable(HgLiteTable):
 
 
 class SrcAlignDbTable(PslDbTable):
-    """source alignments, in PSL format"""
+    """Source alignments, in PSL format.  Normally sorted by target
+    to speed up alignment pipeline"""
     def __init__(self, conn, table, create=False):
         super(SrcAlignDbTable, self).__init__(conn, table, create)
 

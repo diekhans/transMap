@@ -138,16 +138,16 @@ mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
 	sqlite3 -batch output/$@.genome.db < input/mappingGenomeDb.sql
-	${mappingChainBuild} output/$@.genome.db hg19 mm10 syn output/$@.syn
-	sqlite3 -batch output/$@.syn.db  'select * from mappingChains' >output/$@.chainidx
+	${mappingChainBuild} output/$@.genome.db hg19 mm10 syn output/$@.syn.chain
+	sqlite3 -batch output/$@.syn.chain.db  'select * from mappingChains' >output/$@.chainidx
 	${diff} expected/$@.chainidx output/$@.chainidx
 
 # never use `all' in actually transmap, but excerise rbest code path
 mappingChainsBuildAllTest: mkdirs
 	rm -f output/$@.genome.db
 	sqlite3 -batch output/$@.genome.db < input/mappingGenomeDb.sql
-	${mappingChainBuild} output/$@.genome.db hg19 mm10 all output/$@.all
-	sqlite3 -batch output/$@.all.db  'select * from mappingChains' >output/$@.chainidx
+	${mappingChainBuild} output/$@.genome.db hg19 mm10 all output/$@.all.chain
+	sqlite3 -batch output/$@.all.chain.db  'select * from mappingChains' >output/$@.chainidx
 	${diff} expected/$@.chainidx output/$@.chainidx
 
 
