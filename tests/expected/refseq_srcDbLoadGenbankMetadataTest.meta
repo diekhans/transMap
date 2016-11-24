@@ -1,13 +1,14 @@
-hg19:NM_001166345.1	NM_001166345.1	591..1331	29969	MDFIC	protein_coding	protein_coding
-hg19:NM_001166346.1	NM_001166346.1	264..722	29969	MDFIC	protein_coding	protein_coding
-hg19:NM_001172766.2	NM_001172766.2	375..2519	93986	FOXP2	protein_coding	protein_coding
-hg19:NM_001172767.2	NM_001172767.2	11..1384	93986	FOXP2	protein_coding	protein_coding
-hg19:NM_002711.3	NM_002711.3	32..3400	5506	PPP1R3A	protein_coding	protein_coding
-hg19:NM_014491.3	NM_014491.3	375..2522	93986	FOXP2	protein_coding	protein_coding
-hg19:NM_148898.3	NM_148898.3	375..2597	93986	FOXP2	protein_coding	protein_coding
-hg19:NM_148899.3	NM_148899.3	11..1309	93986	FOXP2	protein_coding	protein_coding
-hg19:NM_148900.3	NM_148900.3	375..2573	93986	FOXP2	protein_coding	protein_coding
-hg19:NM_199072.4	NM_199072.4	264..1331	29969	MDFIC	protein_coding	protein_coding
-hg19:NR_033766.1	NR_033766.1		93986	FOXP2	non_coding	non_coding
-hg19:NR_033767.1	NR_033767.1		93986	FOXP2	non_coding	non_coding
-hg19:NR_037439.1	NR_037439.1		100500896	MIR3666	non_coding	non_coding
+hg19:NM_001284282.1	NM_001284282.1	119..586	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001284283.1	NM_001284283.1	11..520	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001284284.1	NM_001284284.1	190..681	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321242.1	NM_001321242.1	64..702	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321243.1	NM_001321243.1	310..855	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321244.1	NM_001321244.1	275..787	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321246.1	NM_001321246.1	197..637	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321247.1	NM_001321247.1	197..622	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321248.1	NM_001321248.1	135..464	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321249.1	NM_001321249.1	198..704	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321250.1	NM_001321250.1	220..726	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_001321251.1	NM_001321251.1	206..712	81552	VOPP1	protein_coding	protein_coding
+hg19:NM_018697.3	NM_018697.3	579..1931	55915	LANCL2	protein_coding	protein_coding
+hg19:NM_030796.4	NM_030796.4	197..715	81552	VOPP1	protein_coding	protein_coding

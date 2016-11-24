@@ -8,20 +8,20 @@ CREATE TABLE srcMetadata (
             geneName text,
             geneType text,
             transcriptType text);
-INSERT INTO "srcMetadata" VALUES('hg19:AF024579.1','AF024579.1','1..225',NULL,'PPP1R3','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF054589.1','AF054589.1','264..1331',NULL,NULL,'protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF086040.1','AF086040.1',NULL,NULL,NULL,'unknown','unknown');
-INSERT INTO "srcMetadata" VALUES('hg19:AF337817.1','AF337817.1','151..2298',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF454830.1','AF454830.1','1063..>1509',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467252.1','AF467252.1','102..>766',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467253.1','AF467253.1','13..>1257',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467254.1','AF467254.1','<1..290',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467255.1','AF467255.1','<1..526',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467256.1','AF467256.1','<1..290',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467257.1','AF467257.1','53..1150',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467258.1','AF467258.1','1..>1293',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF467259.1','AF467259.1','1..>1368',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF493430.1','AF493430.1','168..674',NULL,'FOXP2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AK131266.1','AK131266.1','797..1909',NULL,NULL,'protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AB035966.1','AB035966.1','56..1408',NULL,'TASP','protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AB097004.1','AB097004.1','56..574',NULL,NULL,'protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AF353942.1','AF353942.1','56..1408',NULL,'LANCL2','protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AF395824.1','AF395824.1','75..581',NULL,'GASP','protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AJ278245.1','AJ278245.1','187..1539',NULL,'lancl2','protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AK000539.1','AK000539.1',NULL,NULL,NULL,'unknown','unknown');
+INSERT INTO "srcMetadata" VALUES('hg19:AK023882.1','AK023882.1',NULL,NULL,NULL,'unknown','unknown');
+INSERT INTO "srcMetadata" VALUES('hg19:AK075391.1','AK075391.1','131..649',NULL,NULL,'protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AK090825.1','AK090825.1',NULL,NULL,NULL,'unknown','unknown');
+INSERT INTO "srcMetadata" VALUES('hg19:AK092992.1','AK092992.1','168..659',NULL,NULL,'protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AK095857.1','AK095857.1','579..1931',NULL,NULL,'protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AK098425.1','AK098425.1',NULL,NULL,NULL,'unknown','unknown');
+INSERT INTO "srcMetadata" VALUES('hg19:AK124176.1','AK124176.1',NULL,NULL,NULL,'unknown','unknown');
+INSERT INTO "srcMetadata" VALUES('hg19:AK125579.1','AK125579.1',NULL,NULL,NULL,'unknown','unknown');
+INSERT INTO "srcMetadata" VALUES('hg19:AK126848.1','AK126848.1',NULL,NULL,NULL,'unknown','unknown');
 CREATE UNIQUE INDEX srcMetadata_srcId on srcMetadata (srcId);
 COMMIT;
