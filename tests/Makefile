@@ -25,7 +25,7 @@ treeHg19 = /hive/data/genomes/hg19/bed/multiz4way/44way.nh
 
 diff = diff
 
-test: srcDbTests
+test: srcDbTests mappingTests
 
 #########################################################################################
 srcDbTests: srcDbLoadGenbankAlignsTests srcDbLoadGenbankMetadataTests srcDbLoadGenbankSeqsTests \
@@ -159,7 +159,7 @@ mappingChainsBuildAllTest: mkdirs
 ##
 update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUpdate} ${genbankMetaTypes:%=%_genbankMetadataUpdate} \
 	${ensemblTypes:%=%_ensemblAlignsUpdate} ${ensemblTypes:%=%_ensemblSeqsUpdate} ${ensemblTypes:%=%_ensemblMetadataUpdate} \
-	mappingGenomeDbUpdate
+	mappingGenomeDbUpdate mappingChainsUpdate
 
 %_genbankAlignsUpdate:
 	${MAKE} $*_srcDbLoadGenbankAlignsTest diff=true
@@ -190,6 +190,10 @@ mappingGenomeDbUpdate: mkdirs
 	sqlite3 -batch output/$@.db \
 	   'update chains set chainFile="input/mm10.hg38.chain", netFile="input/mm10.hg38.net" where srcDb="hg19"' \
 	   '.dump' > input/mappingGenomeDb.sql
+
+mappingChainsUpdate: mkdirs
+	${MAKE} mappingChainsBuildAllTest
+	sqlite3 -batch output/$@.db '.dump' > input/mappingChains.sql
 
 #########################################################################################
 mkdirs:

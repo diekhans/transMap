@@ -29,16 +29,19 @@ def parseAlignId(alignId):
 def alignIdDropOneUniq(alignId):
     "drop one level of alignment id uniqueness"
     parts = parseAlignId(alignId)
-    idot = parts[1].rindex('.')
+    idot = parts[2].rindex('.')
     if idot < 0:
-        return parts[0]
+        return "{}:{}".format(parts[0], parts[1])
     else:
-        return "{}-{}".format(parts[0], parts[1][0:idot])
+        return "{}-{}".format(parts[0], parts[1], parts[2][0:idot])
 
 
 def alignIdToSrcId(alignId):
     "remove the unique suffix only, return srcId, including srcDb"
-    return parseAlignId(alignId)[0]
+    m = re.match("^([a-zA-Z0-9]+:[A-Z0-9_]+\\.[0-9]+)-([0-9.]+)$", alignId)
+    if m is None:
+        raise Exception("can not parse alignment id \"{}\"".format(alignId))
+    return m.group(1)
 
 
 def srcIdToAccv(srcId):
