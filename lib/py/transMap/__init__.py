@@ -30,11 +30,11 @@ def parseAlignId(alignId):
 def alignIdDropOneUniq(alignId):
     "drop one level of alignment id uniqueness"
     parts = parseAlignId(alignId)
-    idot = parts[2].rindex('.')
+    idot = parts[2].rfind('.')
     if idot < 0:
         return "{}:{}".format(parts[0], parts[1])
     else:
-        return "{}-{}".format(parts[0], parts[1], parts[2][0:idot])
+        return "{}:{}-{}".format(parts[0], parts[1], parts[2][0:idot])
 
 
 def alignIdToSrcId(alignId):

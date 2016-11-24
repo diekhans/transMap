@@ -57,8 +57,8 @@ class SrcMetadataDbTable(HgLiteTable):
 
     def getBySrcId(self, srcId):
         "return row or error if not found"
-        sql = """SELECT * FROM {{table}} WHERE srcId = ?"""
-        rows = self.queryRows(sql, SrcMetadataDbTable, srcId)
+        sql = """SELECT * FROM {table} WHERE srcId = ?"""
+        rows = list(self.queryRows(sql, lambda cur, row: SrcMetadata(*row), srcId))
         if len(rows) == 0:
             raise Exception("can't find metadata for {}".format(srcId))
         return rows[0]

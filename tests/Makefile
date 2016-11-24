@@ -156,8 +156,10 @@ transMapJobTest: mkdirs
 	rm -f output/$@.src.db output/$@.chain.db
 	cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.src.db
 	sqlite3 -batch output/$@.chain.db < input/mappingChains.sql
-	cp -f input/mappingChains.chain output/$@.chain
+	cp -f input/mm10.hg19.chain output/$@.chain
 	${transMapJob} hg19 output/$@.src.db 1 11 output/$@.chain mm10 output/$@.preBigPsl
+	${diff} expected/$@.preBigPsl output/$@.preBigPsl
+	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/$@.preBigPsl input/mm10.chrom.sizes output/$@.bigPsl
 
 #########################################################################################
 

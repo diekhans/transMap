@@ -32,9 +32,9 @@ table bigPsl
     uint seqType;    "0=empty, 1=nucleotide, 2=amino_acid"
     string srcDb;   "source organism database names"
     string srcChrom;  "source organism chromosome name"
-    unit srcChromStart; "start position in source chromosome"
-    unit srcChromEnd; "end position in source chromosome"
-    unit srcScore;    "source source (percent identity * 10)
+    uint srcChromStart; "start position in source chromosome"
+    uint srcChromEnd; "end position in source chromosome"
+    uint srcScore;    "source source (percent identity * 10)
     string geneName;  "gene name"
     string geneId;  "gene identifier"
     )
