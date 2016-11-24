@@ -188,11 +188,11 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 mappingGenomeDbUpdate: mkdirs
 	${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 --tree=${treeHg19} hgcentraltest output/$@.db
 	sqlite3 -batch output/$@.db \
-	   'update chains set chainFile="input/mm10.hg38.chain", netFile="input/mm10.hg38.net" where srcDb="hg19"' \
+	   'update chains set chainFile="input/mm10.hg19.chain", netFile="input/mm10.hg19.net" where srcDb="hg19"' \
 	   '.dump' > input/mappingGenomeDb.sql
 
 mappingChainsUpdate: mkdirs
-	${MAKE} mappingChainsBuildAllTest
+	${MAKE} mappingChainsBuildAllTest diff=true
 	sqlite3 -batch output/$@.db '.dump' > input/mappingChains.sql
 
 #########################################################################################
