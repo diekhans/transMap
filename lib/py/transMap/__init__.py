@@ -10,7 +10,7 @@ def getTwoBit(db):
     for twoBit in paths:
         if os.path.exists(twoBit):
             return twoBit
-    raise Exception("can't find 2bit for db{}".format(db=db))
+    raise Exception("can't find 2bit for {db}".format(db=db))
 
 
 def getChromSizes(db):
@@ -25,6 +25,7 @@ def parseAlignId(alignId):
     if m is None:
         raise Exception("can not parse transmap alignment id \"{}\"".format(alignId))
     return m.groups()
+
 
 def alignIdDropOneUniq(alignId):
     "drop one level of alignment id uniqueness"

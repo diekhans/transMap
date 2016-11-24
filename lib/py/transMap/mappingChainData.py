@@ -54,5 +54,5 @@ class MappingChainsIndexDbTable(HgLiteTable):
 
     def getRangeOverlap(self, qName, qStart, qEnd):
         """Get index entries for overlapping range"""
-        sql = "SELECT * FROM {{table}} WHERE {};".format(Binner.getOverlappingSqlExpr("bin", "chrom", "start", "end", qName, qStart, qEnd))
+        sql = "SELECT * FROM {{table}} WHERE {};".format(Binner.getOverlappingSqlExpr("bin", "qName", "qStart", "qEnd", qName, qStart, qEnd))
         return self.queryRows(sql, MappingChainLoc)

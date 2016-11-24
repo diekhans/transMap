@@ -2,11 +2,14 @@
 support for build bigTransMap files
 """
 
+
 def _mkCommaList(elems):
     return ",".join(str(e) for e in elems) + ","
 
+
 def _pslToBedIdent(psl):
     return int(10 * psl.identity())
+
 
 def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, metadata=None):
     """object used to build bigTransMap rows"""
@@ -35,23 +38,22 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, metadata=None):
            _mkCommaList([e.tStart for e in mappedPsl.exons]),  # chromStarts
            mappedPsl.qStart,  # oChromStart
            mappedPsl.qEnd,  # oChromEnd
-           mappedPsl.getTStrand()  # oStrand
-           mappedPsl.qSize, # oChromSize
-           _mkCommaList([e.qStart for e in mappedPsl.exons]), # oChromStarts
+           mappedPsl.getTStrand(),  # oStrand
+           mappedPsl.qSize,  # oChromSize
+           _mkCommaList([e.qStart for e in mappedPsl.exons]),  # oChromStarts
            sequence.seq,  # oSequence
            cds,  # oCDS
-           mappedPsl.tSize  # chromSize
-           mappedPsl.match  # match
-           mappedPsl.misMatch  # misMatch
-           mappedPsl.repMatch  # repMatch
-           mappedPsl.nCount  # nCount
+           mappedPsl.tSize,  # chromSize
+           mappedPsl.match,  # match
+           mappedPsl.misMatch,  # misMatch
+           mappedPsl.repMatch,  # repMatch
+           mappedPsl.nCount,  # nCount
            1,  # seqType 1=nucleotide
            srcDb,  # srcDb
            srcPsl.tName,  # srcChrom
            srcPsl.tStart,  # srcChromStart
            srcPsl.tEnd,  # srcChromEnd
            _pslToBedIdent(srcPsl),  # srcScore
-           geneName, # geneName
-           geneId # geneId
-    ]
+           geneName,  # geneName
+           geneId]  # geneId
     return row

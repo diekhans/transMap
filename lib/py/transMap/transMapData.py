@@ -5,6 +5,7 @@ from pycbio.sys import fileOps
 from pycbio.tsv import TsvReader
 from . import getTmpExt, runCmds
 
+# FIXME: obsolete??
 
 class TransMap(object):
     """Object that has common data and functions used my transMap rules.

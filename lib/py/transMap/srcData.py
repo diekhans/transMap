@@ -10,7 +10,6 @@ from pycbio.hgdata.hgLite import HgLiteTable, SequenceDbTable, PslDbTable
 # FIXME: just use standard table names here.
 
 
-
 class SourceDbTables(object):
     """tables names in a source data sqlite3 database"""
     srcAlignTbl = "srcAlign"
@@ -63,7 +62,7 @@ class SrcMetadataDbTable(HgLiteTable):
         if len(rows) == 0:
             raise Exception("can't find metadata for {}".format(srcId))
         return rows[0]
-        
+
     @staticmethod
     def loadStep(transMapSrcDbConn, metadataReader):
         "function to load and index"

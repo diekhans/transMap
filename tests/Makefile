@@ -10,6 +10,7 @@ srcDbLoadEnsemblMetadata = ../bin/srcDbLoadEnsemblMetadata
 srcDbCheck = ../bin/srcDbCheck
 genomeDbLoad = ../bin/genomeDbLoad
 mappingChainBuild = ../bin/mappingChainBuild
+transMapJob = ../bin/transMapJob
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
@@ -133,7 +134,8 @@ genomeDbLoadTest: mkdirs
 	${diff} expected/$@.genomeasms output/$@.genomeasms
 
 #########################################################################################
-mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest
+mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
+	transMapJobTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -150,6 +152,12 @@ mappingChainsBuildAllTest: mkdirs
 	sqlite3 -batch output/$@.all.chain.db  'select * from mappingChains' >output/$@.chainidx
 	${diff} expected/$@.chainidx output/$@.chainidx
 
+transMapJobTest: mkdirs
+	rm -f output/$@.src.db output/$@.chain.db
+	cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.src.db
+	sqlite3 -batch output/$@.chain.db < input/mappingChains.sql
+	cp -f input/mappingChains.chain output/$@.chain
+	${transMapJob} hg19 output/$@.src.db 1 11 output/$@.chain mm10 output/$@.preBigPsl
 
 #########################################################################################
 
@@ -193,7 +201,7 @@ mappingGenomeDbUpdate: mkdirs
 
 mappingChainsUpdate: mkdirs
 	${MAKE} mappingChainsBuildAllTest diff=true
-	sqlite3 -batch output/$@.db '.dump' > input/mappingChains.sql
+	sqlite3 -batch output/mappingChainsBuildAllTest.all.chain.db '.dump' > input/mappingChains.sql
 
 #########################################################################################
 mkdirs:
