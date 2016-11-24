@@ -1,4 +1,4 @@
-- test souce data:
+- test source data:
   - hg19.chr7:55428454-55651999 -  region without too many nets, loose JD* patent genes
 
     hgGetAnn hg19 wgEncodeGencodeCompV19 chr7:55428454-55651999 stdout | cut -f 1 >input/gencode.accv
@@ -11,5 +11,5 @@
 
 - creating test nets and chains for hg19 to mm10 test that
   match genes in database
-  netFilter -q=chr7 -qOverlapStart=55428454 -qOverlapEnd=55651999 /hive/data/genomes/mm10/bed/lastz.hg38/axtChain/mm10.hg38.net.gz > input/mm10.hg38.net
-  chainFilter -q=chr7 -qOverlapStart=55428454 -qOverlapEnd=55651999 /hive/data/genomes/mm10/bed/lastz.hg38/axtChain/mm10.hg38.all.chain.gz > input/mm10.hg38.chain
+  netFilter -q=chr7 -qOverlapStart=55428454 -qOverlapEnd=55651999 /hive/data/genomes/mm10/bed/lastz.hg19/axtChain/mm10.hg19.net.gz > input/mm10.hg19.net
+  chainFilter -q=chr7 -qOverlapStart=55428454 -qOverlapEnd=55651999 /hive/data/genomes/mm10/bed/lastz.hg19/axtChain/mm10.hg19.all.chain.gz > input/mm10.hg19.chain
