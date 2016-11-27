@@ -1,6 +1,0 @@
-#!/bin/bash -e
-# FIXME: not sure why env was not being set, do this for now
-export PATH="${HOME}/opt/current/$(uname -m)/bin:${PATH}"
-
-binDir=$(dirname $0)
-exec $binDir/runTransMap "$@"

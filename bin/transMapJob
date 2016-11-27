@@ -6,6 +6,7 @@ import sqlite3
 import argparse
 import pipettor
 from collections import deque
+from pycbio.sys import loggingOps
 from pycbio.hgbrowser.coords import Coords
 from pycbio.sys import fileOps
 from pycbio.hgdata.psl import PslTbl
@@ -17,16 +18,15 @@ from pycbio.hgdata.hgLite import SequenceDbTable
 from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable
 from transMap.transMapConf import TransMapConf
 
-verbose = False
-
 
 def parseArgs():
     desc = """Run transmap algorithm on a range of alignment OIDs, do
     all work, including filtering, recalculating match stats, etc.
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="""verbose tracing""")
+    loggingOps.addCmdOptions(parser)
+    parser.add_argument("--keep", action="store_true",
+                        help="""mysql database for source assembly""")
     parser.add_argument("srcHgDb",
                         help="""mysql database for source assembly""")
     parser.add_argument("transMapSrcDb",
@@ -42,8 +42,7 @@ def parseArgs():
     parser.add_argument("mappedPreBigPsl",
                         help="""output for input to bedToBigBed""")
     opts = parser.parse_args()
-    global verbose
-    verbose = opts.verbose
+    loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 
@@ -120,13 +119,14 @@ class MappingChains(object):
 
 
 class PslMapper(object):
-    def __init__(self, conf, srcHgDb, destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains):
+    def __init__(self, conf, srcHgDb, destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains, keep):
         self.conf = conf
         self.srcHgDb = srcHgDb
         self.destHgDb = destHgDb
         self.srcMetadataTbl = srcMetadataTbl
         self.srcSeqTbl = srcSeqTbl
         self.mappingChains = mappingChains
+        self.keep = keep
 
     def __writeSrcPsls(self, srcPsls):
         srcPslTmpFile = fileOps.tmpFileGet("transMap.src.", ".psl")
@@ -170,11 +170,9 @@ class PslMapper(object):
                              getTwoBit(self.destHgDb), srcSeqsTmpFile, "stdout"]
         cmds = [pslMapCmd, pslCDnaFilterCmd, tsortCmd, pslRecalcMatchCmd, pslQueryUniqCmd]
         p = pipettor.Pipeline(cmds, stdout=mappedPslTmpFile)
-        if verbose:
-            sys.stderr.write("{}\n".format(p))
         p.wait()
         mappedPsls = PslTbl(mappedPslTmpFile)
-        if not verbose:
+        if not self.keep:
             fileOps.rmFiles(srcPslTmpFile, srcSeqsTmpFile, chainsTmpFile, mappedPslTmpFile)
         return mappedPsls
 
@@ -211,7 +209,7 @@ def transMapJob(opts):
     mappingChains = MappingChains(opts.mappingChains)
     srcPslGroups = SrcPslGroups(transMapSrcDbConn, opts.startOid, opts.endOid)
 
-    pslMapper = PslMapper(conf, opts.srcHgDb, opts.destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains)
+    pslMapper = PslMapper(conf, opts.srcHgDb, opts.destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains, opts.keep)
     srcPslGroups = SrcPslGroups(transMapSrcDbConn, opts.startOid, opts.endOid)
 
     # fields 3,4 are for test stability

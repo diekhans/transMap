@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import sys
+import sqlite3
+import argparse
+import pipettor
+from collections import deque
+from pycbio.sys import loggingOps
+from pycbio.hgbrowser.coords import Coords
+from pycbio.sys import fileOps
+from pycbio.hgdata.psl import PslTbl
+from pycbio.hgdata.hgLite import sqliteHaveTable
+from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
+from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
+from transMap.transMapConf import TransMapConf
+
+
+def parseArgs():
+    desc = """Run a transmap parasol batch.  This attempts to be atomic and restartable
+    given the same batch directory.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    loggingOps.addCmdOptions(parser)
+    parser.add_argument("srcDataDir",
+                        help="""directory for source data files """)
+    parser.add_argument("srcHgDb",
+                        help="""mysql database for source assembly""")
+    parser.add_argument("destHgDb",
+                        help="""destination browser database """)
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
+                        help="""annotation set type""")
+    parser.add_argument("batchTmpDir",
+                        help="""directory that will contain the batch and results files""")
+    opts = parser.parse_args()
+    loggingOps.setupFromCmd(opts, sys.argv[0])
+    return opts
+
+
+def createBatch(conf):
+    batchFile = conf.batchParaFile()
+    fileOps.ensureFileDir(batchFile)
+    # fileOpts.atto
+
+    return batchFile
+
+
+def transMapBatch(opts):
+    conf = TransMapConf(srcDataDir=opts.srcDataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
+                        annotationType=opts.annotationType, builtTmpDir=opts.builtTmpDir)
+
+
+transMapBatch(parseArgs())

@@ -6,24 +6,24 @@ import argparse
 from transMap import getChromSizes
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables
+from pycbio.sys import loggingOps
 from pycbio.sys import fileOps
 from pycbio.hgdata.hgLite import SequenceDbTable, PslDbTable
+import sys
 import pipettor
-
-verbose = False
 
 
 def parseArgs():
     desc = """Validate a transmap source sqlite3 database
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="""verbose tracing""")
+    loggingOps.addCmdOptions(parser)
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset""")
+    loggingOps.setupFromCmd(opts, sys.argv[0])
     return parser.parse_args()
 
 

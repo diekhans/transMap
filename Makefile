@@ -1,7 +1,9 @@
 
 progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
 	srcDbLoadEnsemblAligns srcDbLoadEnsemblSeqs srcDbCheck \
-	genomeDbLoad mappingChainBuild mappingChainIndex transMapJob
+	genomeDbLoad mappingChainBuild mappingChainIndex \
+	transMapJob
+#transMapBatch
 
 # getEnsemblMetadata
 # FIXME: change this to do all once cleaned out

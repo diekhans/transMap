@@ -3,21 +3,19 @@
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
+import sys
+from pycbio.sys import loggingOps
 from pycbio.sys import fileOps
 from transMap.genomeData import AnnotationType
 from transMap.ensembl import EnsemblHgData
 from transMap.srcData import srcAlignXRefLoad
 
 
-verbose = False
-
-
 def parseArgs():
     desc = """Obtain PSL alignments for GENCODE or Ensembl from ucsc database files.
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="""verbose tracing""")
+    loggingOps.addCmdOptions(parser)
     parser.add_argument("--testAccvFile", default=None,
                         help="""limit to test accession, with version, in this file testing purposes""")
     parser.add_argument("srcHgDb",
@@ -27,8 +25,7 @@ def parseArgs():
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset""")
     opts = parser.parse_args()
-    global verbose
-    verbose = opts.verbose
+    loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 

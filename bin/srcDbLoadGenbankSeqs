@@ -3,25 +3,25 @@
 import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
+import sys
+from pycbio.sys import loggingOps
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, SrcXRefDbTable, loadSeqFa
 from pycbio.sys import fileOps
 import pipettor
-
-verbose = False
 
 
 def parseArgs():
     desc = """Obtain RNA sequence file for the GenBank and RefSeq alignments.
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="""verbose tracing""")
+    loggingOps.addCmdOptions(parser)
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
+    loggingOps.setupFromCmd(opts, sys.argv[0])
     return parser.parse_args()
 
 

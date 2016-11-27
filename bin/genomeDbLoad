@@ -4,6 +4,7 @@ import transMapProgSetup  # noqa: F401
 import sys
 import argparse
 import sqlite3
+from pycbio.sys import loggingOps
 from pycbio.hgdata import hgDb
 from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
 from transMap.ensembl import haveEnsemblFull, haveGencode
@@ -12,16 +13,12 @@ from transMap.phyloTrees import PhyloDistances
 from transMap.genbankConf import GenbankConf
 
 
-verbose = False
-
-
 def parseArgs():
     desc = """Get information about genomes.  This finds all available chains and
     source data for all active genomes.
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="""verbose tracing""")
+    loggingOps.addCmdOptions(parser)
     parser.add_argument("--hgDb", action="append", default=None, dest="hgDbs",
                         help="""limit to these databases for testing, maybe repeated""")
     parser.add_argument("--tree", dest="trees", action="append", default=[],
@@ -34,8 +31,7 @@ def parseArgs():
     parser.add_argument("genomeDb",
                         help="""sqlite3 database for genome information""")
     opts = parser.parse_args()
-    global verbose
-    verbose = opts.verbose
+    loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 

@@ -4,10 +4,9 @@ import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
 import pipettor
+import sys
+from pycbio.sys import loggingOps
 from transMap.genomeData import GenomesDbTables, ChainsDbTable, ChainType
-
-
-verbose = False
 
 
 def parseArgs():
@@ -15,8 +14,7 @@ def parseArgs():
     source data for all active genomes.
     """
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="""verbose tracing""")
+    loggingOps.addCmdOptions(parser)
     parser.add_argument("genomeDb",
                         help="""sqlite3 database for genome information""")
     parser.add_argument("srcHgDb",
@@ -28,8 +26,7 @@ def parseArgs():
     parser.add_argument("mappingChains",
                         help="""output chine file, also creates an associated .db file""")
     opts = parser.parse_args()
-    global verbose
-    verbose = opts.verbose
+    loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 
