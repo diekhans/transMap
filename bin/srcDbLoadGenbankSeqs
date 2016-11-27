@@ -21,8 +21,9 @@ def parseArgs():
                         help="""annotation set type to obtain""")
     parser.add_argument("transMapSrcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
+    opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
-    return parser.parse_args()
+    return opts
 
 
 def getSrcAccsFile(annotationType, transMapSrcDbConn):

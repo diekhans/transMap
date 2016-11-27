@@ -1,6 +1,6 @@
 
 progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
-	srcDbLoadEnsemblAligns srcDbLoadEnsemblSeqs srcDbCheck \
+	srcDbLoadEnsemblAligns srcDbLoadEnsemblMetadata srcDbLoadEnsemblSeqs srcDbCheck \
 	genomeDbLoad mappingChainBuild mappingChainIndex \
 	transMapJob
 #transMapBatch
