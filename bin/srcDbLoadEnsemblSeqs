@@ -3,6 +3,7 @@
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
+import logging
 from transMap.genomeData import AnnotationType
 from transMap import alignIdToSrcId
 from transMap.srcData import querySrcPsls, loadSeqFa
@@ -18,14 +19,14 @@ def parseArgs():
                         help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.ensembl, AnnotationType.gencode), type=AnnotationType,
                         help="""annotation set type to obtain""")
-    parser.add_argument("transMapSrcDb",
+    parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     return parser.parse_args()
 
 
-def writeSrcPsls(transMapSrcDbConn, pslFh):
+def writeSrcPsls(srcDbConn, pslFh):
     done = set()
-    for row in querySrcPsls(transMapSrcDbConn):
+    for row in querySrcPsls(srcDbConn):
         qName = alignIdToSrcId(row[9])
         if qName not in done:
             row = row[0:9] + (qName,) + row[10:]
@@ -33,13 +34,13 @@ def writeSrcPsls(transMapSrcDbConn, pslFh):
             done.add(qName)
 
 
-def getSrcGenePred(srcHgDb, annotationType, transMapSrcDbConn):
+def getSrcGenePred(srcHgDb, annotationType, srcDbConn):
     "get genePreds as a file, otherwise database connection might time out during processing"
     # use alignments rather than original genePreds so if they are filtered, it all bubbles down
     tmpSrcGp = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".gp")
     mrnaToGeneCmd = ("mrnaToGene", "-insertMergeSize=-1", "-noCds", "/dev/stdin", tmpSrcGp)
-    with pipettor.Popen([mrnaToGeneCmd], "w") as pslFh:
-        writeSrcPsls(transMapSrcDbConn, pslFh)
+    with pipettor.Popen([mrnaToGeneCmd], "w", logger=logging.getLogger()) as pslFh:
+        writeSrcPsls(srcDbConn, pslFh)
     return tmpSrcGp
 
 
@@ -49,18 +50,18 @@ def getSeqFasta(srcHgDb, annotationType, srcGp):
 
     # already has srcId with srcHgDb in it!
     getRnaPredCmd = ("getRnaPred", srcHgDb, srcGp, "all", "/dev/stdout")
-    pipettor.run([getRnaPredCmd], stdout=tmpSeqFa)
+    pipettor.run([getRnaPredCmd], stdout=tmpSeqFa, logger=logging.getLogger())
     return tmpSeqFa
 
 
-def getEnsemblSeqs(srcHgDb, annotationType, transMapSrcDb):
-    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
-    tmpSrcGp = getSrcGenePred(srcHgDb, annotationType, transMapSrcDbConn)
+def getEnsemblSeqs(srcHgDb, annotationType, srcDb):
+    srcDbConn = sqlite3.connect(srcDb)
+    tmpSrcGp = getSrcGenePred(srcHgDb, annotationType, srcDbConn)
     tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpSrcGp)
-    loadSeqFa(tmpSeqFa, transMapSrcDbConn)
-    transMapSrcDbConn.close()
+    loadSeqFa(tmpSeqFa, srcDbConn)
+    srcDbConn.close()
     fileOps.rmFiles(tmpSrcGp, tmpSeqFa)
 
 # entry
 opts = parseArgs()
-getEnsemblSeqs(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb)
+getEnsemblSeqs(opts.srcHgDb, opts.annotationType, opts.srcDb)

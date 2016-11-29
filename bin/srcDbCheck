@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-
 import transMapProgSetup  # noqa: F401
+import logging
 import sqlite3
 import argparse
 from transMap import getChromSizes
@@ -21,37 +21,37 @@ def parseArgs():
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type to obtain""")
-    parser.add_argument("transMapSrcDb",
+    parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 
-def getSeqSizes(transMapSrcDbConn, seqSizesFh):
-    srcSeqTbl = SequenceDbTable(transMapSrcDbConn, SourceDbTables.srcSeqTbl)
+def getSeqSizes(srcDbConn, seqSizesFh):
+    srcSeqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl)
     sql = "SELECT name, length(seq) FROM {table}"
     for row in srcSeqTbl.query(sql):
         fileOps.prRow(seqSizesFh, row)
 
 
-def getSeqSizesFile(srcHgDb, annotationType, transMapSrcDbConn):
+def getSeqSizesFile(srcHgDb, annotationType, srcDbConn):
     tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".sizes")
     with open(tmpSeqSizes, "w") as seqSizesFh:
-        getSeqSizes(transMapSrcDbConn, seqSizesFh)
+        getSeqSizes(srcDbConn, seqSizesFh)
     return tmpSeqSizes
 
 
-def writeSrcPsls(transMapSrcDbConn, pslFh):
-    srcAlignTbl = PslDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
+def writeSrcPsls(srcDbConn, pslFh):
+    srcAlignTbl = PslDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
     for row in srcAlignTbl.query("SELECT {} FROM {{table}};".format(PslDbTable.columnsNamesSql)):
         fileOps.prRow(pslFh, row)
 
 
-def getPslFile(srcHgDb, annotationType, transMapSrcDbConn):
+def getPslFile(srcHgDb, annotationType, srcDbConn):
     tmpPslFile = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".psl")
     with open(tmpPslFile, "w") as pslFh:
-        writeSrcPsls(transMapSrcDbConn, pslFh)
+        writeSrcPsls(srcDbConn, pslFh)
     return tmpPslFile
 
 
@@ -60,18 +60,18 @@ def pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes):
                    "-querySizes={}".format(tmpSeqSizes),
                    "-targetSizes={}".format(getChromSizes(srcHgDb)),
                    tmpPslFile)
-    pipettor.run((pslCheckCmd,), stderr=None)
+    pipettor.run((pslCheckCmd,), stderr=None, logger=logging.getLogger())
 
 
-def checkAlignments(srcHgDb, annotationType, transMapSrcDbConn):
-    tmpPslFile = getPslFile(srcHgDb, annotationType, transMapSrcDbConn)
-    tmpSeqSizes = getSeqSizesFile(srcHgDb, annotationType, transMapSrcDbConn)
+def checkAlignments(srcHgDb, annotationType, srcDbConn):
+    tmpPslFile = getPslFile(srcHgDb, annotationType, srcDbConn)
+    tmpSeqSizes = getSeqSizesFile(srcHgDb, annotationType, srcDbConn)
     pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes)
     fileOps.rmFiles(tmpPslFile, tmpSeqSizes)
 
 
-def checkZeroCount(transMapSrcDbConn, sql):
-    cur = transMapSrcDbConn.cursor()
+def checkZeroCount(srcDbConn, sql):
+    cur = srcDbConn.cursor()
     cur.execute(sql)
     row = cur.fetchone()
     if row[0] != 0:
@@ -79,36 +79,36 @@ def checkZeroCount(transMapSrcDbConn, sql):
     cur.close()
 
 
-def checkXRef(transMapSrcDbConn):
+def checkXRef(srcDbConn):
     sql = """SELECT count(*) FROM {srcXRefTbl} """ \
           """WHERE srcAlignId NOT IN (SELECT qName FROM {srcAlignTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
                                                                                  srcAlignTbl=SourceDbTables.srcAlignTbl)
-    checkZeroCount(transMapSrcDbConn, sql)
+    checkZeroCount(srcDbConn, sql)
     sql = """SELECT count(*) FROM {srcAlignTbl} """ \
           """WHERE qName NOT IN (SELECT srcAlignId FROM {srcXRefTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
                                                                                 srcAlignTbl=SourceDbTables.srcAlignTbl)
-    checkZeroCount(transMapSrcDbConn, sql)
+    checkZeroCount(srcDbConn, sql)
 
 
-def checkMetadata(transMapSrcDbConn):
+def checkMetadata(srcDbConn):
     sql = """SELECT count(*) FROM {srcXRefTbl} """ \
           """WHERE srcId NOT IN (SELECT srcId FROM {srcMetadataTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
                                                                                srcMetadataTbl=SourceDbTables.srcMetadataTbl)
-    checkZeroCount(transMapSrcDbConn, sql)
+    checkZeroCount(srcDbConn, sql)
     sql = """SELECT count(*) FROM {srcXRefTbl} """ \
           """WHERE srcId NOT IN (SELECT srcId FROM {srcMetadataTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
                                                                                srcMetadataTbl=SourceDbTables.srcMetadataTbl)
-    checkZeroCount(transMapSrcDbConn, sql)
+    checkZeroCount(srcDbConn, sql)
 
 
-def checkTransMapSrcDb(srcHgDb, annotationType, transMapSrcDb):
-    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
-    checkAlignments(srcHgDb, annotationType, transMapSrcDbConn)
-    checkXRef(transMapSrcDbConn)
+def checkTransMapSrcDb(srcHgDb, annotationType, srcDb):
+    srcDbConn = sqlite3.connect(srcDb)
+    checkAlignments(srcHgDb, annotationType, srcDbConn)
+    checkXRef(srcDbConn)
     if annotationType != AnnotationType.est:
-        checkMetadata(transMapSrcDbConn)
-    transMapSrcDbConn.close()
+        checkMetadata(srcDbConn)
+    srcDbConn.close()
 
 # entry
 opts = parseArgs()
-checkTransMapSrcDb(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb)
+checkTransMapSrcDb(opts.srcHgDb, opts.annotationType, opts.srcDb)

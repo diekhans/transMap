@@ -5,6 +5,7 @@ import sys
 import sqlite3
 import argparse
 import pipettor
+import logging
 from collections import deque
 from pycbio.sys import loggingOps
 from pycbio.hgbrowser.coords import Coords
@@ -12,6 +13,7 @@ from pycbio.sys import fileOps
 from pycbio.hgdata.psl import PslTbl
 from pycbio.hgdata.hgLite import sqliteHaveTable
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
+from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
 from transMap.bigTransMap import bigTransMapMakeRec
 from pycbio.hgdata.hgLite import SequenceDbTable
@@ -27,20 +29,20 @@ def parseArgs():
     loggingOps.addCmdOptions(parser)
     parser.add_argument("--keep", action="store_true",
                         help="""mysql database for source assembly""")
+    parser.add_argument("--buildTmpDir", default="build.tmp",
+                        help="""temporary directory for this build""")
+    parser.add_argument("dataDir",
+                        help="""data directory""")
     parser.add_argument("srcHgDb",
                         help="""mysql database for source assembly""")
-    parser.add_argument("transMapSrcDb",
-                        help="""sqlite database for source alignment data""")
+    parser.add_argument("destHgDb",
+                        help="""destination browser database """)
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
+                        help="""annotation set type""")
     parser.add_argument("startOid",
                         help="""object id of start row in srcDb.srcAligns""")
     parser.add_argument("endOid",
                         help="""object id of one past last row in srcDb.srcAligns""")
-    parser.add_argument("mappingChains",
-                        help="""mapping chains, must have associated .db file""")
-    parser.add_argument("destHgDb",
-                        help="""destination browser database """)
-    parser.add_argument("mappedPreBigPsl",
-                        help="""output for input to bedToBigBed""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
@@ -50,8 +52,8 @@ class SrcPslGroups(dict):
     """"Load and split source PSLs into a lists of range overlapping PSLs.
     Object is index by Coords. This prevents reading unnecessary chains.  Doing
     this is the cluster jobs simplifies batch setup."""
-    def __init__(self, transMapSrcDbConn, startOid, endOid):
-        pslq = deque(SrcAlignDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl).getRows(startOid, endOid))
+    def __init__(self, srcDbConn, startOid, endOid):
+        pslq = deque(SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getRows(startOid, endOid))
         self.__groupAligns(pslq)
 
     def __groupAligns(self, pslq):
@@ -169,7 +171,7 @@ class PslMapper(object):
         pslRecalcMatchCmd = ["pslRecalcMatch", "-ignoreQUniq", "stdin",
                              getTwoBit(self.destHgDb), srcSeqsTmpFile, "stdout"]
         cmds = [pslMapCmd, pslCDnaFilterCmd, tsortCmd, pslRecalcMatchCmd, pslQueryUniqCmd]
-        p = pipettor.Pipeline(cmds, stdout=mappedPslTmpFile)
+        p = pipettor.Pipeline(cmds, stdout=mappedPslTmpFile, logger=logging.getLogger())
         p.wait()
         mappedPsls = PslTbl(mappedPslTmpFile)
         if not self.keep:
@@ -199,23 +201,26 @@ class PslMapper(object):
 
 
 def transMapJob(opts):
-    conf = TransMapConf()
-    transMapSrcDbConn = sqlite3.connect(opts.transMapSrcDb)
-    if sqliteHaveTable(transMapSrcDbConn, SourceDbTables.srcMetadataTbl):
-        srcMetadataTbl = SrcMetadataDbTable(transMapSrcDbConn, SourceDbTables.srcMetadataTbl)
+    conf = TransMapConf(dataDir=opts.dataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
+                        annotationType=opts.annotationType, buildTmpDir=opts.buildTmpDir)
+    srcDbConn = sqlite3.connect(conf.srcDb)
+    if sqliteHaveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
+        srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl)
     else:
         srcMetadataTbl = None  # ESTs
-    srcSeqTbl = SequenceDbTable(transMapSrcDbConn, SourceDbTables.srcSeqTbl)
-    mappingChains = MappingChains(opts.mappingChains)
-    srcPslGroups = SrcPslGroups(transMapSrcDbConn, opts.startOid, opts.endOid)
+    srcSeqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl)
+    mappingChains = MappingChains(conf.mappingChains)
+    srcPslGroups = SrcPslGroups(srcDbConn, opts.startOid, opts.endOid)
 
     pslMapper = PslMapper(conf, opts.srcHgDb, opts.destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains, opts.keep)
-    srcPslGroups = SrcPslGroups(transMapSrcDbConn, opts.startOid, opts.endOid)
+    srcPslGroups = SrcPslGroups(srcDbConn, opts.startOid, opts.endOid)
 
     # fields 3,4 are for test stability
     sortBedCmd = ["sort", "-k1,1", "-k2,2n", "-k3,3n", "-k4,4"]
 
-    with pipettor.Popen([sortBedCmd], "w", stdout=opts.mappedPreBigPsl) as mappedPreBigPslFh:
+    preBigPsl = conf.getJobPreBigBed(opts.startOid, opts.endOid)
+    fileOps.ensureFileDir(preBigPsl)
+    with pipettor.Popen([sortBedCmd], "w", stdout=preBigPsl, logger=logging.getLogger()) as mappedPreBigPslFh:
         for srcPslsCoords in srcPslGroups.iterkeys():
             pslMapper.mapPslGroup(srcPslsCoords, srcPslGroups[srcPslsCoords], mappedPreBigPslFh)
 

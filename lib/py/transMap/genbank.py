@@ -1,5 +1,6 @@
 from pycbio.hgdata import hgDb
 import pipettor
+import logging
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
 
@@ -41,7 +42,7 @@ class GenbankHgData(object):
         hgsqlCmd = ("hgsql", "-Ne", sql, self.srcHgDb)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
-        with pipettor.Popen([hgsqlCmd, sortCmd, uniqCmd]) as fh:
+        with pipettor.Popen([hgsqlCmd, sortCmd, uniqCmd], logger=logging.getLogger()) as fh:
             for line in fh:
                 yield line.rstrip().split("\t")
 

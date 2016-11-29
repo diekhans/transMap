@@ -64,9 +64,9 @@ class SrcMetadataDbTable(HgLiteTable):
         return rows[0]
 
     @staticmethod
-    def loadStep(transMapSrcDbConn, metadataReader):
+    def loadStep(srcDbConn, metadataReader):
         "function to load and index"
-        srcMetadataTbl = SrcMetadataDbTable(transMapSrcDbConn, SourceDbTables.srcMetadataTbl, True)
+        srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl, True)
         srcMetadataTbl.loads(list(metadataReader))
         srcMetadataTbl.index()
 
@@ -141,17 +141,17 @@ class SrcAlignDbTable(PslDbTable):
         return frozenset([accvToAcc(accv) for accv in self.getAllAccv()])
 
 
-def srcAlignXRefLoad(transMapSrcDbConn, alignReader):
+def srcAlignXRefLoad(srcDbConn, alignReader):
     "load function the alignments and xrefs from a psl with srcAlignId in qName"
     psls = list(alignReader)
     srcXRefs = [SrcXRef.fromSrcAlignId(psl[9]) for psl in psls]
 
-    with transMapSrcDbConn:
-        srcAlignTbl = SrcAlignDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl, True)
+    with srcDbConn:
+        srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl, True)
         srcAlignTbl.loads(psls)
         srcAlignTbl.index()
 
-        srcXRefTbl = SrcXRefDbTable(transMapSrcDbConn, SourceDbTables.srcXRefTbl, True)
+        srcXRefTbl = SrcXRefDbTable(srcDbConn, SourceDbTables.srcXRefTbl, True)
         srcXRefTbl.loads(srcXRefs)
         srcXRefTbl.index()
 
@@ -160,12 +160,12 @@ def getAccvSubselectClause(field, accvSet):
     return """({} in ({}))""".format(field, ",".join(['"{}"'.format(accv) for accv in accvSet]))
 
 
-def loadSeqFa(tmpSeqFa, transMapSrcDbConn):
-    seqTbl = SequenceDbTable(transMapSrcDbConn, SourceDbTables.srcSeqTbl, True)
+def loadSeqFa(tmpSeqFa, srcDbConn):
+    seqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl, True)
     seqTbl.loadFastaFile(tmpSeqFa)
     seqTbl.index()
 
 
-def querySrcPsls(transMapSrcDbConn):
-    srcAlignTbl = SrcAlignDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl)
+def querySrcPsls(srcDbConn):
+    srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
     return srcAlignTbl.query("SELECT {} FROM {{table}};".format(SrcAlignDbTable.columnsNamesSql))

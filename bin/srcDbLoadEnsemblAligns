@@ -22,23 +22,23 @@ def parseArgs():
                         help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type to obtain""")
-    parser.add_argument("transMapSrcDb",
+    parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 
-def srcDbLoadEnsemblAligns(srcHgDb, annotationType, transMapSrcDb, testAccvFile):
+def srcDbLoadEnsemblAligns(srcHgDb, annotationType, srcDb, testAccvFile):
     testAccvSubset = fileOps.readFileLines(testAccvFile) if testAccvFile is not None else None
     ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
-    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    srcDbConn = sqlite3.connect(srcDb)
     try:
         alignReader = ensemblHgData.alignReader(testAccvSubset=testAccvSubset)
-        srcAlignXRefLoad(transMapSrcDbConn, alignReader)
+        srcAlignXRefLoad(srcDbConn, alignReader)
     finally:
-        transMapSrcDbConn.close()
+        srcDbConn.close()
 
 # entry
 opts = parseArgs()
-srcDbLoadEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb, opts.testAccvFile)
+srcDbLoadEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testAccvFile)

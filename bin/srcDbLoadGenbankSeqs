@@ -4,6 +4,7 @@ import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
 import sys
+import logging
 from pycbio.sys import loggingOps
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, SrcXRefDbTable, loadSeqFa
@@ -19,17 +20,17 @@ def parseArgs():
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq), type=AnnotationType,
                         help="""annotation set type to obtain""")
-    parser.add_argument("transMapSrcDb",
+    parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 
-def getSrcAccsFile(annotationType, transMapSrcDbConn):
+def getSrcAccsFile(annotationType, srcDbConn):
     tmpAccvFile = fileOps.tmpFileGet("transMap.{}.".format(annotationType), ".acc")
     with open(tmpAccvFile, "w") as accvFh:
-        for accv in SrcXRefDbTable(transMapSrcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
+        for accv in SrcXRefDbTable(srcDbConn, SourceDbTables.srcXRefTbl).getAccvs():
             accvFh.write("{}\n".format(accv))
     return tmpAccvFile
 
@@ -41,18 +42,18 @@ def getSeqFasta(srcHgDb, annotationType, tmpAccFile):
     srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDb),
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
     cmds = [getRnaCmd, srcDbCmd]
-    pipettor.run(cmds, stdout=tmpSeqFa)
+    pipettor.run(cmds, stdout=tmpSeqFa, logger=logging.getLogger())
     return tmpSeqFa
 
 
-def getGenbankSeqs(srcHgDb, annotationType, transMapSrcDb):
-    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
-    tmpAccFile = getSrcAccsFile(annotationType, transMapSrcDbConn)
+def getGenbankSeqs(srcHgDb, annotationType, srcDb):
+    srcDbConn = sqlite3.connect(srcDb)
+    tmpAccFile = getSrcAccsFile(annotationType, srcDbConn)
     tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpAccFile)
-    loadSeqFa(tmpSeqFa, transMapSrcDbConn)
-    transMapSrcDbConn.close()
+    loadSeqFa(tmpSeqFa, srcDbConn)
+    srcDbConn.close()
     fileOps.rmFiles(tmpAccFile, tmpSeqFa)
 
 # entry
 opts = parseArgs()
-getGenbankSeqs(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb)
+getGenbankSeqs(opts.srcHgDb, opts.annotationType, opts.srcDb)

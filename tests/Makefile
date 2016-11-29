@@ -153,13 +153,14 @@ mappingChainsBuildAllTest: mkdirs
 	${diff} expected/$@.chainidx output/$@.chainidx
 
 transMapJobTest: mkdirs
-	rm -f output/$@.src.db output/$@.chain.db
-	cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.src.db
-	sqlite3 -batch output/$@.chain.db < input/mappingChains.sql
-	cp -f input/mm10.hg19.chain output/$@.chain
-	${transMapJob} hg19 output/$@.src.db 1 11 output/$@.chain mm10 output/$@.preBigPsl
-	${diff} expected/$@.preBigPsl output/$@.preBigPsl
-	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/$@.preBigPsl input/mm10.chrom.sizes output/$@.bigPsl
+	rm -rf output/$@.data output/$@.build
+	mkdir -p output/$@.data/hg19 output/$@.build/mm10/hg19
+	cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.data/hg19/hg19.rna.src.db
+	sqlite3 -batch output/$@.build/mm10/hg19/hg19.mm10.rna.chain.db < input/mappingChains.sql
+	cp -f input/mm10.hg19.chain output/$@.build/mm10/hg19/hg19.mm10.rna.chain
+	${transMapJob} --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna 1 11
+	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/rna/results/1.11.preBigBed
+	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/rna/results/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
 
 #########################################################################################
 

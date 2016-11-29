@@ -22,22 +22,22 @@ def parseArgs():
                         help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq), type=AnnotationType,
                         help="""annotation set type to obtain""")
-    parser.add_argument("transMapSrcDb",
+    parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 
-def srcDbLoadGenbankAligns(srcHgDb, annotationType, transMapSrcDb, testAccFile):
+def srcDbLoadGenbankAligns(srcHgDb, annotationType, srcDb, testAccFile):
     testAccSubset = fileOps.readFileLines(testAccFile) if testAccFile is not None else None
     genbankHgData = GenbankHgData(srcHgDb, annotationType)
-    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    srcDbConn = sqlite3.connect(srcDb)
     try:
-        srcAlignXRefLoad(transMapSrcDbConn, genbankHgData.alignReader(testAccSubset=testAccSubset))
+        srcAlignXRefLoad(srcDbConn, genbankHgData.alignReader(testAccSubset=testAccSubset))
     finally:
-        transMapSrcDbConn.close()
+        srcDbConn.close()
 
 # entry
 opts = parseArgs()
-srcDbLoadGenbankAligns(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb, opts.testAccFile)
+srcDbLoadGenbankAligns(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testAccFile)

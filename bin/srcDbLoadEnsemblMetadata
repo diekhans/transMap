@@ -21,25 +21,26 @@ def parseArgs():
                         help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.ensembl, AnnotationType.gencode), type=AnnotationType,
                         help="""annotation set type to obtain""")
-    parser.add_argument("transMapSrcDb",
+    parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
 
-def getTestLimitAccv(transMapSrcDbConn):
-    return SrcAlignDbTable(transMapSrcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
+def getTestLimitAccv(srcDbConn):
+    return SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
 
-def getEnsemblMetadata(srcHgDb, annotationType, transMapSrcDb, testLimit):
+
+def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
     ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
-    transMapSrcDbConn = sqlite3.connect(transMapSrcDb)
+    srcDbConn = sqlite3.connect(srcDb)
     try:
-        testAccvSubset = getTestLimitAccv(transMapSrcDbConn) if testLimit else None
+        testAccvSubset = getTestLimitAccv(srcDbConn) if testLimit else None
         metadataReader = ensemblHgData.metadataReader(testAccvSubset)
-        SrcMetadataDbTable.loadStep(transMapSrcDbConn, metadataReader)
+        SrcMetadataDbTable.loadStep(srcDbConn, metadataReader)
     finally:
-        transMapSrcDbConn.close()
+        srcDbConn.close()
 
 opts = parseArgs()
-getEnsemblMetadata(opts.srcHgDb, opts.annotationType, opts.transMapSrcDb, opts.testLimit)
+getEnsemblMetadata(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testLimit)

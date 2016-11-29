@@ -5,6 +5,7 @@ import sys
 import sqlite3
 import argparse
 import pipettor
+import logger
 from collections import deque
 from pycbio.sys import loggingOps
 from pycbio.hgbrowser.coords import Coords
@@ -22,32 +23,53 @@ def parseArgs():
     """
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)
-    parser.add_argument("srcDataDir",
-                        help="""directory for source data files """)
+    parser.add_argument("--buildTmpDir", default="build.tmp",
+                        help="""temporary directory for this build""")
+    parser.add_argument("dataDir",
+                        help="""directory for data files that are input """)
     parser.add_argument("srcHgDb",
                         help="""mysql database for source assembly""")
     parser.add_argument("destHgDb",
                         help="""destination browser database """)
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type""")
-    parser.add_argument("batchTmpDir",
-                        help="""directory that will contain the batch and results files""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
+def getSrcAlignOidRange(conf):
+    srcDbConn = sqlite3.connect(conf.srcDb)
+    try:
+        srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
+        return srcAlignTbl.getOidRange()
+    finally:
+        srcDbConn.close()
+
+def writeBatchJob(batchFh, nextOid, stopOid):
+    batchFh.write("".format())
+
 
 def createBatch(conf):
+    startOid, endOid = getSrcAlignOidRange(conf)
+    seqsPerJob = conf.numSeqsPerJob()
     batchFile = conf.batchParaFile()
     fileOps.ensureFileDir(batchFile)
-    # fileOpts.atto
-
-    return batchFile
+    tmpBatchFile = fileOps.atomicTmpFile(batchFile)
+    nextOid = startOid
+    with open(tmpBatchFile, "w") as batchFh:
+        while nextOid < endOid:
+            stopOid = min(nextOid+seqsPerJob, endOid)
+            writeBatchJob(batchFh, nextOid, stopOid)
+            nextOid = stopOid
+    
+    fileOps.atomicInstall(tmpBatchFile, batchFile)
 
 
 def transMapBatch(opts):
-    conf = TransMapConf(srcDataDir=opts.srcDataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
-                        annotationType=opts.annotationType, builtTmpDir=opts.builtTmpDir)
-
+    conf = TransMapConf(dataDir=opts.dataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
+                        annotationType=opts.annotationType, buildTmpDir=opts.buildTmpDir)
+    batchFile = conf.batchParaFile()
+    if not os.path.exists(batchFile):
+        createBatch(conf)
 
 transMapBatch(parseArgs())

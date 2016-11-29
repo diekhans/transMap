@@ -5,6 +5,7 @@ import argparse
 import sqlite3
 import pipettor
 import sys
+import logging
 from pycbio.sys import loggingOps
 from transMap.genomeData import GenomesDbTables, ChainsDbTable, ChainType
 
@@ -63,7 +64,7 @@ def mappingChainBuild(genomeDb, srcHgDb, destHgDb, chainType, mappingChains):
     genomeDbConn = sqlite3.connect(genomeDb)
     chains = getChains(genomeDbConn, srcHgDb, destHgDb, chainType)
     cmds = buildChainFilterCommands(chains, chainType) + buildChainOutputCommands(mappingChains, mappingChainsIndexDb)
-    pipettor.run(cmds)
+    pipettor.run(cmds, logger=logging.getLogger())
 
 # entry
 opts = parseArgs()
