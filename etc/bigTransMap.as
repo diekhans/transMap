@@ -37,5 +37,6 @@ table bigPsl
     uint srcScore;    "source source (percent identity * 10)
     string geneName;  "gene name"
     string geneId;  "gene identifier"
+    string chainType;  "type of chains used for mapping"
     )
 

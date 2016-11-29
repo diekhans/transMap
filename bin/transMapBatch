@@ -4,14 +4,9 @@ import transMapProgSetup  # noqa: F401
 import sys
 import sqlite3
 import argparse
-import pipettor
-import logger
-from collections import deque
+#import pipettor
+#import logger
 from pycbio.sys import loggingOps
-from pycbio.hgbrowser.coords import Coords
-from pycbio.sys import fileOps
-from pycbio.hgdata.psl import PslTbl
-from pycbio.hgdata.hgLite import sqliteHaveTable
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
 from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
 from transMap.transMapConf import TransMapConf

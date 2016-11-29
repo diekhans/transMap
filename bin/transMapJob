@@ -13,7 +13,7 @@ from pycbio.sys import fileOps
 from pycbio.hgdata.psl import PslTbl
 from pycbio.hgdata.hgLite import sqliteHaveTable
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
-from transMap.genomeData import AnnotationType
+from transMap.genomeData import AnnotationType, ChainType
 from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
 from transMap.bigTransMap import bigTransMapMakeRec
 from pycbio.hgdata.hgLite import SequenceDbTable
@@ -39,6 +39,8 @@ def parseArgs():
                         help="""destination browser database """)
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type""")
+    parser.add_argument("chainType", choices=(ChainType.all, ChainType.syn, ChainType.rbest), type=ChainType,
+                        help="""type of chains to use""")
     parser.add_argument("startOid",
                         help="""object id of start row in srcDb.srcAligns""")
     parser.add_argument("endOid",
@@ -99,8 +101,9 @@ class SrcPslGroups(dict):
 
 
 class MappingChains(object):
-    def __init__(self, mappingChainsFile):
+    def __init__(self, mappingChainsFile, chainType):
         self.conn = sqlite3.connect("{}.db".format(mappingChainsFile))
+        self.chainType = chainType
         self.indexTbl = MappingChainsIndexDbTable(self.conn, MappingChainsDbTables.mappingChainsTbl)
         self.fh = open(mappingChainsFile)
 
@@ -192,7 +195,8 @@ class PslMapper(object):
         srcPsl = self.__findSrcPsl(srcPsls, mappedPsl)
         metaData = self.srcMetadataTbl.getBySrcId(srcId) if self.srcMetadataTbl is not None else None
         fileOps.prRow(mappedPreBigPslFh,
-                      bigTransMapMakeRec(self.srcHgDb, srcPsl, mappedPsl, srcSeq, metaData))
+                      bigTransMapMakeRec(self.srcHgDb, srcPsl, mappedPsl, srcSeq,
+                                         self.mappingChains.chainType, metaData))
 
     def mapPslGroup(self, srcPslsCoords, srcPsls, mappedPreBigPslFh):
         mappedPsls = self.__mapPslsToDest(srcPslsCoords, srcPsls)
@@ -202,14 +206,15 @@ class PslMapper(object):
 
 def transMapJob(opts):
     conf = TransMapConf(dataDir=opts.dataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
-                        annotationType=opts.annotationType, buildTmpDir=opts.buildTmpDir)
+                        annotationType=opts.annotationType, chainType=opts.chainType,
+                        buildTmpDir=opts.buildTmpDir)
     srcDbConn = sqlite3.connect(conf.srcDb)
     if sqliteHaveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
         srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl)
     else:
         srcMetadataTbl = None  # ESTs
     srcSeqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl)
-    mappingChains = MappingChains(conf.mappingChains)
+    mappingChains = MappingChains(conf.mappingChains, conf.chainType)
     srcPslGroups = SrcPslGroups(srcDbConn, opts.startOid, opts.endOid)
 
     pslMapper = PslMapper(conf, opts.srcHgDb, opts.destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains, opts.keep)

@@ -156,9 +156,9 @@ transMapJobTest: mkdirs
 	rm -rf output/$@.data output/$@.build
 	mkdir -p output/$@.data/hg19 output/$@.build/mm10/hg19
 	cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.data/hg19/hg19.rna.src.db
-	sqlite3 -batch output/$@.build/mm10/hg19/hg19.mm10.rna.chain.db < input/mappingChains.sql
-	cp -f input/mm10.hg19.chain output/$@.build/mm10/hg19/hg19.mm10.rna.chain
-	${transMapJob} --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna 1 11
+	sqlite3 -batch output/$@.build/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
+	cp -f input/mm10.hg19.chain output/$@.build/mm10/hg19/hg19.mm10.all.chain
+	${transMapJob} --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna all 1 11
 	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/rna/results/1.11.preBigBed
 	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/rna/results/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
 

@@ -12,11 +12,12 @@ class TransMapConf(object):
     need and not supplied
     """
     def __init__(self, dataDir=None, srcHgDb=None, destHgDb=None,
-                 annotationType=None, buildTmpDir=None):
+                 annotationType=None, chainType=None, buildTmpDir=None):
         self.dataDir = dataDir
         self.srcHgDb = srcHgDb
         self.destHgDb = destHgDb
         self.annotationType = annotationType
+        self.chainType = chainType
         self.buildTmpDir = buildTmpDir
 
         # arguments to pslCDnaFilter
@@ -52,7 +53,8 @@ class TransMapConf(object):
 
     @property
     def mappingChains(self):
-        chainFile = "{}.{}.{}.chain".format(self.srcHgDb, self.destHgDb, self.annotationType)
+        self.__needOptions("srcHgDb", "destHgDb", "chainType")
+        chainFile = "{}.{}.{}.chain".format(self.srcHgDb, self.destHgDb, self.chainType)
         return os.path.join(self.mappingChainsDir, chainFile)
 
     @property

@@ -15,8 +15,8 @@ def _pslToBedIdent(psl):
     return int(10 * psl.identity())
 
 
-def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, metadata=None):
-    """object used to build bigTransMap rows"""
+def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata):
+    """object used to build bigTransMap rows; metadata maybe None"""
     if mappedPsl.getTStrand() == '-':
         mappedPsl = mappedPsl.reverseComplement()
     cds = geneName = geneId = ""
@@ -58,6 +58,8 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, metadata=None):
            srcPsl.tStart,  # srcChromStart
            srcPsl.tEnd,  # srcChromEnd
            _pslToBedIdent(srcPsl),  # srcScore
-           geneName,  # geneName
-           geneId]  # geneId
+           geneName,
+           geneId,
+           chainType,
+    ]
     return row
