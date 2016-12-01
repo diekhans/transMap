@@ -11,6 +11,7 @@ srcDbCheck = ../bin/srcDbCheck
 genomeDbLoad = ../bin/genomeDbLoad
 mappingChainBuild = ../bin/mappingChainBuild
 transMapJob = ../bin/transMapJob
+transMapBatch = ../bin/transMapBatch
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
@@ -135,7 +136,7 @@ genomeDbLoadTest: mkdirs
 
 #########################################################################################
 mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
-	transMapJobTest
+	transMapJobTest transMapBatchTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -152,15 +153,26 @@ mappingChainsBuildAllTest: mkdirs
 	sqlite3 -batch output/$@.all.chain.db  'select * from mappingChains' >output/$@.chainidx
 	${diff} expected/$@.chainidx output/$@.chainidx
 
+# sets up test files for batch/job tests
+define transMapEnvSetup
+rm -rf output/$@.data output/$@.build
+mkdir -p output/$@.data/src/hg19 output/$@.build/mm10/hg19
+cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.data/src/hg19/hg19.rna.src.db
+sqlite3 -batch output/$@.build/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
+cp -f input/mm10.hg19.chain output/$@.build/mm10/hg19/hg19.mm10.all.chain
+endef
+
 transMapJobTest: mkdirs
-	rm -rf output/$@.data output/$@.build
-	mkdir -p output/$@.data/hg19 output/$@.build/mm10/hg19
-	cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.data/hg19/hg19.rna.src.db
-	sqlite3 -batch output/$@.build/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
-	cp -f input/mm10.hg19.chain output/$@.build/mm10/hg19/hg19.mm10.all.chain
-	${transMapJob} --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna all 1 11
-	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/rna/results/1.11.preBigBed
-	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/rna/results/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
+	${transMapEnvSetup}
+	${transMapJob} --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna all 1 11 output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed
+	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed
+	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
+
+transMapBatchTest: mkdirs
+	${transMapEnvSetup}
+	${transMapBatch} --directRun --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna all
+	bigBedToBed output/transMapBatchTest.data/mapped/mm10/hg19/mm10.hg19.rna.mapped.bigPsl output/$@.preBigPsl
+	${diff} expected/$@.preBigPsl output/$@.preBigPsl
 
 #########################################################################################
 

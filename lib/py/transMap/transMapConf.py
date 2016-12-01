@@ -1,4 +1,5 @@
 import os
+import sys
 from transMap.genomeData import AnnotationType
 
 # FIXME: need to track chain type and add to output
@@ -32,6 +33,14 @@ class TransMapConf(object):
                 raise Exception("TransMapConf needs {} for this method and it was not specified".format(field))
 
     @property
+    def codeRootDir(self):
+        return os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
+
+    @property
+    def binDir(self):
+        return os.path.join(self.codeRootDir, "bin")
+
+    @property
     def genomeDataDb(self):
         self.__needOptions("dataDir")
         return os.path.join(self.dataDir, "genome.db")
@@ -39,12 +48,23 @@ class TransMapConf(object):
     @property
     def srcDataDir(self):
         self.__needOptions("dataDir", "srcHgDb")
-        return os.path.join(self.dataDir, self.srcHgDb)
+        return os.path.join(self.dataDir, "src", self.srcHgDb)
 
     @property
     def srcDb(self):
         self.__needOptions("srcHgDb", "annotationType")
         return os.path.join(self.srcDataDir, "{}.{}.src.db".format(self.srcHgDb, self.annotationType))
+
+    @property
+    def mappedDataDir(self):
+        self.__needOptions("dataDir", "destHgDb", "srcHgDb")
+        return os.path.join(self.dataDir, "mapped", self.destHgDb, self.srcHgDb)
+
+    @property
+    def mappedBigPslFile(self):
+        self.__needOptions("destHgDb", "srcHgDb", "annotationType")
+        return os.path.join(self.mappedDataDir,
+                            "{}.{}.{}.mapped.bigPsl".format(self.destHgDb, self.srcHgDb, self.annotationType))
 
     @property
     def mappingChainsDir(self):
@@ -63,8 +83,8 @@ class TransMapConf(object):
 
     @property
     def batchDir(self):
-        self.__needOptions("buildTmpDir", "srcHgDb", "destHgDb", "annotationType")
-        return os.path.join(self.buildTmpDir, self.srcHgDb, self.destHgDb, str(self.annotationType))
+        self.__needOptions("buildTmpDir", "destHgDb", "srcHgDb", "annotationType")
+        return os.path.join(self.buildTmpDir, self.destHgDb, self.srcHgDb, str(self.annotationType))
 
     @property
     def batchParaDir(self):
@@ -87,5 +107,9 @@ class TransMapConf(object):
         else:
             return 500
 
-    def getJobPreBigBed(self, startOid, endOid):
-        return os.path.join(self.batchResutsDir, "{}.{}.preBigBed".format(startOid, endOid))
+    @property
+    def jobPreBigPslDir(self):
+        return os.path.join(self.batchResutsDir, "parts")
+
+    def getJobPreBigPsl(self, startOid, endOid):
+        return os.path.join(self.jobPreBigPslDir, "{}.{}.preBigPsl".format(startOid, endOid))

@@ -1,5 +1,6 @@
 from pycbio.hgdata import hgDb
 from pycbio.sys import fileOps, dbOps
+from transMap import setSortLocale
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
 import pipettor
@@ -74,6 +75,7 @@ class EnsemblHgData(object):
     def alignReader(self, testAccvSubset):
         """get generator to return alignments with updated qNames,
         these are raw rows."""
+        setSortLocale()
         getGenePredCmd, toPslCmd = self.__getGenePredToPslCmds("/dev/stdout", "/dev/null", testAccvSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))

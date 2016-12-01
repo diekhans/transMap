@@ -2,14 +2,15 @@
 
 import transMapProgSetup  # noqa: F401
 import sys
+import os
 import sqlite3
 import argparse
-#import pipettor
-#import logger
-from pycbio.sys import loggingOps
-from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
-from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
+import pipettor
+from pycbio.sys import fileOps, loggingOps
+from transMap import setSortLocale, getChromSizes
 from transMap.transMapConf import TransMapConf
+from transMap.genomeData import AnnotationType, ChainType
+from transMap.srcData import SourceDbTables, SrcAlignDbTable
 
 
 def parseArgs():
@@ -20,6 +21,8 @@ def parseArgs():
     loggingOps.addCmdOptions(parser)
     parser.add_argument("--buildTmpDir", default="build.tmp",
                         help="""temporary directory for this build""")
+    parser.add_argument("--directRun", action="store_true", default=False,
+                        help="""run the batch file as a script, for testing when parasol isn't available """)
     parser.add_argument("dataDir",
                         help="""directory for data files that are input """)
     parser.add_argument("srcHgDb",
@@ -28,9 +31,12 @@ def parseArgs():
                         help="""destination browser database """)
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type""")
+    parser.add_argument("chainType", choices=(ChainType.all, ChainType.syn, ChainType.rbest), type=ChainType,
+                        help="""type of chains to use""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
+
 
 def getSrcAlignOidRange(conf):
     srcDbConn = sqlite3.connect(conf.srcDb)
@@ -40,31 +46,84 @@ def getSrcAlignOidRange(conf):
     finally:
         srcDbConn.close()
 
-def writeBatchJob(batchFh, nextOid, stopOid):
-    batchFh.write("".format())
 
-
-def createBatch(conf):
+def srcAlignPartitionGen(conf):
     startOid, endOid = getSrcAlignOidRange(conf)
-    seqsPerJob = conf.numSeqsPerJob()
-    batchFile = conf.batchParaFile()
+    seqsPerJob = conf.numSeqsPerJob
+    nextOid = startOid
+    while nextOid < endOid:
+        stopOid = min(nextOid + seqsPerJob, endOid)
+        yield nextOid, stopOid
+        nextOid = stopOid
+
+
+def writeBatchJob(conf, batchFh, startOid, endOid, directRun):
+    jobPreBigPsl = conf.getJobPreBigPsl(startOid, endOid)
+    if directRun:
+        outFileSpec = jobPreBigPsl
+    else:
+        outFileSpec = "{{check out exists {}}}".format(jobPreBigPsl)
+
+    cmd = [os.path.join(conf.binDir, "transMapJobWrapper"),
+           "--buildTmpDir={}".format(conf.buildTmpDir),
+           conf.dataDir, conf.srcHgDb, conf.destHgDb,
+           str(conf.annotationType), str(conf.chainType),
+           str(startOid), str(endOid), outFileSpec]
+    batchFh.write("{}\n".format(" ".join(cmd)))
+
+
+def createBatch(conf, directRun):
+    batchFile = conf.batchParaFile
     fileOps.ensureFileDir(batchFile)
     tmpBatchFile = fileOps.atomicTmpFile(batchFile)
-    nextOid = startOid
     with open(tmpBatchFile, "w") as batchFh:
-        while nextOid < endOid:
-            stopOid = min(nextOid+seqsPerJob, endOid)
-            writeBatchJob(batchFh, nextOid, stopOid)
-            nextOid = stopOid
-    
+        for startOid, endOid in srcAlignPartitionGen(conf):
+            writeBatchJob(conf, batchFh, startOid, endOid, directRun)
     fileOps.atomicInstall(tmpBatchFile, batchFile)
+
+
+def directRunBatch(conf, batchFile):
+    pipettor.run(["bash", "-ex", batchFile])
+
+
+def writeSortList(conf):
+    tmpSortList = fileOps.tmpFileGet("transMap.sort.")
+    with open(tmpSortList, "w") as fh:
+        for startOid, endOid in srcAlignPartitionGen(conf):
+            fh.write(conf.getJobPreBigPsl(startOid, endOid))
+            fh.write("\0")
+    return tmpSortList
+
+
+def finishBatch(conf):
+    sortProg = "gsort" if sys.platform == 'darwin' else "sort"
+    tmpSortList = writeSortList(conf)
+    # fields 3,4 are for test stability
+    batchPreBigPsl = fileOps.tmpFileGet("transmap.batch.", ".preBigBed")
+    sortCmd = [sortProg, "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
+               "--merge", "--files0-from={}".format(tmpSortList),
+               "--output={}".format(batchPreBigPsl)]
+    pipettor.run([sortCmd])
+    fileOps.ensureFileDir(conf.mappedBigPslFile)
+    mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
+    pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
+                  "-as={}/etc/bigTransMap.as".format(conf.codeRootDir),
+                  batchPreBigPsl, getChromSizes(conf.destHgDb),
+                  mappedBigPslTmpFile])
+    fileOps.atomicInstall(mappedBigPslTmpFile, conf.mappedBigPslFile)
+    os.unlink(batchPreBigPsl)
 
 
 def transMapBatch(opts):
     conf = TransMapConf(dataDir=opts.dataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
-                        annotationType=opts.annotationType, buildTmpDir=opts.buildTmpDir)
-    batchFile = conf.batchParaFile()
+                        annotationType=opts.annotationType, chainType=opts.chainType,
+                        buildTmpDir=opts.buildTmpDir)
+    batchFile = conf.batchParaFile
     if not os.path.exists(batchFile):
-        createBatch(conf)
+        createBatch(conf, opts.directRun)
+    if opts.directRun:
+        directRunBatch(conf, batchFile)
+    finishBatch(conf)
 
+setSortLocale()
 transMapBatch(parseArgs())

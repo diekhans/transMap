@@ -60,6 +60,5 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata):
            _pslToBedIdent(srcPsl),  # srcScore
            geneName,
            geneId,
-           chainType,
-    ]
+           chainType]
     return row

@@ -12,6 +12,7 @@ from pycbio.hgbrowser.coords import Coords
 from pycbio.sys import fileOps
 from pycbio.hgdata.psl import PslTbl
 from pycbio.hgdata.hgLite import sqliteHaveTable
+from transMap import setSortLocale
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
 from transMap.genomeData import AnnotationType, ChainType
 from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
@@ -45,6 +46,8 @@ def parseArgs():
                         help="""object id of start row in srcDb.srcAligns""")
     parser.add_argument("endOid",
                         help="""object id of one past last row in srcDb.srcAligns""")
+    parser.add_argument("mappedPreBigPsl",
+                        help="""output for input to bedToBigBed""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
@@ -223,10 +226,12 @@ def transMapJob(opts):
     # fields 3,4 are for test stability
     sortBedCmd = ["sort", "-k1,1", "-k2,2n", "-k3,3n", "-k4,4"]
 
-    preBigPsl = conf.getJobPreBigBed(opts.startOid, opts.endOid)
-    fileOps.ensureFileDir(preBigPsl)
-    with pipettor.Popen([sortBedCmd], "w", stdout=preBigPsl, logger=logging.getLogger()) as mappedPreBigPslFh:
+    tmpMappedPreBigPsl = fileOps.atomicTmpFile(opts.mappedPreBigPsl)
+    fileOps.ensureFileDir(tmpMappedPreBigPsl)
+    with pipettor.Popen([sortBedCmd], "w", stdout=tmpMappedPreBigPsl, logger=logging.getLogger()) as mappedPreBigPslFh:
         for srcPslsCoords in srcPslGroups.iterkeys():
             pslMapper.mapPslGroup(srcPslsCoords, srcPslGroups[srcPslsCoords], mappedPreBigPslFh)
+    fileOps.atomicInstall(tmpMappedPreBigPsl, opts.mappedPreBigPsl)
 
+setSortLocale()
 transMapJob(parseArgs())

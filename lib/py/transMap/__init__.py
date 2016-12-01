@@ -4,6 +4,11 @@ import re
 import os
 
 
+def setSortLocale():
+    "make sure sort command does the right thing"
+    os.environ["LC_ALL"] = "C"
+
+
 def getTwoBit(db):
     paths = ["/scratch/data/{db}/{db}.2bit".format(db=db),
              "/hive/data/genomes/{db}/{db}.2bit".format(db=db)]

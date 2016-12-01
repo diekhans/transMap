@@ -1,6 +1,7 @@
 from pycbio.hgdata import hgDb
 import pipettor
 import logging
+from transMap import setSortLocale
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
 
@@ -36,6 +37,7 @@ class GenbankHgData(object):
     def alignReader(self, testAccSubset=None):
         """get generator to return alignments with updated qNames,
         these are raw rows."""
+        setSortLocale()
         sql = self.pslSelectTmpl.format(self.__getPslTbl())
         if testAccSubset is not None:
             sql += " AND (qName in ({}))".format(",".join(['"{}"'.format(name) for name in testAccSubset]))
