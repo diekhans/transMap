@@ -41,7 +41,7 @@ class TransMapConf(object):
         return os.path.join(self.codeRootDir, "bin")
 
     @property
-    def genomeDataDb(self):
+    def genomeDb(self):
         self.__needOptions("dataDir")
         return os.path.join(self.dataDir, "genome.db")
 

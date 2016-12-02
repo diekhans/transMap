@@ -127,10 +127,10 @@ genomeDbLoadTests: genomeDbLoadTest
 
 # felCat3 is projection ensembl
 genomeDbLoadTest: mkdirs
-	rm -f output/$@.db
-	${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 --tree=${treeHg38} --tree=${treeHg19} hgcentraltest output/$@.db
-	sqlite3 -batch output/$@.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
-	sqlite3 -batch output/$@.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
+	rm -rf output/$@.data
+	${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 --tree=${treeHg38} --tree=${treeHg19} output/$@.data hgcentraltest
+	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
+	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
 	${diff} expected/$@.chainsinfo output/$@.chainsinfo
 	${diff} expected/$@.genomeasms output/$@.genomeasms
 
