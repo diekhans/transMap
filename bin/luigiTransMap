@@ -1,0 +1,107 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import sys
+import argparse
+import sqlite3
+from pycbio.sys import loggingOps
+from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
+import luigi
+
+
+def parseArgs():
+    desc = """
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    loggingOps.addCmdOptions(parser)
+    parser.add_argument("--hgDb", action="append", default=None, dest="hgDbs",
+                        help="""limit to these databases for testing, maybe repeated""")
+    parser.add_argument("--tree", dest="trees", action="append", default=[],
+                        help="set branch lengths from this tree file, maybe repeated.  The distance from the newest databases are used."
+                        "If file ends in .mod, its assumes to be a phastCons model file, otherwise a newick tree file ")
+    parser.add_argument("--genbankConfRa", default=GenbankConf.stdConfRaFile,
+                        help="""UCSC genbank configuration ra file""")
+    parser.add_argument("hgCentralDb",
+                        help="""name of hgcentral database used to find active assemblies""")
+    parser.add_argument("genomeDb",
+                        help="""sqlite3 database for genome information""")
+    opts = parser.parse_args()
+    loggingOps.setupFromCmd(opts, sys.argv[0])
+    return opts
+
+
+def getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs=None):
+    "returns rows from hgcentral dbDb"
+    sql = "SELECT DISTINCT dd.name as name, dd.genome as genome, dd.organism as commonName, dd.scientificName as scientificName, gc.clade from {hgCentralDb}.dbDb dd, {hgCentralDb}.genomeClade gc WHERE (dd.genome = gc.genome)".format(hgCentralDb=hgCentralDb)
+    if subsetHgDbs is not None:
+        sql += " AND (name in ({}))".format(",".join(['"{}"'.format(db) for db in subsetHgDbs]))
+    cur = hgDbConn.cursor()
+    try:
+        cur.execute(sql)
+        return [row for row in cur]
+    finally:
+        cur.close()
+
+
+def getAnnotationTypes(hgDbConn, hgDb, genbankConf):
+    annTypes = set()
+    gbDbConf = genbankConf.get(hgDb)
+    if gbDbConf is not None:
+        annTypes |= gbDbConf.getEnabled()
+    if haveGencode(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.gencode)
+    elif haveEnsemblFull(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.ensembl)
+    if len(annTypes) == 0:
+        return None
+    else:
+        return AnnotationTypeSet(annTypes)
+
+
+def mkGenomeAsm(hgDbConn, dbDb, genbankConf):
+    return GenomeAsm(dbDb["name"], dbDb["clade"], dbDb["commonName"], dbDb["scientificName"],
+                     getAnnotationTypes(hgDbConn, dbDb["name"], genbankConf))
+
+
+def loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf):
+    genomeAsms = [mkGenomeAsm(hgDbConn, dbDb, genbankConf) for dbDb in activeDbDbs]
+    asmsTbl = GenomeAsmsDbTable(genomeDbConn, GenomesDbTables.genomeAsmsTbl, create=True)
+    asmsTbl.loads(genomeAsms)
+    asmsTbl.index()
+
+
+def checkChainsDist(chains):
+    "verify chains distance, report all errors"
+    errCnt = 0
+    for chain in chains:
+        if chain.dist is None:
+            sys.stderr.write("Error: no distance for {}".format(chain))
+            errCnt += 1
+    if errCnt != 0:
+        raise Exception("{} chains without phylogenetic distance, add appropriate trees\n".format(errCnt))
+
+
+def loadGenomicChains(genomeDbConn, distances, activeHgDbs):
+    chainsFinder = ChainsFinder(distances)
+    chains = chainsFinder.findChains(activeHgDbs)
+    checkChainsDist(chains)
+    chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl, True)
+    chainsTbl.loads(chains)
+    chainsTbl.index()
+
+
+def luigiTransMap():
+    genbankConf = GenbankConf(genbankConfRa)
+    distances = PhyloDistances(trees)
+    hgDbConn = hgDb.connect(dictCursor=True)
+    genomeDbConn = sqlite3.connect(genomeDb)
+    activeDbDbs = getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs)
+    activeHgDbs = [row["name"] for row in activeDbDbs]
+    loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
+    loadGenomicChains(genomeDbConn, distances, activeHgDbs)
+    genomeDbConn.close()
+    hgDbConn.close()
+
+# entry
+opts = parseArgs()
+genomeDbLoad(opts.hgCentralDb, opts.genomeDb, opts.trees, opts.genbankConfRa, opts.hgDbs)

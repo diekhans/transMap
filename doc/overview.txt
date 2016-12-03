@@ -1,69 +1,52 @@
 Terminology
 
-  - source assembly (srcDb) - genome from which transcripts are obtained, identified
+  - source assembly (srcHgDb) - genome from which transcripts are obtained, identified
     by UCSC database.
   - source id (srcId) - identifier for the source transcript sequence in the form
-    srcDb:acc.ver
+    srcHgDb:acc.ver
   - source alignment id (srcAlignId) - unique id of the source alignment or annotation
     in the form srcId-uniqmod, where unique mod is integer.
   - accession (acc) - basic identifier in the source database, this doesn't include version
   - accession version (accv) - fully accession with version number, which describes
     a unique sequence.
-  - transMap source database (transMapSrcDb) - A sqlite3 database created to hold all of
-    the source data for the mapping jobs.
+  - destination assembly (destHgDb) - genome to which transcripts are mapped,
+    identified by UCSC database.
+  - source transcript database (srcDb) - A sqlite3 database to hold all of the
+    source data for the mapping jobs (alignments, transcript sequences,
+    metadata)
+  - genome database (genomeDb) - A sqlite3 database with information about
+    active genomes, including which source transcripts and chains are
+    available.
+  - mappingChains, mappingChainsIndexDb - filtered chain file for mappings,
+    along with a sqlite3 databases index by query range.  These are temporary,
+    for the life of a run.  They will be used by multiple batches for
+    different source types.
+  - build type (full, incremental) - a full build builds all source datasets
+    and mappings.  An incremental will obtain new source data and do mappings
+    to new genomes from both existing and new source data.  Existing sources
+    or mappings are not rebuilt, even though there might be newer source
+    data available.  The goal of the incremental is to create mappings
+    to new assemblies.
 
+Pipeline:
 
-Overview of TransMap algorithm implementation for cross-species cDNA alignments:
+The pipeline is controlled by Luigi, which in turn runs parasol batches for
+larger compute tasks.
 
-  - Identify desired set of source genomes that have the desired set of
-    native cDNA alignments.
-   
-  - Identify desired set of destination genomes that have chains and nets from
-    one or more source organisms, resulting in pairs of source/destination
-    genome.
+  - Build new genomeDb to reflect state of system.
 
-  - For each source genome obtain and save
-    - PSL alignments of the source cDNAs, with the cDNA accession.version turned into 
-      unique alignment ids using pslQueryUniq.  For example two alignments of
-      DQ592480.1 results in ids DQ592480.1-1 and DQ592480.1-2.
+  - Generate list of target destHgDbs, this is the latest of each active
+    genome, plus a specific list of older genomes.
 
-    - FASTA file of cDNA sequences
+  - Generate list of srcHgDbs that have chains to each target destHgDb
 
-    - Tab-separated file of meta data, consisting of:
-           acc   geneCDS   geneName   type
+  - Define tasks to build missing srcDb databases for each of
+    the srcHgDbs for all annotation types. This is not a time
+    dependency, srcDbs are built only if they don't exist.
+    A srcDb contains the alignments, sequences and metadata
+    for each source transcript for a particular type.
 
-       - acc is the accession.version
-       - geneCDS is the CDS, in genbank format, or empty if no CDS
-       - geneName is the gene name (symbol) or empty if not available
-       - type - type of sequence, never actually used
-         
-     for example:
-       AB212816.1	10..1005	GnRHR1/III-1	mRNA
+  - Define task to build mapping chains databases for all pairs
+    of srcHgDb/destHgDb mappings to build build
 
-  - For each source/destination genome pair and a given set of source alignments:
-
-    - Select set of chains to use for the mapping.  The browser vertebrate
-      alignments use syntenic chains for alignments with branch lengths
-      of no more than 0.5, as computed by phyloFit.  All chains are used
-      for more distance genomes.
-
-      - To select syntenic chains, use the netFilter and netChainSubset commands.
-        The netChainSubset -wholeChains option selects changes without truncating
-        them to match the net to prevents gene fragmentation.  Here is an example
-        to create chains for mapping human mRNAs to mouse:
-
-           chainDir=/cluster/data/mm8/bed/blastz.hg18/axtChain
-           netFilter -syn $chainDir/mm8.hg18.net.gz >mm8.hg18.syn.net
-           netChainSubset -wholeChains mm8.hg18.syn.net $chainDir/mm8.hg18.all.chain.gz mm8.hg18.syn.chain
-
-    - For large genomes, it maybe necessary to partition chains by destination chromosome,
-      attempting to map all source cDNAs through each partition.  This is not covered
-      in this overview.
-
-    - Use pslMap to create cross-species alignments, saving the mapping information:
-      
-         pslMap -chainMapFile -mappingPsls=mrna.mm8.hg18.raw.mapinfo mrna.hg18.psl mm8.hg18.syn.chain mrna.mm8.hg18.raw.psl
-
-    - Filter alignments to remove small
-
-
+  - Define task to do mappings.

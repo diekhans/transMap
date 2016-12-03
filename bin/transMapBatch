@@ -7,8 +7,9 @@ import sqlite3
 import argparse
 import pipettor
 from pycbio.sys import fileOps, loggingOps
+from pycbio.distrib.parasol import Para
 from transMap import setSortLocale, getChromSizes
-from transMap.transMapConf import TransMapConf
+from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import AnnotationType, ChainType
 from transMap.srcData import SourceDbTables, SrcAlignDbTable
 
@@ -19,12 +20,10 @@ def parseArgs():
     """
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)
-    parser.add_argument("--buildTmpDir", default="build.tmp",
-                        help="""temporary directory for this build""")
     parser.add_argument("--directRun", action="store_true", default=False,
                         help="""run the batch file as a script, for testing when parasol isn't available """)
-    parser.add_argument("dataDir",
-                        help="""directory for data files that are input """)
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
     parser.add_argument("srcHgDb",
                         help="""mysql database for source assembly""")
     parser.add_argument("destHgDb",
@@ -65,8 +64,7 @@ def writeBatchJob(conf, batchFh, startOid, endOid, directRun):
         outFileSpec = "{{check out exists {}}}".format(jobPreBigPsl)
 
     cmd = [os.path.join(conf.binDir, "transMapJobWrapper"),
-           "--buildTmpDir={}".format(conf.buildTmpDir),
-           conf.dataDir, conf.srcHgDb, conf.destHgDb,
+           conf.configPyFile, conf.srcHgDb, conf.destHgDb,
            str(conf.annotationType), str(conf.chainType),
            str(startOid), str(endOid), outFileSpec]
     batchFh.write("{}\n".format(" ".join(cmd)))
@@ -85,6 +83,8 @@ def createBatch(conf, directRun):
 def directRunBatch(conf, batchFile):
     pipettor.run(["bash", "-ex", batchFile])
 
+def paraRunBatch(conf, batchFile):
+    para = Para(conf.paraHost)
 
 def writeSortList(conf):
     tmpSortList = fileOps.tmpFileGet("transMap.sort.")
@@ -115,14 +115,17 @@ def finishBatch(conf):
 
 
 def transMapBatch(opts):
-    conf = TransMapConf(dataDir=opts.dataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
-                        annotationType=opts.annotationType, chainType=opts.chainType,
-                        buildTmpDir=opts.buildTmpDir)
+    conf = transMapConfLoad(opts.configPyFile, srcHgDb=opts.srcHgDb,
+                            destHgDb=opts.destHgDb,
+                            annotationType=opts.annotationType,
+                            chainType=opts.chainType)
     batchFile = conf.batchParaFile
     if not os.path.exists(batchFile):
         createBatch(conf, opts.directRun)
     if opts.directRun:
         directRunBatch(conf, batchFile)
+    else:
+        paraRunBatch(conf, batchFile)
     finishBatch(conf)
 
 setSortLocale()

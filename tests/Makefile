@@ -164,13 +164,13 @@ endef
 
 transMapJobTest: mkdirs
 	${transMapEnvSetup}
-	${transMapJob} --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna all 1 11 output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed
+	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapJob} input/testTransMapConf.py hg19 mm10 rna all 1 11 output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed
 	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed
 	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
 
 transMapBatchTest: mkdirs
 	${transMapEnvSetup}
-	${transMapBatch} --directRun --buildTmpDir=output/$@.build output/$@.data hg19 mm10 rna all
+	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBatch} --directRun input/testTransMapConf.py hg19 mm10 rna all
 	bigBedToBed output/transMapBatchTest.data/mapped/mm10/hg19/mm10.hg19.rna.mapped.bigPsl output/$@.preBigPsl
 	${diff} expected/$@.preBigPsl output/$@.preBigPsl
 

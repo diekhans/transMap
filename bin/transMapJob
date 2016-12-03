@@ -19,7 +19,7 @@ from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
 from transMap.bigTransMap import bigTransMapMakeRec
 from pycbio.hgdata.hgLite import SequenceDbTable
 from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable
-from transMap.transMapConf import TransMapConf
+from transMap.transMapConf import transMapConfLoad
 
 
 def parseArgs():
@@ -30,10 +30,8 @@ def parseArgs():
     loggingOps.addCmdOptions(parser)
     parser.add_argument("--keep", action="store_true",
                         help="""mysql database for source assembly""")
-    parser.add_argument("--buildTmpDir", default="build.tmp",
-                        help="""temporary directory for this build""")
-    parser.add_argument("dataDir",
-                        help="""data directory""")
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
     parser.add_argument("srcHgDb",
                         help="""mysql database for source assembly""")
     parser.add_argument("destHgDb",
@@ -208,9 +206,10 @@ class PslMapper(object):
 
 
 def transMapJob(opts):
-    conf = TransMapConf(dataDir=opts.dataDir, srcHgDb=opts.srcHgDb, destHgDb=opts.destHgDb,
-                        annotationType=opts.annotationType, chainType=opts.chainType,
-                        buildTmpDir=opts.buildTmpDir)
+    conf = transMapConfLoad(opts.configPyFile, srcHgDb=opts.srcHgDb,
+                            destHgDb=opts.destHgDb,
+                            annotationType=opts.annotationType,
+                            chainType=opts.chainType)
     srcDbConn = sqlite3.connect(conf.srcDb)
     if sqliteHaveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
         srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl)

@@ -1,6 +1,7 @@
 import os
 import sys
 from transMap.genomeData import AnnotationType
+from pycbio.sys.configInPy import evalConfigFunc
 
 # FIXME: need to track chain type and add to output
 
@@ -10,10 +11,14 @@ class TransMapConf(object):
     a function:
        getConfig(<init_keywords_args>)
     The various options are needed only for certain operations and commands; it's an error
-    need and not supplied
+    need and not supplied.
+
+    An instance of this class is create by the configuration file, which
+    takes set values explicitly and from the command line.
     """
-    def __init__(self, dataDir=None, srcHgDb=None, destHgDb=None,
+    def __init__(self, configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                  annotationType=None, chainType=None, buildTmpDir=None):
+        self.configPyFile = configPyFile
         self.dataDir = dataDir
         self.srcHgDb = srcHgDb
         self.destHgDb = destHgDb
@@ -113,3 +118,19 @@ class TransMapConf(object):
 
     def getJobPreBigPsl(self, startOid, endOid):
         return os.path.join(self.jobPreBigPslDir, "{}.{}.preBigPsl".format(startOid, endOid))
+
+
+def transMapConfLoad(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
+                     annotationType=None, chainType=None, buildTmpDir=None):
+    """
+    Loads the configuration file which must have define a function getConfig,
+    which takes the same signature as TransMapConf.__init__ and returns an instance
+    of that class.
+    """
+    getFuncKwargs = {"dataDir": dataDir,
+                     "srcHgDb": srcHgDb,
+                     "destHgDb": destHgDb,
+                     "annotationType": annotationType,
+                     "chainType": chainType,
+                     "buildTmpDir": buildTmpDir}
+    return evalConfigFunc(configPyFile, getFuncKwargs=getFuncKwargs)
