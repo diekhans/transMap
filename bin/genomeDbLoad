@@ -95,7 +95,7 @@ def loadGenomicChains(genomeDbConn, distances, activeHgDbs):
 def genomeDbLoad(opts):
     conf = transMapConfLoad(opts.configPyFile)
     genbankConf = GenbankConf(conf.genbankConfRa)
-    distances = PhyloDistances(conf.trees)
+    distances = PhyloDistances(conf.treeFiles)
     hgDbConn = hgDb.connect(dictCursor=True)
     genomeDbTmp = fileOps.atomicTmpFile(conf.genomeDb)
     fileOps.ensureFileDir(conf.genomeDb)

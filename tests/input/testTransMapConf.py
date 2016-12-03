@@ -13,10 +13,15 @@ def _getConfVal(name, supplied):
 
 def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
               annotationType=None, chainType=None, buildTmpDir=None):
-    return TransMapConf(configPyFile,
+    conf = TransMapConf(configPyFile,
                         dataDir=_getConfVal("dataDir", dataDir),
                         srcHgDb=_getConfVal("srcHgDb", srcHgDb),
                         destHgDb=_getConfVal("destHgDb", destHgDb),
                         annotationType=_getConfVal("annotationType", annotationType),
                         chainType=_getConfVal("chainType", chainType),
                         buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
+    conf.treeFiles = [
+        "/hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh",
+        "/hive/data/genomes/hg19/bed/multiz4way/44way.nh"
+        ]
+    return conf

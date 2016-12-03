@@ -21,10 +21,6 @@ ensemblTypes = gencode ensembl
 #  $(call srcDbLoadTestDb,setName)
 srcDbLoadTestDb = $(if $(filter $(1),ensembl),felCat5,hg19)
 
-treeHg38 = /hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh
-treeHg19 = /hive/data/genomes/hg19/bed/multiz4way/44way.nh
-
-
 diff = diff
 
 test: srcDbTests mappingTests
@@ -128,7 +124,7 @@ genomeDbLoadTests: genomeDbLoadTest
 # felCat3 is projection ensembl
 genomeDbLoadTest: mkdirs
 	rm -rf output/$@.data
-	dataDir=output/$@.data ${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 --tree=${treeHg38} --tree=${treeHg19} input/testTransMapConf.py hgcentraltest
+	dataDir=output/$@.data ${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 input/testTransMapConf.py hgcentraltest
 	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from chains order by srcDb, destDb, chainType' >output/$@.chainsinfo
 	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
 	${diff} expected/$@.chainsinfo output/$@.chainsinfo
@@ -209,7 +205,7 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 	sqlite3 -batch output/$*_srcDbLoadEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
 mappingGenomeDbUpdate: mkdirs
-	${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 --tree=${treeHg19} hgcentraltest output/$@.db
+	${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 hgcentraltest output/$@.db
 	sqlite3 -batch output/$@.db \
 	   'update chains set chainFile="input/mm10.hg19.chain", netFile="input/mm10.hg19.net" where srcDb="hg19"' \
 	   '.dump' > input/mappingGenomeDb.sql
