@@ -2,6 +2,7 @@ import os
 import sys
 from transMap.genomeData import AnnotationType
 from pycbio.sys.configInPy import evalConfigFunc
+from transMap.genbankConf import GenbankConf
 
 # FIXME: need to track chain type and add to output
 
@@ -26,11 +27,25 @@ class TransMapConf(object):
         self.chainType = chainType
         self.buildTmpDir = buildTmpDir
 
+        # set branch lengths from these tree files.  The distance from the
+        # newest databases are used.  If file ends in .mod, it's assumes to be
+        # a phastCons model file, otherwise a newick tree file
+
+        self.treeFiles = [
+            "/hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh",
+            "/hive/data/genomes/hg19/bed/multiz4way/44way.nh"
+        ]
+
+        # genbank
+        self.genbankConfRa = GenbankConf.stdConfRaFile
+
         # arguments to pslCDnaFilter
         self.mappedMinQSize = 20
         self.mappedMinCover = 0.20
         self.mappedMaxAligns = 20
         self.mappedGlobalNearBest = 0.01
+
+        self.paraHost = "ku"
 
     def __needOptions(self, *fields):
         for field in fields:

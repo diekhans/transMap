@@ -83,8 +83,11 @@ def createBatch(conf, directRun):
 def directRunBatch(conf, batchFile):
     pipettor.run(["bash", "-ex", batchFile])
 
+
 def paraRunBatch(conf, batchFile):
     para = Para(conf.paraHost)
+    print para
+
 
 def writeSortList(conf):
     tmpSortList = fileOps.tmpFileGet("transMap.sort.")

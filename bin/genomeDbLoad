@@ -7,7 +7,7 @@ import sqlite3
 from pycbio.sys import loggingOps
 from pycbio.sys import fileOps
 from pycbio.hgdata import hgDb
-from transMap.transMapConf import TransMapConf
+from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
 from transMap.ensembl import haveEnsemblFull, haveGencode
 from transMap.chainsFinder import ChainsFinder
@@ -21,15 +21,10 @@ def parseArgs():
     """
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)
-    parser.add_argument("--hgDb", action="append", default=None, dest="hgDbs",
+    parser.add_argument("--hgDb", action="append", default=None, dest="subsetHgDbs",
                         help="""limit to these databases for testing, maybe repeated""")
-    parser.add_argument("--tree", dest="trees", action="append", default=[],
-                        help="set branch lengths from this tree file, maybe repeated.  The distance from the newest databases are used."
-                        "If file ends in .mod, its assumes to be a phastCons model file, otherwise a newick tree file ")
-    parser.add_argument("--genbankConfRa", default=GenbankConf.stdConfRaFile,
-                        help="""UCSC genbank configuration ra file""")
-    parser.add_argument("dataDir",
-                        help="""directory for data files that are input """)
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
     parser.add_argument("hgCentralDb",
                         help="""name of hgcentral database used to find active assemblies""")
     opts = parser.parse_args()
@@ -97,15 +92,15 @@ def loadGenomicChains(genomeDbConn, distances, activeHgDbs):
     chainsTbl.index()
 
 
-def genomeDbLoad(dataDir, hgCentralDb, trees, genbankConfRa, subsetHgDbs=None):
-    conf = TransMapConf(dataDir=opts.dataDir)
-    genbankConf = GenbankConf(genbankConfRa)
-    distances = PhyloDistances(trees)
+def genomeDbLoad(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    genbankConf = GenbankConf(conf.genbankConfRa)
+    distances = PhyloDistances(conf.trees)
     hgDbConn = hgDb.connect(dictCursor=True)
     genomeDbTmp = fileOps.atomicTmpFile(conf.genomeDb)
     fileOps.ensureFileDir(conf.genomeDb)
     genomeDbConn = sqlite3.connect(genomeDbTmp)
-    activeDbDbs = getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs)
+    activeDbDbs = getActiveDbDb(hgDbConn, opts.hgCentralDb, opts.subsetHgDbs)
     activeHgDbs = [row["name"] for row in activeDbDbs]
     loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
     loadGenomicChains(genomeDbConn, distances, activeHgDbs)
@@ -114,5 +109,4 @@ def genomeDbLoad(dataDir, hgCentralDb, trees, genbankConfRa, subsetHgDbs=None):
     hgDbConn.close()
 
 # entry
-opts = parseArgs()
-genomeDbLoad(opts.dataDir, opts.hgCentralDb, opts.trees, opts.genbankConfRa, opts.hgDbs)
+genomeDbLoad(parseArgs())
