@@ -8,7 +8,7 @@ import argparse
 import pipettor
 from pycbio.sys import fileOps, loggingOps
 from pycbio.distrib.parasol import Para
-from transMap import setSortLocale, getChromSizes
+from transMap import setSortLocale, getSortProg
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import AnnotationType, ChainType
 from transMap.srcData import SourceDbTables, SrcAlignDbTable
@@ -90,7 +90,7 @@ def paraRunBatch(conf, batchFile):
 
 
 def writeSortList(conf):
-    tmpSortList = fileOps.tmpFileGet("transMap.sort.")
+    tmpSortList = fileOps.tmpFileGet("transMap.batch-sort.")
     with open(tmpSortList, "w") as fh:
         for startOid, endOid in srcAlignPartitionGen(conf):
             fh.write(conf.getJobPreBigPsl(startOid, endOid))
@@ -99,22 +99,15 @@ def writeSortList(conf):
 
 
 def finishBatch(conf):
-    sortProg = "gsort" if sys.platform == 'darwin' else "sort"
     tmpSortList = writeSortList(conf)
     # fields 3,4 are for test stability
-    batchPreBigPsl = fileOps.tmpFileGet("transmap.batch.", ".preBigBed")
-    sortCmd = [sortProg, "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
+    fileOps.ensureFileDir(conf.batchPreBigPsl)
+    batchPreBigPslTmp = fileOps.atomicTmpFile(conf.batchPreBigPsl)
+    sortCmd = [getSortProg(), "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
                "--merge", "--files0-from={}".format(tmpSortList),
-               "--output={}".format(batchPreBigPsl)]
-    pipettor.run([sortCmd])
-    fileOps.ensureFileDir(conf.mappedBigPslFile)
-    mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
-    pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
-                  "-as={}/etc/bigTransMap.as".format(conf.codeRootDir),
-                  batchPreBigPsl, getChromSizes(conf.destHgDb),
-                  mappedBigPslTmpFile])
-    fileOps.atomicInstall(mappedBigPslTmpFile, conf.mappedBigPslFile)
-    os.unlink(batchPreBigPsl)
+               "--output={}".format(batchPreBigPslTmp)]
+    pipettor.run(sortCmd)
+    fileOps.atomicInstall(batchPreBigPslTmp, conf.batchPreBigPsl)
 
 
 def transMapBatch(opts):

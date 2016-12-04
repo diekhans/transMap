@@ -68,14 +68,14 @@ class TransMapConf(object):
 
     @property
     def mappedDataDir(self):
-        self.__needOptions("dataDir", "destHgDb", "srcHgDb")
-        return os.path.join(self.dataDir, "mapped", self.destHgDb, self.srcHgDb)
+        self.__needOptions("dataDir", "destHgDb")
+        return os.path.join(self.dataDir, "mapped", self.destHgDb)
 
     @property
     def mappedBigPslFile(self):
-        self.__needOptions("destHgDb", "srcHgDb", "annotationType")
+        self.__needOptions("destHgDb", "annotationType")
         return os.path.join(self.mappedDataDir,
-                            "{}.{}.{}.mapped.bigPsl".format(self.destHgDb, self.srcHgDb, self.annotationType))
+                            "{}.{}.mapped.bigPsl".format(self.destHgDb, self.annotationType))
 
     @property
     def mappingChainsDir(self):
@@ -124,6 +124,16 @@ class TransMapConf(object):
 
     def getJobPreBigPsl(self, startOid, endOid):
         return os.path.join(self.jobPreBigPslDir, "{}.{}.preBigPsl".format(startOid, endOid))
+
+    def getBatchSrcHgDbPreBigPsl(self, srcHgDb):
+        self.__needOptions("buildTmpDir", "destHgDb", "annotationType")
+        return os.path.join(self.buildTmpDir, "results", self.destHgDb,
+                            "{}.{}.{}.preBigPsl".format(self.destHgDb, srcHgDb, self.annotationType))
+
+    @property
+    def batchPreBigPsl(self):
+        self.__needOptions("buildTmpDir", "srcHgDb", "destHgDb", "annotationType")
+        return self.getBatchSrcHgDbPreBigPsl(self.srcHgDb)
 
 
 def transMapConfLoad(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,

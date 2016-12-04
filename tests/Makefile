@@ -12,6 +12,7 @@ genomeDbLoad = ../bin/genomeDbLoad
 mappingChainBuild = ../bin/mappingChainBuild
 transMapJob = ../bin/transMapJob
 transMapBatch = ../bin/transMapBatch
+transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
@@ -132,7 +133,7 @@ genomeDbLoadTest: mkdirs
 
 #########################################################################################
 mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
-	transMapJobTest transMapBatchTest
+	transMapJobTest transMapBatchTest transMapBuildBigPslTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -167,8 +168,14 @@ transMapJobTest: mkdirs
 transMapBatchTest: mkdirs
 	${transMapEnvSetup}
 	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBatch} --directRun input/testTransMapConf.py hg19 mm10 rna all
-	bigBedToBed output/transMapBatchTest.data/mapped/mm10/hg19/mm10.hg19.rna.mapped.bigPsl output/$@.preBigPsl
-	${diff} expected/$@.preBigPsl output/$@.preBigPsl
+	${diff} expected/$@.preBigPsl output/transMapBatchTest.build/results/mm10/mm10.hg19.rna.preBigPsl
+
+transMapBuildBigPslTest: mkdirs
+	mkdir -p output/$@.build/results/mm10/
+	cp -f expected/transMapBatchTest.preBigPsl output/$@.build/results/mm10/mm10.hg19.rna.preBigPsl
+	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBuildBigPsl} input/testTransMapConf.py mm10 rna hg19
+	bigBedToBed output/transMapBuildBigPslTest.data/mapped/mm10/mm10.rna.mapped.bigPsl output/$@.preBigPsl
+	${diff} expected/transMapBatchTest.preBigPsl output/$@.preBigPsl
 
 #########################################################################################
 

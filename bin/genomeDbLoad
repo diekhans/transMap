@@ -18,6 +18,8 @@ from transMap.genbankConf import GenbankConf
 def parseArgs():
     desc = """Get information about genomes.  This finds all available chains and
     source data for all active genomes.
+
+    Approximate run time: 15 minutes
     """
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)

@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import sys
+import os
+import argparse
+import pipettor
+from pycbio.sys import fileOps, loggingOps
+from transMap import setSortLocale, getSortProg, getChromSizes
+from transMap.genomeData import AnnotationType
+from transMap.transMapConf import transMapConfLoad
+
+
+def parseArgs():
+    desc = """combine results of all transmap runs for a destDb into
+    a single bigPsl.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    loggingOps.addCmdOptions(parser)
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    parser.add_argument("destHgDb",
+                        help="""destination browser database """)
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
+                        help="""annotation set type""")
+    parser.add_argument("srcHgDbs", nargs="*",
+                        help="""source hgDb for all source assemblies """)
+    opts = parser.parse_args()
+    loggingOps.setupFromCmd(opts, sys.argv[0])
+    return opts
+
+
+def writeSortList(conf, srcHgDbs):
+    tmpSortList = fileOps.tmpFileGet("transMap.dest-sort.")
+    with open(tmpSortList, "w") as fh:
+        for srcHgDb in srcHgDbs:
+            fh.write(conf.getBatchSrcHgDbPreBigPsl(srcHgDb))
+            fh.write("\0")
+    return tmpSortList
+
+
+def transMapBuildBigPsl(opts):
+    conf = transMapConfLoad(opts.configPyFile,
+                            destHgDb=opts.destHgDb,
+                            annotationType=opts.annotationType)
+    tmpSortList = writeSortList(conf, opts.srcHgDbs)
+    # fields 3,4 are for test stability
+    mappedPreBigPsl = fileOps.tmpFileGet("transmap.dest.", "preBigPsl")
+    sortCmd = [getSortProg(), "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
+               "--merge", "--files0-from={}".format(tmpSortList),
+               "--output={}".format(mappedPreBigPsl)]
+    pipettor.run([sortCmd])
+    fileOps.ensureFileDir(conf.mappedBigPslFile)
+    mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
+    pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
+                  "-as={}/etc/bigTransMap.as".format(conf.codeRootDir),
+                  mappedPreBigPsl, getChromSizes(conf.destHgDb),
+                  mappedBigPslTmpFile])
+    fileOps.atomicInstall(mappedBigPslTmpFile, conf.mappedBigPslFile)
+    os.unlink(mappedPreBigPsl)
+
+
+setSortLocale()
+transMapBuildBigPsl(parseArgs())

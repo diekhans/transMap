@@ -2,11 +2,17 @@
 
 import re
 import os
+import sys
 
 
 def setSortLocale():
     "make sure sort command does the right thing"
     os.environ["LC_ALL"] = "C"
+
+
+def getSortProg():
+    "requires gnu sort"
+    return "gsort" if sys.platform == 'darwin' else "sort"
 
 
 def getTwoBit(db):
