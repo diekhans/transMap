@@ -12,7 +12,6 @@ from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
 from transMap.ensembl import haveEnsemblFull, haveGencode
 from transMap.chainsFinder import ChainsFinder
-from transMap.phyloTrees import PhyloDistances
 from transMap.genbankConf import GenbankConf
 
 
@@ -73,21 +72,9 @@ def loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf):
     asmsTbl.index()
 
 
-def checkChainsDist(chains):
-    "verify chains distance, report all errors"
-    errCnt = 0
-    for chain in chains:
-        if chain.dist is None:
-            sys.stderr.write("Error: no distance for {}".format(chain))
-            errCnt += 1
-    if errCnt != 0:
-        raise Exception("{} chains without phylogenetic distance, add appropriate trees\n".format(errCnt))
-
-
-def loadGenomicChains(genomeDbConn, distances, activeHgDbs):
-    chainsFinder = ChainsFinder(distances)
+def loadGenomicChains(genomeDbConn, activeHgDbs):
+    chainsFinder = ChainsFinder()
     chains = chainsFinder.findChains(activeHgDbs)
-    checkChainsDist(chains)
     chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl, True)
     chainsTbl.loads(chains)
     chainsTbl.index()
@@ -96,7 +83,6 @@ def loadGenomicChains(genomeDbConn, distances, activeHgDbs):
 def genomeDbLoad(opts):
     conf = transMapConfLoad(opts.configPyFile)
     genbankConf = GenbankConf(conf.genbankConfRa)
-    distances = PhyloDistances(conf.treeFiles)
     hgDbConn = hgDb.connect(dictCursor=True)
     genomeDbTmp = fileOps.atomicTmpFile(conf.genomeDb)
     fileOps.ensureFileDir(conf.genomeDb)
@@ -104,9 +90,8 @@ def genomeDbLoad(opts):
     activeDbDbs = getActiveDbDb(hgDbConn, opts.hgCentralDb, opts.subsetHgDbs)
     activeHgDbs = [row["name"] for row in activeDbDbs]
     print activeHgDbs
-    assert False
     loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
-    loadGenomicChains(genomeDbConn, distances, activeHgDbs)
+    loadGenomicChains(genomeDbConn, activeHgDbs)
     genomeDbConn.close()
     fileOps.atomicInstall(genomeDbTmp, conf.genomeDb)
     hgDbConn.close()

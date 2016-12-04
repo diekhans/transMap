@@ -27,15 +27,6 @@ class TransMapConf(object):
         self.chainType = chainType
         self.buildTmpDir = buildTmpDir
 
-        # set branch lengths from these tree files.  The distance from the
-        # newest databases are used.  If file ends in .mod, it's assumes to be
-        # a phastCons model file, otherwise a newick tree file
-
-        self.treeFiles = [
-            "/hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh",
-            "/hive/data/genomes/hg19/bed/multiz4way/44way.nh"
-        ]
-
         # genbank
         self.genbankConfRa = GenbankConf.stdConfRaFile
 

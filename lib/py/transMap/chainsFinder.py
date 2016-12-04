@@ -19,9 +19,6 @@ class ChainsFinder(object):
     #     hg18.ponAbe2.syn.net.gz
     # also lastz directories
 
-    def __init__(self, distances):
-        self.__distances = distances
-
     def findChains(self, hgDbs):
         """get genomeData.Chains for all pairings between provided databases"""
         chains = []
@@ -105,7 +102,6 @@ class ChainsFinder(object):
             netFile = self.__getLastzFile(targetHgDb, queryHgDb, chainsDir, netExt)
             if netFile is not None:
                 # note: queryHgDb = srcDb, targetHgDb = destDb
-                chains.append(Chains(queryHgDb, targetHgDb, chainType, chainFile, netFile,
-                                     self.__distances.get(targetHgDb, queryHgDb)))
+                chains.append(Chains(queryHgDb, targetHgDb, chainType, chainFile, netFile))
                 return True
         return False

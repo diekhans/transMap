@@ -4,6 +4,9 @@ from pycbio.sys import fileOps
 from transMap import hgDbNameParse
 from collections import namedtuple
 
+# FIXME: not currently used, but might make a nice, general module of
+# pycbio
+
 
 class PhyloDistances(object):
     """Phylogenetic distances from multiple tree files.  This uses the

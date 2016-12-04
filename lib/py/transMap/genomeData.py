@@ -52,7 +52,7 @@ sqlite3.register_converter("chainType", ChainType)
 
 
 class Chains(namedtuple("Chains",
-                        ("srcDb", "destDb", "chainType", "chainFile", "netFile", "dist"))):
+                        ("srcDb", "destDb", "chainType", "chainFile", "netFile"))):
     "Describes the chains used in a mapping to a destDb"
     # FIXME make srcDb/destDb and chainsFinder.py queryHgDb targetHgDb consistent
     __slots__ = ()
@@ -69,9 +69,8 @@ class ChainsDbTable(HgLiteTable):
             destDb text not null,
             chainType text not null,
             chainFile text not null,
-            netFile text not null,
-            dist float);"""
-    __insertSql = """INSERT INTO {table} (srcDb, destDb, chainType, chainFile, netFile, dist) VALUES (?, ?, ?, ?, ?, ?);"""
+            netFile text not null);"""
+    __insertSql = """INSERT INTO {table} (srcDb, destDb, chainType, chainFile, netFile) VALUES (?, ?, ?, ?, ?);"""
     __indexSql = ["""CREATE INDEX {table}_srcDb on {table} (srcDb);""",
                   """CREATE INDEX {table}_destDb on {table} (destDb);"""]
 

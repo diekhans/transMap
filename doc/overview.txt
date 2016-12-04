@@ -33,7 +33,7 @@ Pipeline:
 The pipeline is controlled by Luigi, which in turn runs parasol batches for
 larger compute tasks.
 
-  - Build new genomeDb to reflect state of system.
+  - Build new genomeDb to reflect state of all assemblies of interest
 
   - Generate list of target destHgDbs, this is the latest of each active
     genome, plus a specific list of older genomes.
