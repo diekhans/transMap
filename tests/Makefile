@@ -210,8 +210,8 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 	sqlite3 -batch output/$*_srcDbLoadEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
 mappingGenomeDbUpdate: mkdirs
-	${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 hgcentraltest output/$@.db
-	sqlite3 -batch output/$@.db \
+	dataDir=output/$@.data ${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 input/testTransMapConf.py hgcentraltest
+	sqlite3 -batch output/$@.data/genome.db \
 	   'update chains set chainFile="input/mm10.hg19.chain", netFile="input/mm10.hg19.net" where srcDb="hg19"' \
 	   '.dump' > input/mappingGenomeDb.sql
 

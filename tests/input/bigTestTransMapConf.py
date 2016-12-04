@@ -20,9 +20,5 @@ def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                         annotationType=_getConfVal("annotationType", annotationType),
                         chainType=_getConfVal("chainType", chainType),
                         buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
-    conf.treeFiles = [
-        "/hive/data/genomes/hg38/bed/multiz20way/hg38.20way.nh",
-        "/hive/data/genomes/hg19/bed/multiz4way/44way.nh"
-        ]
     conf.dataDir = "output/bigTest/data"
     return conf

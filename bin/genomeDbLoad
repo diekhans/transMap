@@ -89,7 +89,6 @@ def genomeDbLoad(opts):
     genomeDbConn = sqlite3.connect(genomeDbTmp)
     activeDbDbs = getActiveDbDb(hgDbConn, opts.hgCentralDb, opts.subsetHgDbs)
     activeHgDbs = [row["name"] for row in activeDbDbs]
-    print activeHgDbs
     loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
     loadGenomicChains(genomeDbConn, activeHgDbs)
     genomeDbConn.close()

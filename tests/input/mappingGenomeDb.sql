@@ -13,11 +13,10 @@ CREATE TABLE chains (
             destDb text not null,
             chainType text not null,
             chainFile text not null,
-            netFile text not null,
-            dist float);
-INSERT INTO "chains" VALUES('mm10','hg19','all','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.all.chain.gz','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.net.gz',0.495284);
-INSERT INTO "chains" VALUES('mm10','hg19','rbest','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.rbest.chain.gz','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.rbest.net.gz',0.495284);
-INSERT INTO "chains" VALUES('hg19','mm10','all','input/mm10.hg19.chain','input/mm10.hg19.net',0.495284);
+            netFile text not null);
+INSERT INTO "chains" VALUES('mm10','hg19','all','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.all.chain.gz','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.net.gz');
+INSERT INTO "chains" VALUES('mm10','hg19','rbest','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.rbest.chain.gz','/hive/data/genomes/hg19/bed/lastz.mm10/axtChain/hg19.mm10.rbest.net.gz');
+INSERT INTO "chains" VALUES('hg19','mm10','all','input/mm10.hg19.chain','input/mm10.hg19.net');
 CREATE INDEX genomeAsms_hgDb on genomeAsms (hgDb);
 CREATE INDEX genomeAsms_commonName on genomeAsms (commonName);
 CREATE INDEX genomeAsms_annotationTypeSet on genomeAsms (annotationTypeSet);
