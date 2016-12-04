@@ -1,10 +1,10 @@
 """"Database with genomes and chains."""
 import sqlite3
-import re
 from collections import namedtuple
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import fileOps
 from pycbio.hgdata.hgLite import HgLiteTable
+from transMap import hgDbNameParse
 
 
 class GenomesDbTables(object):
@@ -110,20 +110,10 @@ class GenomeAsm(namedtuple("GenomeDb",
 
     def __init__(self, hgDb, clade, commonName, scientificName, annotationTypeSet):
         super(GenomeAsm, self).__init__(hgDb, clade, commonName, scientificName, annotationTypeSet)
-        self.dbNum = self.dbParse(hgDb)[1]
+        self.dbNum = hgDbNameParse(hgDb)[1]
 
     def __str__(self):
         return "{}\t{}\t{}\t{}\t".format(self.hgDb, self.clade, self.commonName, self.scientificName, str(self.annotationTypeSet))
-
-    dbParseRe = re.compile("^([a-zA-Z]+)([0-9]+)$")
-
-    @staticmethod
-    def dbParse(dbName):
-        "parse a genomedb name into (orgDbName, dbNum)"
-        m = GenomeAsm.dbParseRe.match(dbName)
-        if m is None:
-            raise Exception("can't parse database name: " + dbName)
-        return (m.group(1), int(m.group(2)))
 
     def isFinished(self):
         "is this genome considered finished"

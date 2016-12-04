@@ -7,6 +7,7 @@ import sqlite3
 from pycbio.sys import loggingOps
 from pycbio.sys import fileOps
 from pycbio.hgdata import hgDb
+from transMap import hgDbNameCheck
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
 from transMap.ensembl import haveEnsemblFull, haveGencode
@@ -34,13 +35,13 @@ def parseArgs():
 
 def getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs=None):
     "returns rows from hgcentral dbDb"
-    sql = "SELECT DISTINCT dd.name as name, dd.genome as genome, dd.organism as commonName, dd.scientificName as scientificName, gc.clade from {hgCentralDb}.dbDb dd, {hgCentralDb}.genomeClade gc WHERE (dd.genome = gc.genome)".format(hgCentralDb=hgCentralDb)
+    sql = "SELECT DISTINCT dd.name as name, dd.genome as genome, dd.organism as commonName, dd.scientificName as scientificName, gc.clade FROM {hgCentralDb}.dbDb dd, {hgCentralDb}.genomeClade gc WHERE (dd.active = 1) AND (dd.genome = gc.genome) ".format(hgCentralDb=hgCentralDb)
     if subsetHgDbs is not None:
         sql += " AND (name in ({}))".format(",".join(['"{}"'.format(db) for db in subsetHgDbs]))
     cur = hgDbConn.cursor()
     try:
         cur.execute(sql)
-        return [row for row in cur]
+        return [row for row in cur if hgDbNameCheck(row["name"])]
     finally:
         cur.close()
 
@@ -102,6 +103,8 @@ def genomeDbLoad(opts):
     genomeDbConn = sqlite3.connect(genomeDbTmp)
     activeDbDbs = getActiveDbDb(hgDbConn, opts.hgCentralDb, opts.subsetHgDbs)
     activeHgDbs = [row["name"] for row in activeDbDbs]
+    print activeHgDbs
+    assert False
     loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
     loadGenomicChains(genomeDbConn, distances, activeHgDbs)
     genomeDbConn.close()

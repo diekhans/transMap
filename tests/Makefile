@@ -172,6 +172,11 @@ transMapBatchTest: mkdirs
 
 #########################################################################################
 
+bigTest:
+	${genomeDbLoad} input/bigTestTransMapConf.py hgcentraltest
+
+#########################################################################################
+
 ##
 # Run this to update test data from basic tests.  We avoid duplicating tables, as
 # metadata and seqs test both have align data
