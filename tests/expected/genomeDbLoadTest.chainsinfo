@@ -1,4 +1,4 @@
-srcDb	destDb	chainType	chainFile	netFile
+srcHgDb	destHgDb	chainType	chainFile	netFile
 canFam3	hg19	all	/hive/data/genomes/hg19/bed/lastz.canFam3/axtChain/hg19.canFam3.all.chain.gz	/hive/data/genomes/hg19/bed/lastz.canFam3/axtChain/hg19.canFam3.net.gz
 canFam3	hg19	syn	/hive/data/genomes/hg19/bed/lastz.canFam3/axtChain/hg19.canFam3.all.chain.gz	/hive/data/genomes/hg19/bed/lastz.canFam3/axtChain/hg19.canFam3.syn.net.gz
 canFam3	hg38	all	/hive/data/genomes/hg38/bed/lastz.canFam3/axtChain/hg38.canFam3.all.chain.gz	/hive/data/genomes/hg38/bed/lastz.canFam3/axtChain/hg38.canFam3.net.gz
