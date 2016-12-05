@@ -30,6 +30,13 @@ class TransMapConf(object):
         # genbank
         self.genbankConfRa = GenbankConf.stdConfRaFile
 
+        # selecting genomes
+        self.clades = frozenset(["vertebrate", "mammal"])
+
+        # required older versions of some genomes
+        self.requiredPreviousDestHgDbs = frozenset([
+            "hg19"])
+
         # arguments to pslCDnaFilter
         self.mappedMinQSize = 20
         self.mappedMinCover = 0.20

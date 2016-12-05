@@ -52,9 +52,9 @@ sqlite3.register_converter("chainType", ChainType)
 
 
 class Chains(namedtuple("Chains",
-                        ("srcDb", "destDb", "chainType", "chainFile", "netFile"))):
-    "Describes the chains used in a mapping to a destDb"
-    # FIXME make srcDb/destDb and chainsFinder.py queryHgDb targetHgDb consistent
+                        ("srcHgDb", "destHgDb", "chainType", "chainFile", "netFile"))):
+    "Describes the chains used in a mapping to a destHgDb"
+    # FIXME make srcDb/destHgDb and chainsFinder.py queryHgDb targetHgDb consistent
     __slots__ = ()
 
     @staticmethod
@@ -65,14 +65,14 @@ class Chains(namedtuple("Chains",
 class ChainsDbTable(HgLiteTable):
     """Interface todata on chains stored in the database"""
     __createSql = """CREATE TABLE {table} (
-            srcDb text not null,
-            destDb text not null,
+            srcHgDb text not null,
+            destHgDb text not null,
             chainType text not null,
             chainFile text not null,
             netFile text not null);"""
-    __insertSql = """INSERT INTO {table} (srcDb, destDb, chainType, chainFile, netFile) VALUES (?, ?, ?, ?, ?);"""
-    __indexSql = ["""CREATE INDEX {table}_srcDb on {table} (srcDb);""",
-                  """CREATE INDEX {table}_destDb on {table} (destDb);"""]
+    __insertSql = """INSERT INTO {table} (srcHgDb, destHgDb, chainType, chainFile, netFile) VALUES (?, ?, ?, ?, ?);"""
+    __indexSql = ["""CREATE INDEX {table}_srcHgDb on {table} (srcHgDb);""",
+                  """CREATE INDEX {table}_destHgDb on {table} (destHgDb);"""]
 
     def __init__(self, conn, table, create=False):
         super(ChainsDbTable, self).__init__(conn, table)
@@ -87,14 +87,14 @@ class ChainsDbTable(HgLiteTable):
         """load rows into table"""
         self._inserts(self.__insertSql, rows)
 
-    def queryByDbs(self, srcDb, destDb):
-        sql = "SELECT * FROM {table} WHERE (srcDb=?) AND (destDb=?)"
-        return self.queryRows(sql, Chains.rowFactory, srcDb, destDb)
+    def queryByDbs(self, srcHgDb, destHgDb):
+        sql = "SELECT * FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?)"
+        return self.queryRows(sql, Chains.rowFactory, srcHgDb, destHgDb)
 
-    def queryByDbsType(self, srcDb, destDb, chainType):
+    def queryByDbsType(self, srcHgDb, destHgDb, chainType):
         "return Chain or None"
-        sql = "SELECT * FROM {table} WHERE (srcDb=?) AND (destDb=?) AND (chainType=?)"
-        rows = list(self.queryRows(sql, Chains.rowFactory, srcDb, destDb, chainType))
+        sql = "SELECT * FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?) AND (chainType=?)"
+        rows = list(self.queryRows(sql, Chains.rowFactory, srcHgDb, destHgDb, chainType))
         if len(rows) == 0:
             return None
         elif len(rows) == 1:
@@ -118,13 +118,9 @@ class GenomeAsm(namedtuple("GenomeDb",
         "is this genome considered finished"
         return self.commonName in ("Human", "Mouse")
 
-    def matches(self, clades=None, annotationType=None):
-        "does this match the specified filter sets"
-        if (clades is not None) and (self.clade not in clades):
-            return False
-        if (annotationType is not None) and (len(self.annotationType & annotationType) == 0):
-            return False
-        return True
+    @staticmethod
+    def rowFactory(cur, row):
+        return GenomeAsm(*row)
 
 
 class GenomeAsmsDbTable(HgLiteTable):
@@ -153,6 +149,10 @@ class GenomeAsmsDbTable(HgLiteTable):
         """load rows into table"""
         self._inserts(self.__insertSql, rows)
 
+    def queryByClades(self, clades):
+        sql = "SELECT * FROM {{table}} WHERE clade in ({})".format(",".join((len(clades) * ["?"])))
+        return self.queryRows(sql, GenomeAsm.rowFactory, *clades)
+
 
 class Organism(object):
     """Databases for a given organism. We use common name to tie assembly dbs together, since db prefix
@@ -173,36 +173,46 @@ class Organism(object):
 
 
 class Genomes(object):
-    "object containing all genome definitions, loaded from database"
-    def __init__(self):
-        self.genomeAsms = dict()          # by hgDb
+    """Object containing genome definitions, loaded from database for clades
+    of interested. Also used to query relevant changes for mapping """
+    def __init__(self, conf):
+        self.conf = conf
+        self.genomeAsms = dict()   # by hgDb
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
-        self.clades = set()        # all clades
 
-    def addGenomeAsm(self, genomeAsm):
+        self.genomeDbConn = sqlite3.connect(conf.genomeDb)
+        self.__loadGenomes(conf)
+        self.__finish()
+        self.chainsTbl = ChainsDbTable(self.genomeDbConn, GenomesDbTables.chainsTbl)
+
+    def __loadGenomes(self):
+        genomeAsmsTbl = GenomeAsmsDbTable(self.genomeDbConn, GenomesDbTables.genomeAsmsTbl)
+        for genomeAsm in genomeAsmsTbl.queryByClades(self.genomeDbConn, self.conf.clades):
+            self.__addGenomeAsm(genomeAsm)
+
+    def __addGenomeAsm(self, genomeAsm):
         "add a genome db"
         self.genomeAsms[genomeAsm.hgDb] = genomeAsm
-        org = self.obtainOrganism(genomeAsm.commonName)
+        org = self.__obtainOrganism(genomeAsm.commonName)
         org.add(genomeAsm)
-        self.clades.add(genomeAsm.clade)
 
-    def obtainOrganism(self, commonName):
+    def __obtainOrganism(self, commonName):
         org = self.orgs.get(commonName)
         if org is None:
             org = self.orgs[commonName] = Organism(commonName)
         return org
 
-    def finish(self):
+    def __finish(self):
         """Finish up, making all links"""
         for org in self.orgs.itervalues():
             org.sort()
 
-        # paranoia
-        self.clades = frozenset(self.clades)
-
     def getDbByName(self, hgDb):
         "lookup db name or None"
         return self.genomeAsms.get(hgDb)
+
+    def getChains(self, srcHgDb, destHgDb):
+        return list(self.chainType.queryByDbs(srcHgDb, destHgDb))
 
     def dump(self, fh):
         "print for debugging purposes"

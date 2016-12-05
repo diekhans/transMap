@@ -9,8 +9,8 @@ CREATE TABLE genomeAsms (
 INSERT INTO "genomeAsms" VALUES('hg19','mammal','Human','Homo sapiens','rna,est,refseq,gencode');
 INSERT INTO "genomeAsms" VALUES('mm10','mammal','Mouse','Mus musculus','rna,est,refseq,gencode');
 CREATE TABLE chains (
-            srcDb text not null,
-            destDb text not null,
+            srcHgDb text not null,
+            destHgDb text not null,
             chainType text not null,
             chainFile text not null,
             netFile text not null);
@@ -20,6 +20,6 @@ INSERT INTO "chains" VALUES('hg19','mm10','all','input/mm10.hg19.chain','input/m
 CREATE INDEX genomeAsms_hgDb on genomeAsms (hgDb);
 CREATE INDEX genomeAsms_commonName on genomeAsms (commonName);
 CREATE INDEX genomeAsms_annotationTypeSet on genomeAsms (annotationTypeSet);
-CREATE INDEX chains_srcDb on chains (srcDb);
-CREATE INDEX chains_destDb on chains (destDb);
+CREATE INDEX chains_srcHgDb on chains (srcHgDb);
+CREATE INDEX chains_destHgDb on chains (destHgDb);
 COMMIT;

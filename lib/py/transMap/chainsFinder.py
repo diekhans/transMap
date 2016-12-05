@@ -30,22 +30,22 @@ class ChainsFinder(object):
                     self.__findChains(hgDb1, hgDb2, chains)
         return chains
 
-    def __findChains(self, targetHgDb, queryHgDb, chains):
-        chainsDirs = self.__findChainsDirs(targetHgDb, queryHgDb)
-        self.__addOneIfExists(targetHgDb, queryHgDb, chainsDirs, ChainType.all, "all.chain", "net", chains)
-        self.__addOneIfExists(targetHgDb, queryHgDb, chainsDirs, ChainType.syn, "all.chain", "syn.net", chains)
-        self.__addOneIfExists(targetHgDb, queryHgDb, chainsDirs, ChainType.rbest, "rbest.chain", "rbest.net", chains)
+    def __findChains(self, destHgDb, srcHgDb, chains):
+        chainsDirs = self.__findChainsDirs(destHgDb, srcHgDb)
+        self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.all, "all.chain", "net", chains)
+        self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.syn, "all.chain", "syn.net", chains)
+        self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.rbest, "rbest.chain", "rbest.net", chains)
 
-    def __findChainsDirs(self, targetHgDb, queryHgDb):
+    def __findChainsDirs(self, destHgDb, srcHgDb):
         "return list of possibles to chain directory, they might not actually contain chains"
-        return self.__findChainsDirsAligner(targetHgDb, queryHgDb, "lastz") \
-            + self.__findChainsDirsAligner(targetHgDb, queryHgDb, "blastz")
+        return self.__findChainsDirsAligner(destHgDb, srcHgDb, "lastz") \
+            + self.__findChainsDirsAligner(destHgDb, srcHgDb, "blastz")
 
-    def __findChainsDirsAligner(self, targetHgDb, queryHgDb, aligner):
+    def __findChainsDirsAligner(self, destHgDb, srcHgDb, aligner):
         """Return list of paths to possible chains dirs.  These might not actually
         contain the nets and chains.  It's simpler debug to get possible chain """
         chainsDirs = []
-        base = self.__chainsBasePath(targetHgDb, queryHgDb, aligner)
+        base = self.__chainsBasePath(destHgDb, srcHgDb, aligner)
         if os.path.exists(base):
             chainsDirs.append(base)
         chainsDir = base + ".swap"
@@ -59,7 +59,7 @@ class ChainsFinder(object):
                 chainsDirs.append(chainsDir)
 
         # check for missing symlink to names like blastzPanTro2.2006-03-28
-        pat = self.__chainsBasePath(targetHgDb, queryHgDb[0].upper() + queryHgDb[1:], aligner) + ".*-*-*"
+        pat = self.__chainsBasePath(destHgDb, srcHgDb[0].upper() + srcHgDb[1:], aligner) + ".*-*-*"
         matchDirs = glob.glob(pat)
         matchDirs.sort()
         for chainsDir in matchDirs:
@@ -67,41 +67,40 @@ class ChainsFinder(object):
                 chainsDirs.append(chainsDir)
         return chainsDirs
 
-    def __chainsBasePath(self, targetHgDb, queryHgDb, meth):
-        return os.path.join("/hive/data/genomes", targetHgDb, "bed", "{}.{}".format(meth, queryHgDb))
+    def __chainsBasePath(self, destHgDb, srcHgDb, meth):
+        return os.path.join("/hive/data/genomes", destHgDb, "bed", "{}.{}".format(meth, srcHgDb))
 
-    def __getLastzFile(self, targetHgDb, queryHgDb, chainsDir, ext):
+    def __getLastzFile(self, destHgDb, srcHgDb, chainsDir, ext):
         """generate and check for one of the blastz alignment files, with and
         without compressed extensions.  Return path if one exists, otherwise
         None"""
-        bzpre = os.path.join(chainsDir, "axtChain", "{}.{}.".format(targetHgDb, queryHgDb))
+        bzpre = os.path.join(chainsDir, "axtChain", "{}.{}.".format(destHgDb, srcHgDb))
         p = bzpre + ext + ".gz"  # common case
         if debug:
-            sys.stderr.write("__getLastzFile: {} {} {}: {}\n".format(targetHgDb, queryHgDb, os.path.exists(p), p))
+            sys.stderr.write("__getLastzFile: {} {} {}: {}\n".format(destHgDb, srcHgDb, os.path.exists(p), p))
         if os.path.exists(p):
             return p
         p = bzpre + ext
         if debug:
-            sys.stderr.write("__getLastzFile: {} {} {}: {}\n".format(targetHgDb, queryHgDb, os.path.exists(p), p))
+            sys.stderr.write("__getLastzFile: {} {} {}: {}\n".format(destHgDb, srcHgDb, os.path.exists(p), p))
         if os.path.exists(p):
             return p
         if debug:
-            sys.stderr.write("__getLastzFile: {} {} {}\n".format(targetHgDb, queryHgDb, "notFound"))
+            sys.stderr.write("__getLastzFile: {} {} {}\n".format(destHgDb, srcHgDb, "notFound"))
         return None
 
-    def __addOneIfExists(self, targetHgDb, queryHgDb, chainsDirs, chainType, chainExt, netExt, chains):
+    def __addOneIfExists(self, destHgDb, srcHgDb, chainsDirs, chainType, chainExt, netExt, chains):
         "add first existing chain/net on list of chainsDirs"
         for chainsDir in chainsDirs:
-            if self.__addIfExists(targetHgDb, queryHgDb, chainsDir, chainType, chainExt, netExt, chains):
+            if self.__addIfExists(destHgDb, srcHgDb, chainsDir, chainType, chainExt, netExt, chains):
                 break
 
-    def __addIfExists(self, targetHgDb, queryHgDb, chainsDir, chainType, chainExt, netExt, chains):
+    def __addIfExists(self, destHgDb, srcHgDb, chainsDir, chainType, chainExt, netExt, chains):
         """add a set of nets/chains if they exist for the specified type"""
-        chainFile = self.__getLastzFile(targetHgDb, queryHgDb, chainsDir, chainExt)
+        chainFile = self.__getLastzFile(destHgDb, srcHgDb, chainsDir, chainExt)
         if chainFile is not None:
-            netFile = self.__getLastzFile(targetHgDb, queryHgDb, chainsDir, netExt)
+            netFile = self.__getLastzFile(destHgDb, srcHgDb, chainsDir, netExt)
             if netFile is not None:
-                # note: queryHgDb = srcDb, targetHgDb = destDb
-                chains.append(Chains(queryHgDb, targetHgDb, chainType, chainFile, netFile))
+                chains.append(Chains(srcHgDb, destHgDb, chainType, chainFile, netFile))
                 return True
         return False
