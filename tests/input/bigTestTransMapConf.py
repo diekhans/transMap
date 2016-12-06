@@ -20,5 +20,5 @@ def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                         annotationType=_getConfVal("annotationType", annotationType),
                         chainType=_getConfVal("chainType", chainType),
                         buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
-    conf.dataDir = "output/bigTest/data"
+    conf.dataDir = "bigTest/data"
     return conf
