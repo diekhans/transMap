@@ -41,7 +41,7 @@ class TransMapConf(object):
         # types of chains for mappings between clades each entry is a set of
         # clades and an ordered tuple of preferred chain types
         self.cladePreferedChains = {
-            frozenset(["mammal", "mammal"]): (ChainType.syn, ),
+            frozenset(["mammal", "mammal"]): (ChainType.syn, ChainType.rbest, ChainType.all),
             frozenset(["vertebrate", "mammal"]): (ChainType.rbest, ChainType.all),
             frozenset(["vertebrate", "vertebrate"]): (ChainType.rbest, ChainType.all),
         }

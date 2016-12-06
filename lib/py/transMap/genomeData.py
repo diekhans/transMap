@@ -33,7 +33,10 @@ class AnnotationTypeSet(frozenset):
 
     @staticmethod
     def fromStr(sval):
-        return AnnotationTypeSet([AnnotationType(str(v)) for v in sval.split(',')])
+        if sval is None:
+            return AnnotationTypeSet()
+        else:
+            return AnnotationTypeSet([AnnotationType(str(v)) for v in sval.split(',')])
 
 
 # FIXME register_converter doesn't seem to be working due to using rowFactory.  Pick one approach
@@ -62,6 +65,10 @@ class Chains(namedtuple("Chains",
     def rowFactory(cur, row):
         return Chains(row[0], row[1], ChainType(str(row[2])), row[3], row[4])
 
+    def compatibleChainType(self, chainType):
+        # syn is made from all
+        return (((chainType == ChainType.syn) and (self.chainType == ChainType.all))
+                or (chainType == self.chainType))
 
 class ChainsDbTable(HgLiteTable):
     """Interface todata on chains stored in the database"""
@@ -241,9 +248,11 @@ class Genomes(object):
         return self.chainsTbl.queryByDestHgDb(destHgDb)
 
     def __getChainsBySrcOrg(self, destHgDb):
+        # skip srcHgDb not in table, these are outside of the specified clades
         chainsBySrcOrg = defaultdict(list)
         for chain in self.__getDestDbChains(destHgDb):
-            chainsBySrcOrg[self.hgDbToOrg[chain.srcHgDb]].append(chain)
+            if chain.srcHgDb in self.hgDbToOrg:
+                chainsBySrcOrg[self.hgDbToOrg[chain.srcHgDb]].append(chain)
         return chainsBySrcOrg
 
     def __getPreferedChainTypes(self, destHgDb, srcHgDb):
@@ -253,11 +262,16 @@ class Genomes(object):
 
     def __getDestHgDbSrcHgPreferedChain(self, destHgDb, srcHgDb, srcChainsList):
         # get most appropriate chain for the clade differences
+        print destHgDb, srcHgDb,  self.__getPreferedChainTypes(destHgDb, srcHgDb)
+        print "\n".join([str(c) for c in srcChainsList])
         for preferedChainType in self.__getPreferedChainTypes(destHgDb, srcHgDb):
-            hit = [srcChain for srcChain in srcChainsList if srcChain.chainType == preferedChainType]
-            if len(hit) == 1:
+            hit = [srcChain for srcChain in srcChainsList if srcChain.compatibleChainType(preferedChainType)]
+            if len(hit) > 0:
                 return hit[0]
-        raise Exception("can' find preferedChainType for {} to {} in {}".format(destHgDb, srcHgDb, srcChainsList))
+        raise Exception("can't find preferedChainType for {} ({}) to {} ({}) in {}"
+                        .format(destHgDb, self.genomeAsms[destHgDb].clade,
+                                srcHgDb, self.genomeAsms[srcHgDb].clade,
+                                srcChainsList))
 
     def __getDestHgDbSrcHgMappings(self, destHgDb, srcHgDb, srcChainsList):
         preferedChain = self.__getDestHgDbSrcHgPreferedChain(destHgDb, srcHgDb, srcChainsList)
@@ -266,12 +280,19 @@ class Genomes(object):
         for annotationType in srcAsm.annotationTypeSet:
             yield Mapping(destHgDb, srcHgDb, annotationType, preferedChain)
 
+    def __getDestHgDbSrcOrgMappings(self, destHgDb, srcOrg, srcOrgChainsList):
+        srcHgDb = srcOrg.genomeAsms[0].hgDb # newest
+        srcHgDbChains = [c for c in srcOrgChainsList  if c.srcHgDb == srcHgDb]
+        if len(srcHgDbChains) > 0:
+            return list(self.__getDestHgDbSrcHgMappings(destHgDb, srcHgDb, srcHgDbChains))
+        else:
+            return []
+
     def __getDestHgDbMappings(self, destHgDb):
         destHgDbMappings = []
         chainsBySrcOrg = self.__getChainsBySrcOrg(destHgDb)
         for srcOrg in chainsBySrcOrg.iterkeys():
-            # use the newest srcHgDb
-            destHgDbMappings.extend(self.__getDestHgDbSrcHgMappings(destHgDb, srcOrg.genomeAsms[0].hgDb, chainsBySrcOrg[srcOrg]))
+            destHgDbMappings.extend(self.__getDestHgDbSrcOrgMappings(destHgDb, srcOrg, chainsBySrcOrg[srcOrg]))
         return destHgDbMappings
 
     def getCurrentMappings(self):

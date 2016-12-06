@@ -197,6 +197,9 @@ bigTest/data/genome.db:
 bigTestInfo: bigTest/data/genome.db
 	${transMapInfo} input/bigTestTransMapConf.py bigTest/transmap-info.tsv
 
+bigClean:
+	rm -rf bigTest
+
 #########################################################################################
 
 ##

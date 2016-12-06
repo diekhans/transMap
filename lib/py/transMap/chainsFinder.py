@@ -15,8 +15,6 @@ class ChainsFinder(object):
     #     hg18.calJac1.net.gz
     #     hg18.calJac1.rbest.chain.gz
     #     hg18.calJac1.rbest.net.gz
-    # /hive/data/genomes/hg18/bed/blastz.ponAbe2/axtChain/
-    #     hg18.ponAbe2.syn.net.gz
     # also lastz directories
 
     def findChains(self, hgDbs):
@@ -33,7 +31,6 @@ class ChainsFinder(object):
     def __findChains(self, destHgDb, srcHgDb, chains):
         chainsDirs = self.__findChainsDirs(destHgDb, srcHgDb)
         self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.all, "all.chain", "net", chains)
-        self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.syn, "all.chain", "syn.net", chains)
         self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.rbest, "rbest.chain", "rbest.net", chains)
 
     def __findChainsDirs(self, destHgDb, srcHgDb):
