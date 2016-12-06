@@ -2,6 +2,8 @@
 
 import os
 from transMap.transMapConf import TransMapConf
+from transMap.genomeData import ChainType
+
 
 def _getConfVal(name, supplied):
     """return configuration value if supplied is not None
@@ -20,4 +22,8 @@ def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                         annotationType=_getConfVal("annotationType", annotationType),
                         chainType=_getConfVal("chainType", chainType),
                         buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
+
+
+    # test environ doesn't have syn chains
+    conf.cladePreferedChains[frozenset(["mammal", "mammal"])] =  (ChainType.syn,  ChainType.all)
     return conf

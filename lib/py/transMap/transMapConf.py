@@ -3,6 +3,7 @@ import sys
 from transMap.genomeData import AnnotationType
 from pycbio.sys.configInPy import evalConfigFunc
 from transMap.genbankConf import GenbankConf
+from transMap.genomeData import ChainType
 
 # FIXME: need to track chain type and add to output
 
@@ -36,6 +37,14 @@ class TransMapConf(object):
         # required older versions of some genomes
         self.requiredPreviousDestHgDbs = frozenset([
             "hg19"])
+
+        # types of chains for mappings between clades each entry is a set of
+        # clades and an ordered tuple of preferred chain types
+        self.cladePreferedChains = {
+            frozenset(["mammal", "mammal"]): (ChainType.syn, ),
+            frozenset(["vertebrate", "mammal"]): (ChainType.rbest, ChainType.all),
+            frozenset(["vertebrate", "vertebrate"]): (ChainType.rbest, ChainType.all),
+        }
 
         # arguments to pslCDnaFilter
         self.mappedMinQSize = 20
@@ -73,16 +82,22 @@ class TransMapConf(object):
         self.__needOptions("srcHgDb", "annotationType")
         return os.path.join(self.srcDataDir, "{}.{}.src.db".format(self.srcHgDb, self.annotationType))
 
+    def getMappedDataDirForDestHgDb(self, destHgDb):
+        self.__needOptions("dataDir")
+        return os.path.join(self.dataDir, "mapped", destHgDb)
+
     @property
     def mappedDataDir(self):
         self.__needOptions("dataDir", "destHgDb")
-        return os.path.join(self.dataDir, "mapped", self.destHgDb)
+        return self.getMappedDataDirForDestHgDb(self.destHgDb)
 
+    def getMappedBigPslFileForDestHgDb(self, destHgDb, annotationType):
+        return os.path.join(self.getMappedDataDirForDestHgDb(destHgDb),
+                            "{}.{}.mapped.bigPsl".format(destHgDb, annotationType))
     @property
     def mappedBigPslFile(self):
         self.__needOptions("destHgDb", "annotationType")
-        return os.path.join(self.mappedDataDir,
-                            "{}.{}.mapped.bigPsl".format(self.destHgDb, self.annotationType))
+        return self.getMappedBigPslFileForDestHgDb(self.destHgDb, self.annotationType)
 
     @property
     def mappingChainsDir(self):

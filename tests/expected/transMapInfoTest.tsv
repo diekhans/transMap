@@ -1,0 +1,9 @@
+destHgDb	state	srcHgDb	annotationType	chainType
+mm10	needed	hg19	rna	all
+mm10	needed	hg19	est	all
+mm10	needed	hg19	refseq	all
+mm10	needed	hg19	gencode	all
+hg19	needed	mm10	rna	all
+hg19	needed	mm10	est	all
+hg19	needed	mm10	refseq	all
+hg19	needed	mm10	gencode	all

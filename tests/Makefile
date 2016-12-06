@@ -13,6 +13,7 @@ mappingChainBuild = ../bin/mappingChainBuild
 transMapJob = ../bin/transMapJob
 transMapBatch = ../bin/transMapBatch
 transMapBuildBigPsl = ../bin/transMapBuildBigPsl
+transMapInfo = ../bin/transMapInfo
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
@@ -133,7 +134,8 @@ genomeDbLoadTest: mkdirs
 
 #########################################################################################
 mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
-	transMapJobTest transMapBatchTest transMapBuildBigPslTest
+	transMapJobTest transMapBatchTest transMapBuildBigPslTest \
+	transMapInfoTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -177,10 +179,23 @@ transMapBuildBigPslTest: mkdirs
 	bigBedToBed output/transMapBuildBigPslTest.data/mapped/mm10/mm10.rna.mapped.bigPsl output/$@.preBigPsl
 	${diff} expected/transMapBatchTest.preBigPsl output/$@.preBigPsl
 
+transMapInfoTest: mkdirs
+	rm -rf output/$@.data
+	mkdir -p output/$@.data
+	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
+	dataDir=output/$@.data ${transMapInfo} input/testTransMapConf.py output/$@.tsv
+
 #########################################################################################
 
-bigTest:
+bigTest: bigTestGenomeDb bigTestInfo
+
+bigTestGenomeDb: bigTest/data/genome.db
+
+bigTest/data/genome.db:
 	${genomeDbLoad} input/bigTestTransMapConf.py hgcentraltest
+
+bigTestInfo: bigTest/data/genome.db
+	${transMapInfo} input/bigTestTransMapConf.py bigTest/transmap-info.tsv
 
 #########################################################################################
 
