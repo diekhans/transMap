@@ -32,6 +32,8 @@ class ChainsFinder(object):
         chainsDirs = self.__findChainsDirs(destHgDb, srcHgDb)
         self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.all, "all.chain", "net", chains)
         self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.rbest, "rbest.chain", "rbest.net", chains)
+        # syntenic chains are generated from the all chains
+        self.__addOneIfExists(destHgDb, srcHgDb, chainsDirs, ChainType.syn, "all.chain", "net", chains)
 
     def __findChainsDirs(self, destHgDb, srcHgDb):
         "return list of possibles to chain directory, they might not actually contain chains"
