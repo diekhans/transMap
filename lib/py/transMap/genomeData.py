@@ -65,10 +65,6 @@ class Chains(namedtuple("Chains",
     def rowFactory(cur, row):
         return Chains(row[0], row[1], ChainType(str(row[2])), row[3], row[4])
 
-    def compatibleChainType(self, chainType):
-        # syn is made from all
-        return (((chainType == ChainType.syn) and (self.chainType == ChainType.all))
-                or (chainType == self.chainType))
 
 class ChainsDbTable(HgLiteTable):
     """Interface todata on chains stored in the database"""
@@ -260,14 +256,18 @@ class Genomes(object):
         srcClade = self.genomeAsms[srcHgDb].clade
         return self.conf.cladePreferedChains[frozenset([destClade, srcClade])]
 
+    def __findChainMatchingPrefered(self, preferedChainType, srcChainsList):
+        for srcChain in srcChainsList:
+            if srcChain.chainType == preferedChainType:
+                return srcChain
+        return None
+    
     def __getDestHgDbSrcHgPreferedChain(self, destHgDb, srcHgDb, srcChainsList):
         # get most appropriate chain for the clade differences
-        print destHgDb, srcHgDb,  self.__getPreferedChainTypes(destHgDb, srcHgDb)
-        print "\n".join([str(c) for c in srcChainsList])
         for preferedChainType in self.__getPreferedChainTypes(destHgDb, srcHgDb):
-            hit = [srcChain for srcChain in srcChainsList if srcChain.compatibleChainType(preferedChainType)]
-            if len(hit) > 0:
-                return hit[0]
+            matchChain = self.__findChainMatchingPrefered(preferedChainType, srcChainsList)
+            if matchChain is not None:
+                return matchChain
         raise Exception("can't find preferedChainType for {} ({}) to {} ({}) in {}"
                         .format(destHgDb, self.genomeAsms[destHgDb].clade,
                                 srcHgDb, self.genomeAsms[srcHgDb].clade,

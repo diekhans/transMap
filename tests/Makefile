@@ -184,6 +184,7 @@ transMapInfoTest: mkdirs
 	mkdir -p output/$@.data
 	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
 	dataDir=output/$@.data ${transMapInfo} input/testTransMapConf.py output/$@.tsv
+	${diff} expected/$@.tsv output/$@.tsv
 
 #########################################################################################
 
