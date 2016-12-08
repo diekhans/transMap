@@ -14,6 +14,7 @@ transMapJob = ../bin/transMapJob
 transMapBatch = ../bin/transMapBatch
 transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
+luigiTransMap = ../bin/luigiTransMap
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
@@ -126,7 +127,7 @@ genomeDbLoadTests: genomeDbLoadTest
 # felCat3 is projection ensembl
 genomeDbLoadTest: mkdirs
 	rm -rf output/$@.data
-	dataDir=output/$@.data ${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 input/testTransMapConf.py hgcentraltest
+	dataDir=output/$@.data ${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 input/testTransMapConf.py
 	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from chains order by srcHgDb, destHgDb, chainType' >output/$@.chainsinfo
 	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
 	${diff} expected/$@.chainsinfo output/$@.chainsinfo
@@ -193,13 +194,19 @@ bigTest: bigTestGenomeDb bigTestInfo
 bigTestGenomeDb: bigTest/data/genome.db
 
 bigTest/data/genome.db:
-	${genomeDbLoad} input/bigTestTransMapConf.py hgcentraltest
+	dataDir=bigTest ${genomeDbLoad} input/testTransMapConf.py
 
 bigTestInfo: bigTest/data/genome.db
-	${transMapInfo} input/bigTestTransMapConf.py bigTest/transmap-info.tsv
+	dataDir=bigTest ${transMapInfo} input/testTransMapConf.py bigTest/transmap-info.tsv
 
 bigClean:
 	rm -rf bigTest
+
+luigiTest:
+	dataDir=luigiTest ${luigiTransMap} --destHgDb=f -srcHgDb input/testTransMapConf.py
+
+luigiClean:
+	rm -rf luigiTest
 
 #########################################################################################
 

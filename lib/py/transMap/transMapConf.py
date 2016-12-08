@@ -28,6 +28,9 @@ class TransMapConf(object):
         self.chainType = chainType
         self.buildTmpDir = buildTmpDir
 
+        # ucsc browser data
+        self.hgCentralDb = "hgcentraltest"
+
         # genbank
         self.genbankConfRa = GenbankConf.stdConfRaFile
 
@@ -94,6 +97,7 @@ class TransMapConf(object):
     def getMappedBigPslFileForDestHgDb(self, destHgDb, annotationType):
         return os.path.join(self.getMappedDataDirForDestHgDb(destHgDb),
                             "{}.{}.mapped.bigPsl".format(destHgDb, annotationType))
+
     @property
     def mappedBigPslFile(self):
         self.__needOptions("destHgDb", "annotationType")

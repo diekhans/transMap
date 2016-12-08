@@ -2,106 +2,256 @@
 
 import transMapProgSetup  # noqa: F401
 import sys
+import os
 import argparse
-import sqlite3
-from pycbio.sys import loggingOps
-from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
+import logging
+from collections import defaultdict
+from pycbio.sys import fileOps, loggingOps
+from transMap.transMapConf import transMapConfLoad
+from transMap.genomeData import Genomes, AnnotationType, ChainType
+import pipettor
 import luigi
 
 
 def parseArgs():
     desc = """
+    Run transmap mapping for genome browser databases using Luigi
     """
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)
-    parser.add_argument("--hgDb", action="append", default=None, dest="hgDbs",
-                        help="""limit to these databases for testing, maybe repeated""")
-    parser.add_argument("--tree", dest="trees", action="append", default=[],
-                        help="set branch lengths from this tree file, maybe repeated.  The distance from the newest databases are used."
-                        "If file ends in .mod, its assumes to be a phastCons model file, otherwise a newick tree file ")
-    parser.add_argument("--genbankConfRa", default=GenbankConf.stdConfRaFile,
-                        help="""UCSC genbank configuration ra file""")
-    parser.add_argument("hgCentralDb",
-                        help="""name of hgcentral database used to find active assemblies""")
-    parser.add_argument("genomeDb",
-                        help="""sqlite3 database for genome information""")
+    parser.add_argument("--destHgDb", action="append", default=None, dest="destHgDbs",
+                        help="""limit to these destination databases testing, maybe repeated""")
+    parser.add_argument("--srcHgDb", action="append", default=None, dest="srcHgDbs",
+                        help="""limit to these sources databases testing, maybe repeated""")
+    parser.add_argument("--rebuildGenomeDb", action="store_true", default=False,
+                        help="""rebuild the genome database, picking up any changes""")
+    parser.add_argument("--workers", default=2, type=int,
+                        help="""number of work processes""")
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
+    if opts.srcHgDbs is not None:
+        opts.srcHgDbs = frozenset(opts.srcHgDbs)
+    if opts.destHgDbs is not None:
+        opts.destHgDbs = frozenset(opts.destHgDbs)
     return opts
 
 
-def getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs=None):
-    "returns rows from hgcentral dbDb"
-    sql = "SELECT DISTINCT dd.name as name, dd.genome as genome, dd.organism as commonName, dd.scientificName as scientificName, gc.clade from {hgCentralDb}.dbDb dd, {hgCentralDb}.genomeClade gc WHERE (dd.genome = gc.genome)".format(hgCentralDb=hgCentralDb)
-    if subsetHgDbs is not None:
-        sql += " AND (name in ({}))".format(",".join(['"{}"'.format(db) for db in subsetHgDbs]))
-    cur = hgDbConn.cursor()
-    try:
-        cur.execute(sql)
-        return [row for row in cur]
-    finally:
-        cur.close()
+class AnnotationTypeParameter(luigi.Parameter):
+    def parse(self, s):
+        return AnnotationType(s)
 
 
-def getAnnotationTypes(hgDbConn, hgDb, genbankConf):
-    annTypes = set()
-    gbDbConf = genbankConf.get(hgDb)
-    if gbDbConf is not None:
-        annTypes |= gbDbConf.getEnabled()
-    if haveGencode(hgDbConn, hgDb):
-        annTypes.add(AnnotationType.gencode)
-    elif haveEnsemblFull(hgDbConn, hgDb):
-        annTypes.add(AnnotationType.ensembl)
-    if len(annTypes) == 0:
-        return None
-    else:
-        return AnnotationTypeSet(annTypes)
+class ChainTypeParameter(luigi.Parameter):
+    def parse(self, s):
+        return ChainType(s)
 
 
-def mkGenomeAsm(hgDbConn, dbDb, genbankConf):
-    return GenomeAsm(dbDb["name"], dbDb["clade"], dbDb["commonName"], dbDb["scientificName"],
-                     getAnnotationTypes(hgDbConn, dbDb["name"], genbankConf))
+class SrcDataTask(luigi.Task):
+    task_namespace = 'transmap'
+    configPyFile = luigi.StringParameter()
+    srcHgDb = luigi.StringParameter()
+    annotationType = luigi.AnnotationTypeParameter()
+
+    def __init__(self, *args, **kwargs):
+        super(SrcDataTask).__init__(self, *args, **kwargs)
+        self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, annotationType=self.annotationType)
+
+    def __runCmd(self, prog, srcDbTmp):
+        pipettor([os.path.join(self.conf.binDir, prog), self.srcHgDb, self.annotationType, srcDbTmp],
+                 logger=logging.getLogger())
+
+    def __ensemblProgs(self):
+        return ["srcDbLoadEnsemblAligns",
+                "srcDbLoadEnsemblMetadata",
+                "srcDbLoadEnsemblSeqs",
+                "srcDbCheck"]
+
+    def __genbankProgs(self):
+        cmds = ["srcDbLoadGenbankAligns"]
+        if self.annotationType != AnnotationType.est:
+            cmds.append("srcDbLoadGenbankMetadata")
+        cmds.extend(["srcDbLoadGenbankSeqs",
+                     "srcDbCheck"])
+        return cmds
+
+    def run(self, progs):
+        srcDbTmp = fileOps.atomicTmpFile(self.srcDb)
+        progs = self.__ensemblProgs() if self.annotationType in (AnnotationType.ensembl, AnnotationType.gencode) else self.__genbankProgs()
+        for prog in progs:
+            self.__runCmd(prog, srcDbTmp)
+        fileOps.atomicInstall(srcDbTmp, self.srcDb)
+
+    def output(self):
+        return luigi.LocalTarget(self.conf.srcDb)
 
 
-def loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf):
-    genomeAsms = [mkGenomeAsm(hgDbConn, dbDb, genbankConf) for dbDb in activeDbDbs]
-    asmsTbl = GenomeAsmsDbTable(genomeDbConn, GenomesDbTables.genomeAsmsTbl, create=True)
-    asmsTbl.loads(genomeAsms)
-    asmsTbl.index()
+class MappingChainBuildTask(luigi.Task):
+    task_namespace = 'transmap'
+    configPyFile = luigi.StringParameter()
+    srcHgDb = luigi.StringParameter()
+    destHgDb = luigi.StringParameter()
+    chainType = luigi.ChainTypeParameter()
+
+    def __init__(self, *args, **kwargs):
+        super(MappingChainBuildTask).__init__(self, *args, **kwargs)
+        self.chainType = ChainType(self.chainType)
+        self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, destHgDb=self.destHgDb,
+                                     chainType=self.chainType, annotationType=self.annotationType)
+
+    def run(self):
+        mappingChainsTmp = fileOps.atomicTmpFile(self.mappingChains)
+        mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
+
+        pipettor.run([os.path.join(self.conf.binDir, "mappingChainBuild"),
+                      self.conf.genomeDb, self.srcHgDb, self.destHgDb, self.chainType, mappingChainsTmp],
+                     logger=logging.getLogger())
+
+        fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.mappingChains))
+        fileOps.atomicInstall(mappingChainsTmp, self.mappingChains)
+
+    def output(self):
+        return luigi.LocalTarget(self.conf.mappingChains)
 
 
-def checkChainsDist(chains):
-    "verify chains distance, report all errors"
-    errCnt = 0
-    for chain in chains:
-        if chain.dist is None:
-            sys.stderr.write("Error: no distance for {}".format(chain))
-            errCnt += 1
-    if errCnt != 0:
-        raise Exception("{} chains without phylogenetic distance, add appropriate trees\n".format(errCnt))
+class TransMapBatchTask(luigi.Task):
+    task_namespace = 'transmap'
+    configPyFile = luigi.StringParameter()
+    srcHgDb = luigi.StringParameter()
+    destHgDb = luigi.StringParameter()
+    annotationType = luigi.AnnotationTypeParameter()
+    chainType = luigi.ChainTypeParameter()
+
+    def __init__(self, *args, **kwargs):
+        super(TransMapBatchTask).__init__(self, *args, **kwargs)
+        self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, destHgDb=self.destHgDb,
+                                     chainType=self.chainType,
+                                     annotationType=self.annotationType)
+
+    def run(self):
+        mappingChainsTmp = fileOps.atomicTmpFile(self.mappingChains)
+        mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
+
+        pipettor.run([os.path.join(self.conf.binDir, "transMapBatch"),
+                      self.configPyFile, self.srcHgDb, self.destHgDb,
+                      self.annotationType, self.chainType],
+                     logger=logging.getLogger())
+
+        fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.mappingChains))
+        fileOps.atomicInstall(mappingChainsTmp, self.mappingChains)
+
+    def requires(self):
+        return [SrcDataTask(configPyFile=self.configPyFile,
+                            srcHgDb=self.srcHgDb,
+                            annotationType=self.annotationType),
+                MappingChainBuildTask(configPyFile=self.configPyFile,
+                                      srcHgDb=self.srcHgDb,
+                                      destHgDb=self.destHgDb,
+                                      chainType=self.chainType)]
+
+    def output(self):
+        return luigi.LocalTarget(self.conf.getBatchSrcHgDbPreBigPsl(self.srcHgDb))
 
 
-def loadGenomicChains(genomeDbConn, distances, activeHgDbs):
-    chainsFinder = ChainsFinder(distances)
-    chains = chainsFinder.findChains(activeHgDbs)
-    checkChainsDist(chains)
-    chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl, True)
-    chainsTbl.loads(chains)
-    chainsTbl.index()
+class TransMapBuildBigPslTask(luigi.Task):
+    task_namespace = 'transmap'
+    configPyFile = luigi.StringParameter()
+    destHgDb = luigi.ListParameter()
+    annotationType = luigi.AnnotationTypeParameter()
+    srcHgDbs = luigi.ListParameter()
+
+    def __init__(self, *args, **kwargs):
+        super(TransMapBuildBigPslTask).__init__(self, *args, **kwargs)
+        self.conf = transMapConfLoad(self.configPyFile, destHgDb=self.destHgDb,
+                                     annotationType=self.annotationType)
+
+    def run(self):
+        mappedBigPslFileTmp = fileOps.atomicTmpFile(self.mappedBigPslFile)
+
+        pipettor.run([os.path.join(self.conf.binDir, "transMapBuildBigPsl"),
+                      self.configPyFile, self.self.destHgDb,
+                      self.annotationType] + list(self.srcHgDbs),
+                     logger=logging.getLogger())
+
+        fileOps.atomicInstall(mappedBigPslFileTmp, self.mappedBigPslFile)
+
+    def requires(self):
+        return [TransMapBatchTask(configPyFile=self.configPyFile,
+                                  srcHgDb=srcHgDb,
+                                  destHgDb=self.destHgDb,
+                                  annotationType=self.annotationType,
+                                  chainType=self.chainType)
+                for srcHgDb in self.srcHgDbs]
+
+    def output(self):
+        return luigi.LocalTarget(self.conf.mappedBigPslFile)
 
 
-def luigiTransMap():
-    genbankConf = GenbankConf(genbankConfRa)
-    distances = PhyloDistances(trees)
-    hgDbConn = hgDb.connect(dictCursor=True)
-    genomeDbConn = sqlite3.connect(genomeDb)
-    activeDbDbs = getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs)
-    activeHgDbs = [row["name"] for row in activeDbDbs]
-    loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
-    loadGenomicChains(genomeDbConn, distances, activeHgDbs)
-    genomeDbConn.close()
-    hgDbConn.close()
+def filterMappings(mappings, opts):
+    "subset mappings based on command line srcHgDb/destHgDb restrictions"
+    if opts.srcHgDbs is not None:
+        mappings = [m for m in mappings if m.srcHgDb in opts.srcHgDbs]
+    if opts.destHgDbs is not None:
+        mappings = [m for m in mappings if m.destHgDb in opts.destHgDbs]
+    return mappings
+
+
+def splitMappings(mappings):
+    "split by (descDb, annotationType)"
+    mappingsSplit = defaultdict(list)
+    for mapping in mappings:
+        mappingsSplit[(mapping.destHgDb, mapping.annotationType)].append(mapping)
+    return mappingsSplit
+
+
+def genomeDbBuild(conf, opts):
+    cmd = [os.path.join(conf.binDir, "genomeDbLoad")]
+    if opts.srcHgDbs is not None:
+        cmd += ["--hgDb={}".format(hgDb) for hgDb in opts.srcHgDbs]
+    if opts.destHgDbs is not None:
+        cmd += ["--hgDb={}".format(hgDb) for hgDb in opts.destHgDbs]
+    cmd.append(opts.configPyFile)
+    pipettor(cmd, logger=logging.getLogger())
+
+
+def genomeDbSetup(conf, opts):
+    "need genomeDb to define tasks, so just build now"
+    if opts.rebuildGenomeDb and os.path.exists(conf.genoneDb):
+        os.unlink(conf.genoneDb)
+    if not os.path.exists(conf.genoneDb):
+        genomeDbBuild(conf, opts)
+
+
+def getMappingState(conf, mapping):
+    "true if it's there, false if not"
+    return os.path.exists(conf.getMappedBigPslFileForDestHgDb(mapping.destHgDb, mapping.annotationType))
+
+
+def getDestHgDbAnnotationTypeMappingTasks(conf, mappings):
+    for mapping in mappings:
+        if not getMappingState(conf, mapping):
+            yield TransMapBatchTask(configPyFile=conf.configPyFile,
+                                    srcHgDb=mapping.srcHgDb,
+                                    destHgDb=mappings.destHgDb,
+                                    annotationType=mappings.annotationType),
+
+
+def getMappingTasks(conf, mappingsSplit):
+    tasks = []
+    for mappings in mappingsSplit.itervalues():
+        tasks.extend(getDestHgDbAnnotationTypeMappingTasks(conf, mappings))
+    return tasks
+
+
+def luigiTransMap(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    genomeDbSetup(conf, opts)
+    genomes = Genomes(conf)
+    mappingsSplit = splitMappings(filterMappings(genomes.getCurrentMappings(), opts))
+    luigi.build(getMappingTasks(conf, mappingsSplit),
+                local_scheduler=True, workers=opts.workers)
 
 # entry
 opts = parseArgs()
-genomeDbLoad(opts.hgCentralDb, opts.genomeDb, opts.trees, opts.genbankConfRa, opts.hgDbs)
+luigiTransMap(opts)

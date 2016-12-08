@@ -27,8 +27,6 @@ def parseArgs():
                         help="""limit to these databases for testing, maybe repeated""")
     parser.add_argument("configPyFile",
                         help="""configuration python file""")
-    parser.add_argument("hgCentralDb",
-                        help="""name of hgcentral database used to find active assemblies""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
@@ -89,7 +87,7 @@ def genomeDbLoad(opts):
     genomeDbTmp = fileOps.atomicTmpFile(conf.genomeDb)
     fileOps.ensureFileDir(conf.genomeDb)
     genomeDbConn = sqlite3.connect(genomeDbTmp)
-    activeDbDbs = getActiveDbDb(hgDbConn, opts.hgCentralDb, opts.subsetHgDbs)
+    activeDbDbs = getActiveDbDb(hgDbConn, conf.hgCentralDb, opts.subsetHgDbs)
     activeHgDbs = [row["name"] for row in activeDbDbs]
     loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
     loadGenomicChains(genomeDbConn, activeHgDbs)

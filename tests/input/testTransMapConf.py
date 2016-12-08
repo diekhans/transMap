@@ -23,7 +23,4 @@ def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                         chainType=_getConfVal("chainType", chainType),
                         buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
 
-
-    # test environ doesn't have syn chains
-    conf.cladePreferedChains[frozenset(["mammal", "mammal"])] =  (ChainType.syn,  ChainType.all)
     return conf

@@ -31,6 +31,7 @@ def getState(conf, mapping):
     else:
         return "needed"
 
+
 def writeTransMapInfo(conf, outFh, genomes):
     fileOps.prRowv(outFh, "destHgDb", "state", "srcHgDb", "annotationType", "chainType")
     for mapping in genomes.getCurrentMappings():

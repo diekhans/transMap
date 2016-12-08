@@ -261,7 +261,7 @@ class Genomes(object):
             if srcChain.chainType == preferedChainType:
                 return srcChain
         return None
-    
+
     def __getDestHgDbSrcHgPreferedChain(self, destHgDb, srcHgDb, srcChainsList):
         # get most appropriate chain for the clade differences
         for preferedChainType in self.__getPreferedChainTypes(destHgDb, srcHgDb):
@@ -281,8 +281,8 @@ class Genomes(object):
             yield Mapping(destHgDb, srcHgDb, annotationType, preferedChain)
 
     def __getDestHgDbSrcOrgMappings(self, destHgDb, srcOrg, srcOrgChainsList):
-        srcHgDb = srcOrg.genomeAsms[0].hgDb # newest
-        srcHgDbChains = [c for c in srcOrgChainsList  if c.srcHgDb == srcHgDb]
+        srcHgDb = srcOrg.genomeAsms[0].hgDb  # newest
+        srcHgDbChains = [c for c in srcOrgChainsList if c.srcHgDb == srcHgDb]
         if len(srcHgDbChains) > 0:
             return list(self.__getDestHgDbSrcHgMappings(destHgDb, srcHgDb, srcHgDbChains))
         else:
