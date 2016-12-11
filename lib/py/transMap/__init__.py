@@ -32,10 +32,11 @@ def parseAlignId(alignId):
     """parse a transmap id in the form srcDb:acc.ver-uniqmods... into a list of
     (srcDb, acc.ver, uniqmods).  This will parse a srouce or target alignment id
     """
-    m = re.match("^([a-zA-Z0-9]+):([A-Z0-9_]+\\.[0-9]+)-([0-9.]+)$", alignId)
+    # older versions of ensembl tracks didn't have versions
+    m = re.match("^([a-zA-Z0-9]+):([A-Z0-9_]+(\\.[0-9]+)?)-([0-9.]+)$", alignId)
     if m is None:
         raise Exception("can not parse transmap alignment id \"{}\"".format(alignId))
-    return m.groups()
+    return (m.group(1), m.group(2), m.group(4))
 
 
 def alignIdDropOneUniq(alignId):
@@ -50,7 +51,8 @@ def alignIdDropOneUniq(alignId):
 
 def alignIdToSrcId(alignId):
     "remove the unique suffix only, return srcId, including srcDb"
-    m = re.match("^([a-zA-Z0-9]+:[A-Z0-9_]+\\.[0-9]+)-([0-9.]+)$", alignId)
+    # older versions of ensembl tracks didn't have versions
+    m = re.match("^([a-zA-Z0-9]+:[A-Z0-9_]+(\\.[0-9]+)?)-([0-9.]+)$", alignId)
     if m is None:
         raise Exception("can not parse alignment id \"{}\"".format(alignId))
     return m.group(1)
@@ -58,7 +60,8 @@ def alignIdToSrcId(alignId):
 
 def srcIdToAccv(srcId):
     "convert a srcId to an accv"
-    m = re.match("^([a-zA-Z0-9]+):([A-Z0-9_]+\\.[0-9]+)$", srcId)
+    # older versions of ensembl tracks didn't have versions
+    m = re.match("^([a-zA-Z0-9]+):([A-Z0-9_]+(\\.[0-9]+)?)$", srcId)
     if m is None:
         raise Exception("can not parse source id \"{}\"".format(srcId))
     return m.group(2)

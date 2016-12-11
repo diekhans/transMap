@@ -48,7 +48,7 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata):
            mappedPsl.qEnd,  # oChromEnd
            mappedPsl.getTStrand(),  # oStrand
            mappedPsl.qSize,  # oChromSize
-           _mkRelCommaList(mappedPsl.qStart, [e.qStart for e in mappedPsl.blocks]),  # oChromStarts
+           _mkCommaList([e.qStart for e in mappedPsl.blocks]),  # oChromStarts
            sequence.seq,  # oSequence
            cds,  # oCDS
            mappedPsl.tSize,  # chromSize

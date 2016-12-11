@@ -193,5 +193,5 @@
 
 tmdir=~/compbio/projs/transMap/transMap-dev
 cd /hive/data/outside/transMap/V4
-(time nice ${tmdir}/bin/luigiTransMap --workers=16 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2016-12-09.a.full.log
+(time nice ${tmdir}/bin/luigiTransMap --workers=16 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2016-12-09.a.full.log &
 

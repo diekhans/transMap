@@ -45,6 +45,10 @@ def transMapBuildBigPsl(opts):
                   "-as={}/etc/bigTransMap.as".format(conf.codeRootDir),
                   mappedPreBigPsl, getChromSizes(conf.destHgDb),
                   mappedBigPslTmpFile])
+    # validate
+    pipettor.run([["bigPslToPsl", mappedBigPslTmpFile, "stdout"],
+                  ["pslCheck", "stdin"]])
+    
     fileOps.atomicInstall(mappedBigPslTmpFile, conf.mappedBigPslFile)
     os.unlink(mappedPreBigPsl)
 

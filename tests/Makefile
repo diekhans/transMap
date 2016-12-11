@@ -87,7 +87,8 @@ srcDbLoadEnsemblAlignsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblAlignsTest}
 ##
 # srcDbLoadEnsemblSeqs
 ##
-srcDbLoadEnsemblSeqsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblSeqsTest}
+srcDbLoadEnsemblSeqsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblSeqsTest} \
+	srcDbLoadEnsemblCompatTest
 
 %_srcDbLoadEnsemblSeqsTest: mkdirs
 	rm -f output/$@.db
@@ -108,6 +109,23 @@ srcDbLoadEnsemblMetadataTests: ${ensemblTypes:%=%_srcDbLoadEnsemblMetadataTest}
 	${srcDbLoadEnsemblMetadata} --testLimit $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
+
+##
+# compatiblity with older Ensembls that don't have version numbers; we fake it
+srcDbLoadEnsemblCompatTest: mkdirs
+	rm -f output/$@.db
+	${srcDbLoadEnsemblAligns} --testAccvFile=input/fr3.acc fr3 ensembl output/$@.db
+	${srcDbLoadEnsemblSeqs} fr3 ensembl output/$@.db
+	${srcDbLoadEnsemblMetadata} --testLimit fr3 ensembl output/$@.db
+	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
+	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
+	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
+	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq) as length from srcSeq order by name' >output/$@.fa.ids
+	${srcDbCheck} fr3 ensembl output/$@.db
+	${diff} expected/$@.fa.ids output/$@.fa.ids
+	${diff} expected/$@.meta output/$@.meta
+	${diff} expected/$@.psl+bin output/$@.psl+bin
+	${diff} expected/$@.xref output/$@.xref
 
 ##
 # srcDbCheck
