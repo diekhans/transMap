@@ -32,6 +32,7 @@ def parseArgs():
 def srcDbLoadGenbankAligns(srcHgDb, annotationType, srcDb, testAccFile):
     testAccSubset = fileOps.readFileLines(testAccFile) if testAccFile is not None else None
     genbankHgData = GenbankHgData(srcHgDb, annotationType)
+    fileOps.ensureFileDir(srcDb)
     srcDbConn = sqlite3.connect(srcDb)
     try:
         srcAlignXRefLoad(srcDbConn, genbankHgData.alignReader(testAccSubset=testAccSubset))

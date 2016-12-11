@@ -6,9 +6,10 @@ import os
 import argparse
 import pipettor
 from pycbio.sys import fileOps, loggingOps
-from transMap import setSortLocale, getSortProg, getChromSizes
+from transMap import setSortLocale, getChromSizes
 from transMap.genomeData import AnnotationType
 from transMap.transMapConf import transMapConfLoad
+from transMap.bigTransMap import bigTransMapSortMerge
 
 
 def parseArgs():
@@ -30,26 +31,14 @@ def parseArgs():
     return opts
 
 
-def writeSortList(conf, srcHgDbs):
-    tmpSortList = fileOps.tmpFileGet("transMap.dest-sort.")
-    with open(tmpSortList, "w") as fh:
-        for srcHgDb in srcHgDbs:
-            fh.write(conf.getBatchSrcHgDbPreBigPsl(srcHgDb))
-            fh.write("\0")
-    return tmpSortList
-
-
 def transMapBuildBigPsl(opts):
     conf = transMapConfLoad(opts.configPyFile,
                             destHgDb=opts.destHgDb,
                             annotationType=opts.annotationType)
-    tmpSortList = writeSortList(conf, opts.srcHgDbs)
-    # fields 3,4 are for test stability
-    mappedPreBigPsl = fileOps.tmpFileGet("transmap.dest.", "preBigPsl")
-    sortCmd = [getSortProg(), "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
-               "--merge", "--files0-from={}".format(tmpSortList),
-               "--output={}".format(mappedPreBigPsl)]
-    pipettor.run([sortCmd])
+
+    inPreBigPsls = [conf.getBatchSrcHgDbPreBigPsl(srcHgDb) for srcHgDb in opts.srcHgDbs]
+    mappedPreBigPsl = fileOps.tmpFileGet("transMap.dest.", "preBigPsl")
+    bigTransMapSortMerge(inPreBigPsls, mappedPreBigPsl)
     fileOps.ensureFileDir(conf.mappedBigPslFile)
     mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
     pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",

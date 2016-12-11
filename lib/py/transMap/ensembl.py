@@ -1,3 +1,4 @@
+import re
 from pycbio.hgdata import hgDb
 from pycbio.sys import fileOps, dbOps
 from transMap import setSortLocale
@@ -43,14 +44,31 @@ class EnsemblHgData(object):
         self.srcHgDbConn = hgDb.connect(srcHgDb, dictCursor=True)
         self.gencodeVersion = self.__getGencodeVersion() if annotationType == AnnotationType.gencode else None
 
+    def __parseGenbankVersion(self, table):
+        """parse numeric version from table name, avoiding V24lift37 like names"""
+        verRe = "^{}(VM?[0-9]+)$".format(gencodeCompTblBase)
+        m = re.match(verRe, table)
+        if m is None:
+            return None
+        else:
+            return m.group(1)
+
+    def __getGencodeCompTables(self):
+        tbls = []
+        for tbl in dbOps.getTablesLike(self.srcHgDbConn, "{}%".format(gencodeCompTblBase)):
+            # skip lift tables
+            if self.__parseGenbankVersion(tbl) is not None:
+                tbls.append(tbl)
+        return tbls
+
     def __getGencodeVersion(self):
         "return latest gencode version, parse from table names, or None"
-        tbls = dbOps.getTablesLike(self.srcHgDbConn, gencodeCompTblBase + "%")
+        tbls = self.__getGencodeCompTables()
         if len(tbls) == 0:
             return None
         # get most current version number by sorting by reverse string length,
         # then reverse value will get the latest
-        tbls.sort(key=lambda t: (len(t), t))
+        tbls.sort(key=lambda t: (len(t), t), reverse=True)
         return tbls[0][len(gencodeCompTblBase):]
 
     def __getGenePredTbl(self):

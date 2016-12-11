@@ -21,7 +21,7 @@ table bigPsl
     int[blockCount] oChromStarts; "Start positions relative to oChromStart or from oChromStart+oChromSize depending on strand"
 
     lstring  oSequence;  "Sequence on other chrom (or edit list, or empty)"
-    string   oCDS;       "CDS in NCBI format"
+    lstring  oCDS;       "CDS in NCBI format"
 
     uint    chromSize;"Size of target chromosome"
 

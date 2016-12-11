@@ -1,9 +1,11 @@
-from pycbio.hgdata import hgDb
+import os
 import pipettor
 import logging
+from pycbio.hgdata import hgDb
 from transMap import setSortLocale
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
+from pycbio.sys import fileOps, dbOps
 
 
 def valOrNone(val):
@@ -12,6 +14,22 @@ def valOrNone(val):
 
 def strOrNoneIfZero(val):
     return None if val == 0 else str(val)
+
+
+def haveRnaTrack(hgDbConn, hgDb):
+    "check if all_mrna exists"
+    return dbOps.haveTablesLike(hgDbConn, "all_mrna", hgDb)
+
+
+def haveEstTrack(hgDbConn, hgDb):
+    "check if intronEst exists"
+    # might be split
+    return dbOps.haveTablesLike(hgDbConn, "%intronEst", hgDb)
+
+
+def haveRefseqTrack(hgDbConn, hgDb):
+    "check if refSeqAli exists"
+    return dbOps.haveTablesLike(hgDbConn, "refSeqAli", hgDb)
 
 
 class GenbankHgData(object):
@@ -26,27 +44,56 @@ class GenbankHgData(object):
         self.srcHgDb = srcHgDb
         self.annotationType = annotationType
 
-    def __getPslTbl(self):
+    def __getIntronEstTables(self):
+        hgDbConn = hgDb.connect(self.srcHgDb)
+        try:
+            return dbOps.getTablesLike(hgDbConn, "%intronEst", self.srcHgDb)
+        finally:
+            hgDbConn.close()
+
+    def __getPslTbls(self):
+        """get the list of tables for a source; intronEst might be split"""
         if self.annotationType == AnnotationType.rna:
-            return "all_mrna"
+            return ["all_mrna"]
         elif self.annotationType == AnnotationType.est:
-            return "intronEst"
+            return self.__getIntronEstTables()
         elif self.annotationType == AnnotationType.refseq:
-            return "refSeqAli"
+            return ["refSeqAli"]
+
+    def __buildPslSelect(self, table, testAccSubset=None):
+        sql = self.pslSelectTmpl.format(table)
+        if testAccSubset is not None:
+            sql += " AND (qName in ({}))".format(",".join(['"{}"'.format(name) for name in testAccSubset]))
+        return sql
+
+    def __getPslCmdSingle(self, table, testAccSubset=None):
+        hgsqlCmd = ("hgsql", "-Ne", self.__buildPslSelect(table, testAccSubset), self.srcHgDb)
+        return hgsqlCmd, None
+
+    def __getPslCmdSplit(self, tables, testAccSubset=None):
+        tmpPslFile = fileOps.tmpFileGet("transMap.splittable.", "psl")
+        with open(tmpPslFile, "w") as pslFh:
+            for table in tables:
+                pipettor.run(("hgsql", "-Ne", self.__buildPslSelect(table, testAccSubset), self.srcHgDb),
+                             stdout=pslFh)
+        return ["cat", tmpPslFile], tmpPslFile
 
     def alignReader(self, testAccSubset=None):
         """get generator to return alignments with updated qNames,
         these are raw rows."""
         setSortLocale()
-        sql = self.pslSelectTmpl.format(self.__getPslTbl())
-        if testAccSubset is not None:
-            sql += " AND (qName in ({}))".format(",".join(['"{}"'.format(name) for name in testAccSubset]))
-        hgsqlCmd = ("hgsql", "-Ne", sql, self.srcHgDb)
+        pslTables = self.__getPslTbls()
+        if len(pslTables) == 1:
+            getAlignCmd, tmpPslFile = self.__getPslCmdSingle(pslTables[0], testAccSubset)
+        else:
+            getAlignCmd, tmpPslFile = self.__getPslCmdSplit(pslTables, testAccSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
-        with pipettor.Popen([hgsqlCmd, sortCmd, uniqCmd], logger=logging.getLogger()) as fh:
+        with pipettor.Popen([getAlignCmd, sortCmd, uniqCmd], logger=logging.getLogger()) as fh:
             for line in fh:
                 yield line.rstrip().split("\t")
+        if tmpPslFile is not None:
+            os.unlink(tmpPslFile)
 
     @staticmethod
     def __getTestSubsetClause(alignField, testAccvSubset):

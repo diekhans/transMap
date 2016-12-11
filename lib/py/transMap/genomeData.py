@@ -27,7 +27,7 @@ class AnnotationTypeSet(frozenset):
 
     def __str__(self):
         values = []
-        for value in self:
+        for value in sorted(self):
             values.append(str(value))
         return ",".join(values)
 

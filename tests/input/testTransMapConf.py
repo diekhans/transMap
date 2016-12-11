@@ -22,5 +22,6 @@ def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                         annotationType=_getConfVal("annotationType", annotationType),
                         chainType=_getConfVal("chainType", chainType),
                         buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
-
+    if os.environ.get("noRequired", None) is not None:
+        conf.requiredPreviousDestHgDbs = frozenset()
     return conf

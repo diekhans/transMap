@@ -1,6 +1,10 @@
 """
 support for build bigTransMap files
 """
+import os
+from pycbio.sys import fileOps
+from transMap import getSortProg
+import pipettor
 
 
 def _mkCommaList(elems):
@@ -62,3 +66,32 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata):
            geneId,
            chainType]
     return row
+
+
+def _writeSortList(inFiles):
+    tmpSortList = fileOps.tmpFileGet("transMap.merge-sort.")
+    with open(tmpSortList, "w") as fh:
+        for inFile in inFiles:
+            fh.write(inFile)
+            fh.write("\0")
+    return tmpSortList
+
+
+def _bigTransMapSortMerge(inFiles, outPreBigPsl):
+    tmpSortList = _writeSortList(inFiles)
+    outPreBigPslTmp = fileOps.atomicTmpFile(outPreBigPsl)
+    sortCmd = [getSortProg(), "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
+               "--merge", "--files0-from={}".format(tmpSortList),
+               "--output={}".format(outPreBigPslTmp)]
+    pipettor.run(sortCmd)
+    fileOps.atomicInstall(outPreBigPslTmp, outPreBigPsl)
+    os.unlink(tmpSortList)
+
+
+def bigTransMapSortMerge(inFiles, outPreBigPsl):
+    # sort generates error on empty input, so handle this case
+    fileOps.ensureFileDir(outPreBigPsl)
+    if len(inFiles) == 0:
+        open(outPreBigPsl, "w").close()  # create empty
+    else:
+        _bigTransMapSortMerge(inFiles, outPreBigPsl)

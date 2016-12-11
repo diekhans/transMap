@@ -6,7 +6,7 @@ import sqlite3
 import pipettor
 import sys
 import logging
-from pycbio.sys import loggingOps
+from pycbio.sys import fileOps, loggingOps
 from transMap.genomeData import GenomesDbTables, ChainsDbTable, ChainType
 
 
@@ -60,6 +60,7 @@ def buildChainOutputCommands(mappingChains, mappingChainsIndexDb):
 
 
 def mappingChainBuild(genomeDb, srcHgDb, destHgDb, chainType, mappingChains):
+    fileOps.ensureFileDir(mappingChains)
     mappingChainsIndexDb = "{}.db".format(mappingChains)
     genomeDbConn = sqlite3.connect(genomeDb)
     chains = getChains(genomeDbConn, srcHgDb, destHgDb, chainType)

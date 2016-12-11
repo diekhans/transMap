@@ -156,10 +156,10 @@ mappingChainsBuildAllTest: mkdirs
 # sets up test files for batch/job tests
 define transMapEnvSetup
 rm -rf output/$@.data output/$@.build
-mkdir -p output/$@.data/src/hg19 output/$@.build/mm10/hg19
+mkdir -p output/$@.data/src/hg19 output/$@.build/chains/mm10/hg19
 cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.data/src/hg19/hg19.rna.src.db
-sqlite3 -batch output/$@.build/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
-cp -f input/mm10.hg19.chain output/$@.build/mm10/hg19/hg19.mm10.all.chain
+sqlite3 -batch output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
+cp -f input/mm10.hg19.chain output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain
 endef
 
 transMapJobTest: mkdirs
@@ -177,7 +177,7 @@ transMapBuildBigPslTest: mkdirs
 	mkdir -p output/$@.build/results/mm10/
 	cp -f expected/transMapBatchTest.preBigPsl output/$@.build/results/mm10/mm10.hg19.rna.preBigPsl
 	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBuildBigPsl} input/testTransMapConf.py mm10 rna hg19
-	bigBedToBed output/transMapBuildBigPslTest.data/mapped/mm10/mm10.rna.mapped.bigPsl output/$@.preBigPsl
+	bigBedToBed output/transMapBuildBigPslTest.data/mapped/mm10/mm10.rna.transMap.bigPsl output/$@.preBigPsl
 	${diff} expected/transMapBatchTest.preBigPsl output/$@.preBigPsl
 
 transMapInfoTest: mkdirs
@@ -189,6 +189,7 @@ transMapInfoTest: mkdirs
 
 #########################################################################################
 
+.PHONY: bigTest
 bigTest: bigTestGenomeDb bigTestInfo
 
 bigTestGenomeDb: bigTest/data/genome.db
@@ -197,13 +198,19 @@ bigTest/data/genome.db:
 	dataDir=bigTest ${genomeDbLoad} input/testTransMapConf.py
 
 bigTestInfo: bigTest/data/genome.db
-	dataDir=bigTest ${transMapInfo} input/testTransMapConf.py bigTest/transmap-info.tsv
+	dataDir=bigTest/data ${transMapInfo} input/testTransMapConf.py bigTest/transmap-info.tsv
 
 bigClean:
 	rm -rf bigTest
 
+#########################################################################################
+
+.PHONY: luigiTest
 luigiTest:
-	dataDir=luigiTest ${luigiTransMap} --destHgDb=f -srcHgDb input/testTransMapConf.py
+	nice ${luigiTransMap} --logConfFile=../etc/logging.conf --destHgDb=canFam3 --srcHgDb=felCat8 input/testLuigiTransMapConf.py
+
+luigiBatchClean:
+	rm -rf luigiTest/build/*/*/{est,rna,refseq,ensembl,gencode}
 
 luigiClean:
 	rm -rf luigiTest

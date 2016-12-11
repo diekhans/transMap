@@ -15,7 +15,8 @@ _addExtern("pycbio", "lib")
 _addExtern("pipettor", "build/lib")
 sys.path.insert(0, os.path.join(rootDir,  "lib/py"))
 
-# executable PATH
-os.environ["PATH"] = "{}:{}:{}".format(os.path.join(rootDir, "bin"),
-                                       "/cluster/bin/x86_64",
-                                       os.environ["PATH"])
+# executable PATH, make sure we can override kent commands
+os.environ["PATH"] = "{}:{}:{}:{}".format(os.path.join(rootDir, "bin"),
+                                          os.path.expanduser("~/kent/bin/x86_64"),
+                                          "/cluster/bin/x86_64",
+                                          os.environ["PATH"])

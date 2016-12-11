@@ -141,15 +141,18 @@ class PslMapper(object):
                 psl.write(pslFh)
         return srcPslTmpFile
 
-    def __writeSrcSeq(self, srcPsl, faFh):
-        srcSeq = self.srcSeqTbl.getByName(alignIdToSrcId(srcPsl.qName))
+    def __writeSrcSeq(self, srcId, faFh):
+        srcSeq = self.srcSeqTbl.getByName(srcId)
         faFh.write(srcSeq.toFasta())
+
+    def __getUniqPslSrcId(self, srcPsls):
+        return set([alignIdToSrcId(p.qName) for p in srcPsls])
 
     def __writeSrcSeqs(self, srcPsls):
         srcSeqsTmpFile = fileOps.tmpFileGet("transMap.src.", ".fa")
         with open(srcSeqsTmpFile, "w") as faFh:
-            for srcPsl in srcPsls:
-                self.__writeSrcSeq(srcPsl, faFh)
+            for srcId in self.__getUniqPslSrcId(srcPsls):
+                self.__writeSrcSeq(srcId, faFh)
         return srcSeqsTmpFile
 
     def __writeMappingChains(self, srcPslsCoords):
@@ -178,8 +181,11 @@ class PslMapper(object):
         p = pipettor.Pipeline(cmds, stdout=mappedPslTmpFile, logger=logging.getLogger())
         p.wait()
         mappedPsls = PslTbl(mappedPslTmpFile)
-        if not self.keep:
-            fileOps.rmFiles(srcPslTmpFile, srcSeqsTmpFile, chainsTmpFile, mappedPslTmpFile)
+        tmpFiles = [srcPslTmpFile, srcSeqsTmpFile, chainsTmpFile, mappedPslTmpFile]
+        if self.keep:
+            sys.stderr.write("keep files: {}\n".format(tmpFiles))
+        else:
+            fileOps.rmFiles(*tmpFiles)
         return mappedPsls
 
     @staticmethod

@@ -19,7 +19,8 @@ class TransMapConf(object):
     takes set values explicitly and from the command line.
     """
     def __init__(self, configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
-                 annotationType=None, chainType=None, buildTmpDir=None):
+                 annotationType=None, chainType=None, buildTmpDir=None,
+                 version="", batchGen=1):
         self.configPyFile = configPyFile
         self.dataDir = dataDir
         self.srcHgDb = srcHgDb
@@ -27,6 +28,8 @@ class TransMapConf(object):
         self.annotationType = annotationType
         self.chainType = chainType
         self.buildTmpDir = buildTmpDir
+        self.version = version
+        self.batchGen = batchGen
 
         # ucsc browser data
         self.hgCentralDb = "hgcentraltest"
@@ -96,7 +99,7 @@ class TransMapConf(object):
 
     def getMappedBigPslFileForDestHgDb(self, destHgDb, annotationType):
         return os.path.join(self.getMappedDataDirForDestHgDb(destHgDb),
-                            "{}.{}.mapped.bigPsl".format(destHgDb, annotationType))
+                            "{}.{}.transMap{}.bigPsl".format(destHgDb, annotationType, self.version))
 
     @property
     def mappedBigPslFile(self):
@@ -106,7 +109,7 @@ class TransMapConf(object):
     @property
     def mappingChainsDir(self):
         self.__needOptions("buildTmpDir", "srcHgDb", "destHgDb")
-        return os.path.join(self.buildTmpDir, self.destHgDb, self.srcHgDb)
+        return os.path.join(self.buildTmpDir, "chains", self.destHgDb, self.srcHgDb)
 
     @property
     def mappingChains(self):
@@ -121,11 +124,11 @@ class TransMapConf(object):
     @property
     def batchDir(self):
         self.__needOptions("buildTmpDir", "destHgDb", "srcHgDb", "annotationType")
-        return os.path.join(self.buildTmpDir, self.destHgDb, self.srcHgDb, str(self.annotationType))
+        return os.path.join(self.buildTmpDir, "batches", self.destHgDb, self.srcHgDb, str(self.annotationType))
 
     @property
     def batchParaDir(self):
-        return os.path.join(self.batchDir, "para")
+        return os.path.join(self.batchDir, "para{}".format(self.batchGen))
 
     @property
     def batchParaFile(self):

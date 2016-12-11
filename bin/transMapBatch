@@ -8,10 +8,11 @@ import argparse
 import pipettor
 from pycbio.sys import fileOps, loggingOps
 from pycbio.distrib.parasol import Para
-from transMap import setSortLocale, getSortProg
+from transMap import setSortLocale
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import AnnotationType, ChainType
 from transMap.srcData import SourceDbTables, SrcAlignDbTable
+from transMap.bigTransMap import bigTransMapSortMerge
 
 
 def parseArgs():
@@ -85,29 +86,14 @@ def directRunBatch(conf, batchFile):
 
 
 def paraRunBatch(conf, batchFile):
-    para = Para(conf.paraHost)
-    print para
-
-
-def writeSortList(conf):
-    tmpSortList = fileOps.tmpFileGet("transMap.batch-sort.")
-    with open(tmpSortList, "w") as fh:
-        for startOid, endOid in srcAlignPartitionGen(conf):
-            fh.write(conf.getJobPreBigPsl(startOid, endOid))
-            fh.write("\0")
-    return tmpSortList
+    para = Para(conf.paraHost, os.getcwd(), conf.batchParaDir, os.path.abspath(batchFile))
+    para.make()
 
 
 def finishBatch(conf):
-    tmpSortList = writeSortList(conf)
-    # fields 3,4 are for test stability
-    fileOps.ensureFileDir(conf.batchPreBigPsl)
-    batchPreBigPslTmp = fileOps.atomicTmpFile(conf.batchPreBigPsl)
-    sortCmd = [getSortProg(), "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
-               "--merge", "--files0-from={}".format(tmpSortList),
-               "--output={}".format(batchPreBigPslTmp)]
-    pipettor.run(sortCmd)
-    fileOps.atomicInstall(batchPreBigPslTmp, conf.batchPreBigPsl)
+    inPreBigPsls = [conf.getJobPreBigPsl(startOid, endOid)
+                    for startOid, endOid in srcAlignPartitionGen(conf)]
+    bigTransMapSortMerge(inPreBigPsls, conf.batchPreBigPsl)
 
 
 def transMapBatch(opts):

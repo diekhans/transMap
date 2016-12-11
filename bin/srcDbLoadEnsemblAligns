@@ -32,6 +32,7 @@ def parseArgs():
 def srcDbLoadEnsemblAligns(srcHgDb, annotationType, srcDb, testAccvFile):
     testAccvSubset = fileOps.readFileLines(testAccvFile) if testAccvFile is not None else None
     ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
+    fileOps.ensureFileDir(srcDb)
     srcDbConn = sqlite3.connect(srcDb)
     try:
         alignReader = ensemblHgData.alignReader(testAccvSubset=testAccvSubset)

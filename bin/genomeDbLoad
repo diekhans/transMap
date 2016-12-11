@@ -13,6 +13,7 @@ from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, Genom
 from transMap.ensembl import haveEnsemblFull, haveGencode
 from transMap.chainsFinder import ChainsFinder
 from transMap.genbankConf import GenbankConf
+from transMap.genbank import haveRnaTrack, haveEstTrack, haveRefseqTrack
 
 
 def parseArgs():
@@ -45,15 +46,35 @@ def getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs=None):
         cur.close()
 
 
-def getAnnotationTypes(hgDbConn, hgDb, genbankConf):
-    annTypes = set()
+def getGenbankTypes(hgDbConn, hgDb, genbankConf):
     gbDbConf = genbankConf.get(hgDb)
-    if gbDbConf is not None:
-        annTypes |= gbDbConf.getEnabled()
+    if gbDbConf is None:
+        return set()
+    enabled = gbDbConf.getEnabled()
+    # they maybe enable but there is no data, so must check for tables.
+    annTypes = set()
+    if (AnnotationType.rna in enabled) and haveRnaTrack(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.rna)
+    if (AnnotationType.est in enabled) and haveEstTrack(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.est)
+    if (AnnotationType.refseq in enabled) and haveRefseqTrack(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.refseq)
+    return annTypes
+
+
+def getEnsemblTypes(hgDbConn, hgDb):
+    # gencode wins if have both
+    annTypes = set()
     if haveGencode(hgDbConn, hgDb):
         annTypes.add(AnnotationType.gencode)
     elif haveEnsemblFull(hgDbConn, hgDb):
         annTypes.add(AnnotationType.ensembl)
+    return annTypes
+
+
+def getAnnotationTypes(hgDbConn, hgDb, genbankConf):
+    annTypes = getGenbankTypes(hgDbConn, hgDb, genbankConf) \
+        | getEnsemblTypes(hgDbConn, hgDb)
     if len(annTypes) == 0:
         return None
     else:

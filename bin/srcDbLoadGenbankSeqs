@@ -47,6 +47,7 @@ def getSeqFasta(srcHgDb, annotationType, tmpAccFile):
 
 
 def getGenbankSeqs(srcHgDb, annotationType, srcDb):
+    fileOps.ensureFileDir(srcDb)
     srcDbConn = sqlite3.connect(srcDb)
     tmpAccFile = getSrcAccsFile(annotationType, srcDbConn)
     tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpAccFile)

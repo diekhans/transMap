@@ -55,6 +55,7 @@ def getSeqFasta(srcHgDb, annotationType, srcGp):
 
 
 def getEnsemblSeqs(srcHgDb, annotationType, srcDb):
+    fileOps.ensureFileDir(srcDb)
     srcDbConn = sqlite3.connect(srcDb)
     tmpSrcGp = getSrcGenePred(srcHgDb, annotationType, srcDbConn)
     tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpSrcGp)

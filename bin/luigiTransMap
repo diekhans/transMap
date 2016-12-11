@@ -19,9 +19,9 @@ def parseArgs():
     """
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)
-    parser.add_argument("--destHgDb", action="append", default=None, dest="destHgDbs",
+    parser.add_argument("--destHgDb", action="append", default=None, dest="destHgDbSubset",
                         help="""limit to these destination databases testing, maybe repeated""")
-    parser.add_argument("--srcHgDb", action="append", default=None, dest="srcHgDbs",
+    parser.add_argument("--srcHgDb", action="append", default=None, dest="srcHgDbSubset",
                         help="""limit to these sources databases testing, maybe repeated""")
     parser.add_argument("--rebuildGenomeDb", action="store_true", default=False,
                         help="""rebuild the genome database, picking up any changes""")
@@ -31,11 +31,19 @@ def parseArgs():
                         help="""configuration python file""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
-    if opts.srcHgDbs is not None:
-        opts.srcHgDbs = frozenset(opts.srcHgDbs)
-    if opts.destHgDbs is not None:
-        opts.destHgDbs = frozenset(opts.destHgDbs)
+    if opts.srcHgDbSubset is not None:
+        opts.srcHgDbSubset = frozenset(opts.srcHgDbSubset)
+    if opts.destHgDbSubset is not None:
+        opts.destHgDbSubset = frozenset(opts.destHgDbSubset)
     return opts
+
+
+def noneIfEmpty(v):
+    return v if len(v) > 0 else None
+
+
+def emptyListIfNone(v):
+    return [] if v is None else list(v)
 
 
 class AnnotationTypeParameter(luigi.Parameter):
@@ -50,17 +58,17 @@ class ChainTypeParameter(luigi.Parameter):
 
 class SrcDataTask(luigi.Task):
     task_namespace = 'transmap'
-    configPyFile = luigi.StringParameter()
-    srcHgDb = luigi.StringParameter()
-    annotationType = luigi.AnnotationTypeParameter()
+    configPyFile = luigi.Parameter()
+    srcHgDb = luigi.Parameter()
+    annotationType = AnnotationTypeParameter()
 
     def __init__(self, *args, **kwargs):
-        super(SrcDataTask).__init__(self, *args, **kwargs)
+        super(SrcDataTask, self).__init__(*args, **kwargs)
         self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, annotationType=self.annotationType)
 
     def __runCmd(self, prog, srcDbTmp):
-        pipettor([os.path.join(self.conf.binDir, prog), self.srcHgDb, self.annotationType, srcDbTmp],
-                 logger=logging.getLogger())
+        pipettor.run([os.path.join(self.conf.binDir, prog), self.srcHgDb, self.annotationType, srcDbTmp],
+                     logger=logging.getLogger())
 
     def __ensemblProgs(self):
         return ["srcDbLoadEnsemblAligns",
@@ -76,12 +84,12 @@ class SrcDataTask(luigi.Task):
                      "srcDbCheck"])
         return cmds
 
-    def run(self, progs):
-        srcDbTmp = fileOps.atomicTmpFile(self.srcDb)
+    def run(self):
+        srcDbTmp = fileOps.atomicTmpFile(self.conf.srcDb)
         progs = self.__ensemblProgs() if self.annotationType in (AnnotationType.ensembl, AnnotationType.gencode) else self.__genbankProgs()
         for prog in progs:
             self.__runCmd(prog, srcDbTmp)
-        fileOps.atomicInstall(srcDbTmp, self.srcDb)
+        fileOps.atomicInstall(srcDbTmp, self.conf.srcDb)
 
     def output(self):
         return luigi.LocalTarget(self.conf.srcDb)
@@ -89,27 +97,27 @@ class SrcDataTask(luigi.Task):
 
 class MappingChainBuildTask(luigi.Task):
     task_namespace = 'transmap'
-    configPyFile = luigi.StringParameter()
-    srcHgDb = luigi.StringParameter()
-    destHgDb = luigi.StringParameter()
-    chainType = luigi.ChainTypeParameter()
+    configPyFile = luigi.Parameter()
+    srcHgDb = luigi.Parameter()
+    destHgDb = luigi.Parameter()
+    chainType = ChainTypeParameter()
 
     def __init__(self, *args, **kwargs):
-        super(MappingChainBuildTask).__init__(self, *args, **kwargs)
+        super(MappingChainBuildTask, self).__init__(*args, **kwargs)
         self.chainType = ChainType(self.chainType)
         self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, destHgDb=self.destHgDb,
-                                     chainType=self.chainType, annotationType=self.annotationType)
+                                     chainType=self.chainType)
 
     def run(self):
-        mappingChainsTmp = fileOps.atomicTmpFile(self.mappingChains)
+        mappingChainsTmp = fileOps.atomicTmpFile(self.conf.mappingChains)
         mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
 
         pipettor.run([os.path.join(self.conf.binDir, "mappingChainBuild"),
                       self.conf.genomeDb, self.srcHgDb, self.destHgDb, self.chainType, mappingChainsTmp],
                      logger=logging.getLogger())
 
-        fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.mappingChains))
-        fileOps.atomicInstall(mappingChainsTmp, self.mappingChains)
+        fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.conf.mappingChains))
+        fileOps.atomicInstall(mappingChainsTmp, self.conf.mappingChains)
 
     def output(self):
         return luigi.LocalTarget(self.conf.mappingChains)
@@ -117,29 +125,26 @@ class MappingChainBuildTask(luigi.Task):
 
 class TransMapBatchTask(luigi.Task):
     task_namespace = 'transmap'
-    configPyFile = luigi.StringParameter()
-    srcHgDb = luigi.StringParameter()
-    destHgDb = luigi.StringParameter()
-    annotationType = luigi.AnnotationTypeParameter()
-    chainType = luigi.ChainTypeParameter()
+    configPyFile = luigi.Parameter()
+    srcHgDb = luigi.Parameter()
+    destHgDb = luigi.Parameter()
+    annotationType = AnnotationTypeParameter()
+    # chainType is uniquely defined by srcHgDb+destHgDb,  insignificant
+    # allows easy requires on this class
+    chainType = ChainTypeParameter(significant=False)
 
     def __init__(self, *args, **kwargs):
-        super(TransMapBatchTask).__init__(self, *args, **kwargs)
+        super(TransMapBatchTask, self).__init__(*args, **kwargs)
         self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, destHgDb=self.destHgDb,
                                      chainType=self.chainType,
                                      annotationType=self.annotationType)
 
     def run(self):
-        mappingChainsTmp = fileOps.atomicTmpFile(self.mappingChains)
-        mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
-
+        # transMapBatch handles atomic file
         pipettor.run([os.path.join(self.conf.binDir, "transMapBatch"),
                       self.configPyFile, self.srcHgDb, self.destHgDb,
                       self.annotationType, self.chainType],
                      logger=logging.getLogger())
-
-        fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.mappingChains))
-        fileOps.atomicInstall(mappingChainsTmp, self.mappingChains)
 
     def requires(self):
         return [SrcDataTask(configPyFile=self.configPyFile,
@@ -156,44 +161,42 @@ class TransMapBatchTask(luigi.Task):
 
 class TransMapBuildBigPslTask(luigi.Task):
     task_namespace = 'transmap'
-    configPyFile = luigi.StringParameter()
-    destHgDb = luigi.ListParameter()
-    annotationType = luigi.AnnotationTypeParameter()
+    configPyFile = luigi.Parameter()
+    destHgDb = luigi.Parameter()
+    annotationType = AnnotationTypeParameter()
     srcHgDbs = luigi.ListParameter()
 
     def __init__(self, *args, **kwargs):
-        super(TransMapBuildBigPslTask).__init__(self, *args, **kwargs)
+        super(TransMapBuildBigPslTask, self).__init__(*args, **kwargs)
         self.conf = transMapConfLoad(self.configPyFile, destHgDb=self.destHgDb,
                                      annotationType=self.annotationType)
 
     def run(self):
-        mappedBigPslFileTmp = fileOps.atomicTmpFile(self.mappedBigPslFile)
-
+        # transMapBuildBigPsl handles atomic install
         pipettor.run([os.path.join(self.conf.binDir, "transMapBuildBigPsl"),
-                      self.configPyFile, self.self.destHgDb,
+                      self.configPyFile, self.destHgDb,
                       self.annotationType] + list(self.srcHgDbs),
                      logger=logging.getLogger())
 
-        fileOps.atomicInstall(mappedBigPslFileTmp, self.mappedBigPslFile)
-
     def requires(self):
+        # chain type is not signficant
         return [TransMapBatchTask(configPyFile=self.configPyFile,
                                   srcHgDb=srcHgDb,
                                   destHgDb=self.destHgDb,
                                   annotationType=self.annotationType,
-                                  chainType=self.chainType)
+                                  chainType=None)
                 for srcHgDb in self.srcHgDbs]
 
     def output(self):
         return luigi.LocalTarget(self.conf.mappedBigPslFile)
 
 
-def filterMappings(mappings, opts):
+def filterMappings(mappings, srcHgDbSubset, destHgDbSubset):
     "subset mappings based on command line srcHgDb/destHgDb restrictions"
-    if opts.srcHgDbs is not None:
-        mappings = [m for m in mappings if m.srcHgDb in opts.srcHgDbs]
-    if opts.destHgDbs is not None:
-        mappings = [m for m in mappings if m.destHgDb in opts.destHgDbs]
+    if srcHgDbSubset is not None:
+        mappings = [m for m in mappings if m.srcHgDb in srcHgDbSubset]
+    if destHgDbSubset is not None:
+        mappings = [m for m in mappings if m.destHgDb in destHgDbSubset]
     return mappings
 
 
@@ -205,52 +208,81 @@ def splitMappings(mappings):
     return mappingsSplit
 
 
-def genomeDbBuild(conf, opts):
+def genomeDbBuild(conf, srcHgDbSubset, destHgDbSubset):
     cmd = [os.path.join(conf.binDir, "genomeDbLoad")]
-    if opts.srcHgDbs is not None:
-        cmd += ["--hgDb={}".format(hgDb) for hgDb in opts.srcHgDbs]
-    if opts.destHgDbs is not None:
-        cmd += ["--hgDb={}".format(hgDb) for hgDb in opts.destHgDbs]
-    cmd.append(opts.configPyFile)
-    pipettor(cmd, logger=logging.getLogger())
+    if srcHgDbSubset is not None:
+        cmd += ["--hgDb={}".format(hgDb) for hgDb in srcHgDbSubset]
+    if destHgDbSubset is not None:
+        cmd += ["--hgDb={}".format(hgDb) for hgDb in destHgDbSubset]
+    cmd.append(conf.configPyFile)
+    pipettor.run(cmd, logger=logging.getLogger())
 
 
 def genomeDbSetup(conf, opts):
     "need genomeDb to define tasks, so just build now"
-    if opts.rebuildGenomeDb and os.path.exists(conf.genoneDb):
-        os.unlink(conf.genoneDb)
-    if not os.path.exists(conf.genoneDb):
-        genomeDbBuild(conf, opts)
+    if opts.rebuildGenomeDb and os.path.exists(conf.genomeDb):
+        os.unlink(conf.genomeDb)
+    if not os.path.exists(conf.genomeDb):
+        genomeDbBuild(conf, opts.srcHgDbSubset, opts.destHgDbSubset)
 
 
-def getMappingState(conf, mapping):
+def mappingExists(conf, destHgDb, annotationType):
     "true if it's there, false if not"
-    return os.path.exists(conf.getMappedBigPslFileForDestHgDb(mapping.destHgDb, mapping.annotationType))
+    return os.path.exists(conf.getMappedBigPslFileForDestHgDb(destHgDb, annotationType))
 
 
 def getDestHgDbAnnotationTypeMappingTasks(conf, mappings):
+    srcHgDbs = set()
     for mapping in mappings:
-        if not getMappingState(conf, mapping):
-            yield TransMapBatchTask(configPyFile=conf.configPyFile,
-                                    srcHgDb=mapping.srcHgDb,
-                                    destHgDb=mappings.destHgDb,
-                                    annotationType=mappings.annotationType),
+        srcHgDbs.add(mapping.srcHgDb)
+        yield TransMapBatchTask(configPyFile=conf.configPyFile,
+                                srcHgDb=mapping.srcHgDb,
+                                destHgDb=mapping.destHgDb,
+                                annotationType=mapping.annotationType,
+                                chainType=mapping.chains.chainType)
+    yield TransMapBuildBigPslTask(configPyFile=conf.configPyFile,
+                                  destHgDb=mapping.destHgDb,
+                                  annotationType=mapping.annotationType,
+                                  srcHgDbs=list(srcHgDbs))
 
 
 def getMappingTasks(conf, mappingsSplit):
-    tasks = []
-    for mappings in mappingsSplit.itervalues():
-        tasks.extend(getDestHgDbAnnotationTypeMappingTasks(conf, mappings))
-    return tasks
+    for destHgDb, annotationType in mappingsSplit.iterkeys():
+        if not mappingExists(conf, destHgDb, annotationType):
+            mappings = mappingsSplit[(destHgDb, annotationType)]
+            for task in getDestHgDbAnnotationTypeMappingTasks(conf, mappings):
+                yield task
+
+
+class StartTask(luigi.WrapperTask):
+    task_namespace = 'transmap'
+    configPyFile = luigi.Parameter()
+    srcHgDbSubset = luigi.ListParameter()
+    destHgDbSubset = luigi.ListParameter()
+
+    def run(self):
+        pass
+
+    def requires(self):
+        conf = transMapConfLoad(self.configPyFile)
+        genomes = Genomes(conf)
+        mappingsSplit = splitMappings(filterMappings(genomes.getCurrentMappings(),
+                                                     noneIfEmpty(self.srcHgDbSubset),
+                                                     noneIfEmpty(self.destHgDbSubset)))
+        for task in getMappingTasks(conf, mappingsSplit):
+            yield task
 
 
 def luigiTransMap(opts):
     conf = transMapConfLoad(opts.configPyFile)
     genomeDbSetup(conf, opts)
-    genomes = Genomes(conf)
-    mappingsSplit = splitMappings(filterMappings(genomes.getCurrentMappings(), opts))
-    luigi.build(getMappingTasks(conf, mappingsSplit),
-                local_scheduler=True, workers=opts.workers)
+
+    # can't pass None for ListParameter, so pass empty list (FIXME)
+    luigi.build([StartTask(configPyFile=opts.configPyFile,
+                           srcHgDbSubset=emptyListIfNone(opts.srcHgDbSubset),
+                           destHgDbSubset=emptyListIfNone(opts.destHgDbSubset))],
+                local_scheduler=True, workers=opts.workers,
+                logging_conf_file=opts.logConfFile)
 
 # entry
 opts = parseArgs()
