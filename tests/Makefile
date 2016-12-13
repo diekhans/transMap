@@ -18,9 +18,16 @@ luigiTransMap = ../bin/luigiTransMap
 
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
+# gencode is a pseudo-type for constructing test cases
 ensemblTypes = gencode ensembl
 
-# this obtains the test db to use; ensemble must be special cased
+# this obtains the annotaton type, changing gencode to ensembl, which is used
+# by test, to ensembl
+#  $(call getAnnType,setName)
+getAnnType = $(if $(filter $(1),gencode),ensembl,$(1))
+
+
+# this obtains the test db to use; ensembl must be special cased
 #  $(call srcDbLoadTestDb,setName)
 srcDbLoadTestDb = $(if $(filter $(1),ensembl),felCat5,hg19)
 
@@ -78,7 +85,7 @@ srcDbLoadEnsemblAlignsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblAlignsTest}
 
 %_srcDbLoadEnsemblAlignsTest: mkdirs
 	rm -f output/$@.db
-	${srcDbLoadEnsemblAligns} --testAccvFile=input/$*.accv $(call srcDbLoadTestDb,$*) $* output/$@.db
+	${srcDbLoadEnsemblAligns} --testAccvFile=input/$*.accv $(call srcDbLoadTestDb,$*) ensembl output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
 	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
@@ -93,7 +100,7 @@ srcDbLoadEnsemblSeqsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblSeqsTest} \
 %_srcDbLoadEnsemblSeqsTest: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
-	${srcDbLoadEnsemblSeqs} $(call srcDbLoadTestDb,$*) $* output/$@.db
+	${srcDbLoadEnsemblSeqs} $(call srcDbLoadTestDb,$*) ensembl output/$@.db
 	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq) as length from srcSeq order by name' >output/$@.fa.ids
 	${diff} expected/$@.fa.ids output/$@.fa.ids
 
@@ -106,7 +113,7 @@ srcDbLoadEnsemblMetadataTests: ${ensemblTypes:%=%_srcDbLoadEnsemblMetadataTest}
 %_srcDbLoadEnsemblMetadataTest: mkdirs
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
-	${srcDbLoadEnsemblMetadata} --testLimit $(call srcDbLoadTestDb,$*) $* output/$@.db
+	${srcDbLoadEnsemblMetadata} --testLimit $(call srcDbLoadTestDb,$*) ensembl output/$@.db
 	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
 
@@ -135,7 +142,7 @@ srcDbCheckTests: ${genbankTypes:%=%_srcDbCheckTest}  ${ensemblTypes:%=%_srcDbChe
 %_srcDbCheckTest: mkdirs
 	rm -f output/$@.db
 	cat input/$*_align.sql input/$*_seq.sql input/$*_metadata.sql | sqlite3 -batch output/$@.db
-	${srcDbCheck} $(call srcDbLoadTestDb,$*) $* output/$@.db
+	${srcDbCheck} $(call srcDbLoadTestDb,$*) $(call getAnnType,$*) output/$@.db
 
 ##
 # genomeDbLoadTests
@@ -268,7 +275,7 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 	sqlite3 -batch output/$*_srcDbLoadEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
 mappingGenomeDbUpdate: mkdirs
-	dataDir=output/$@.data ${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 input/testTransMapConf.py hgcentraltest
+	dataDir=output/$@.data ${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 input/testTransMapConf.py
 	sqlite3 -batch output/$@.data/genome.db \
 	   'update chains set chainFile="input/mm10.hg19.chain", netFile="input/mm10.hg19.net" where srcHgDb="hg19"' \
 	   '.dump' > input/mappingGenomeDb.sql

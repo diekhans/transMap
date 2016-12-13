@@ -6,8 +6,8 @@ CREATE TABLE genomeAsms (
             commonName text not null,
             scientificName text not null,
             annotationTypeSet text);
-INSERT INTO "genomeAsms" VALUES('hg19','mammal','Human','Homo sapiens','rna,est,refseq,gencode');
-INSERT INTO "genomeAsms" VALUES('mm10','mammal','Mouse','Mus musculus','rna,est,refseq,gencode');
+INSERT INTO "genomeAsms" VALUES('hg19','mammal','Human','Homo sapiens','refseq,rna,est,ensembl');
+INSERT INTO "genomeAsms" VALUES('mm10','mammal','Mouse','Mus musculus','refseq,rna,est,ensembl');
 CREATE TABLE chains (
             srcHgDb text not null,
             destHgDb text not null,

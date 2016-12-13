@@ -42,7 +42,7 @@ class EnsemblHgData(object):
         self.srcHgDb = srcHgDb
         self.annotationType = annotationType
         self.srcHgDbConn = hgDb.connect(srcHgDb, dictCursor=True)
-        self.gencodeVersion = self.__getGencodeVersion() if annotationType == AnnotationType.gencode else None
+        self.gencodeVersion = self.__getGencodeVersion()  # None if not GENCODE
 
     def __parseGenbankVersion(self, table):
         """parse numeric version from table name, avoiding V24lift37 like names"""

@@ -140,7 +140,7 @@ class TransMapConf(object):
 
     @property
     def numSeqsPerJob(self):
-        "get the number of sequence per batch mapp9ing job for this conf"
+        "get the number of sequence per batch mapping job for this conf"
         self.__needOptions("srcHgDb", "annotationType")
         if self.annotationType in (AnnotationType.rna, AnnotationType.est):
             return 2500

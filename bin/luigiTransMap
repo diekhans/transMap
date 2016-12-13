@@ -86,7 +86,7 @@ class SrcDataTask(luigi.Task):
 
     def run(self):
         srcDbTmp = fileOps.atomicTmpFile(self.conf.srcDb)
-        progs = self.__ensemblProgs() if self.annotationType in (AnnotationType.ensembl, AnnotationType.gencode) else self.__genbankProgs()
+        progs = self.__ensemblProgs() if self.annotationType in (AnnotationType.ensembl,) else self.__genbankProgs()
         for prog in progs:
             self.__runCmd(prog, srcDbTmp)
         fileOps.atomicInstall(srcDbTmp, self.conf.srcDb)
@@ -179,7 +179,8 @@ class TransMapBuildBigPslTask(luigi.Task):
                      logger=logging.getLogger())
 
     def requires(self):
-        # chain type is not signficant
+        # chain type is not significant.  Ensembl and gencode
+        # get combined at this point
         return [TransMapBatchTask(configPyFile=self.configPyFile,
                                   srcHgDb=srcHgDb,
                                   destHgDb=self.destHgDb,

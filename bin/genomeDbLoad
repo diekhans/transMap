@@ -65,9 +65,7 @@ def getGenbankTypes(hgDbConn, hgDb, genbankConf):
 def getEnsemblTypes(hgDbConn, hgDb):
     # gencode wins if have both
     annTypes = set()
-    if haveGencode(hgDbConn, hgDb):
-        annTypes.add(AnnotationType.gencode)
-    elif haveEnsemblFull(hgDbConn, hgDb):
+    if haveGencode(hgDbConn, hgDb) or haveEnsemblFull(hgDbConn, hgDb):
         annTypes.add(AnnotationType.ensembl)
     return annTypes
 

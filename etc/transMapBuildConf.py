@@ -9,7 +9,7 @@ def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
               annotationType=None, chainType=None, buildTmpDir=None):
     version = "V4"
     # increment to prevent reusing batch directories on restart
-    batchGen = 20
+    batchGen = 21
     transMapDir = os.path.join("/hive/data/outside/transMap", version)
     dataDir = os.path.join(transMapDir, "data")
     buildTmpDir = os.path.join(transMapDir, "build.tmp")

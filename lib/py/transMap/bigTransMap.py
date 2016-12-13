@@ -23,7 +23,7 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata):
     """object used to build bigTransMap rows; metadata maybe None"""
     if mappedPsl.getTStrand() == '-':
         mappedPsl = mappedPsl.reverseComplement()
-    cds = geneName = geneId = ""
+    cds = geneName = geneId = geneType = transcriptType = ""
     if metadata is not None:
         if metadata.cds is not None:
             cds = metadata.cds
@@ -31,6 +31,10 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata):
             geneName = metadata.geneName
         if metadata.geneId is not None:
             geneName = metadata.geneId
+        if metadata.geneType is not None:
+            geneType = metadata.geneType
+        if metadata.transcriptType is not None:
+            transcriptType = metadata.transcriptType
 
     row = [mappedPsl.tName,  # chrom
            mappedPsl.tStart,  # chromStart
@@ -64,6 +68,8 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata):
            _pslToBedIdent(srcPsl),  # srcScore
            geneName,
            geneId,
+           geneType,
+           transcriptType,
            chainType]
     return row
 

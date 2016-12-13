@@ -1,6 +1,6 @@
 hgDb	clade	commonName	scientificName	annotationTypeSet
 canFam3	mammal	Dog	Canis lupus familiaris	refseq,rna,est,ensembl
 felCat3	mammal	Cat	Felis catus	refseq,rna,est
-hg19	mammal	Human	Homo sapiens	refseq,rna,est,gencode
-hg38	mammal	Human	Homo sapiens	refseq,rna,est,gencode
-mm10	mammal	Mouse	Mus musculus	refseq,rna,est,gencode
+hg19	mammal	Human	Homo sapiens	refseq,rna,est,ensembl
+hg38	mammal	Human	Homo sapiens	refseq,rna,est,ensembl
+mm10	mammal	Mouse	Mus musculus	refseq,rna,est,ensembl

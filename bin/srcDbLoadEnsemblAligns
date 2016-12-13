@@ -20,7 +20,7 @@ def parseArgs():
                         help="""limit to test accession, with version, in this file testing purposes""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
-    parser.add_argument("annotationType", choices=(AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
+    parser.add_argument("annotationType", choices=(AnnotationType.ensembl,), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset""")

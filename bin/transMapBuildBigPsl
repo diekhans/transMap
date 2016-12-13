@@ -22,7 +22,7 @@ def parseArgs():
                         help="""configuration python file""")
     parser.add_argument("destHgDb",
                         help="""destination browser database """)
-    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.gencode, AnnotationType.ensembl), type=AnnotationType,
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type""")
     parser.add_argument("srcHgDbs", nargs="*",
                         help="""source hgDb for all source assemblies """)

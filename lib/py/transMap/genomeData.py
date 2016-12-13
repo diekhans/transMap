@@ -18,8 +18,7 @@ class AnnotationType(SymEnum):
     refseq = 0x01
     rna = 0x02
     est = 0x04
-    gencode = 0x08
-    ensembl = 0x10
+    ensembl = 0x08   # includes gencode
 
 
 class AnnotationTypeSet(frozenset):
