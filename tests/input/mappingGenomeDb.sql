@@ -5,9 +5,10 @@ CREATE TABLE genomeAsms (
             clade text not null,
             commonName text not null,
             scientificName text not null,
+            orgAbbrev text not null,
             annotationTypeSet text);
-INSERT INTO "genomeAsms" VALUES('hg19','mammal','Human','Homo sapiens','refseq,rna,est,ensembl');
-INSERT INTO "genomeAsms" VALUES('mm10','mammal','Mouse','Mus musculus','refseq,rna,est,ensembl');
+INSERT INTO "genomeAsms" VALUES('hg19','mammal','Human','Homo sapiens','Homo','refseq,rna,est,ensembl');
+INSERT INTO "genomeAsms" VALUES('mm10','mammal','Mouse','Mus musculus','Mus','refseq,rna,est,ensembl');
 CREATE TABLE chains (
             srcHgDb text not null,
             destHgDb text not null,

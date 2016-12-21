@@ -40,5 +40,7 @@ table bigPsl
     string geneType; "type of gene"
     string transcriptType; "type of transcript"
     string chainType;  "type of chains used for mapping"
+    string commonName; "common organism name"
+    string orgAbbrev;  "organism abbreviation"
     )
 

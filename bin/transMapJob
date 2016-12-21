@@ -14,7 +14,7 @@ from pycbio.hgdata.psl import PslTbl
 from pycbio.hgdata.hgLite import sqliteHaveTable
 from transMap import setSortLocale
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
-from transMap.genomeData import AnnotationType, ChainType
+from transMap.genomeData import AnnotationType, ChainType, GenomesDbTables, GenomeAsmsDbTable
 from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
 from transMap.bigTransMap import bigTransMapMakeRec
 from pycbio.hgdata.hgLite import SequenceDbTable
@@ -50,6 +50,15 @@ def parseArgs():
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
+def getSrcGenomeAsm(conf):
+    """get GenomeAsm record for srcDb"""
+    conn = sqlite3.connect(conf.genomeDb)
+    genomeAsmTbl = GenomeAsmsDbTable(conn, GenomesDbTables.genomeAsmsTbl)
+    recs = list(genomeAsmTbl.queryByHdDb(conf.srcHgDb))
+    if len(recs) != 1:
+        raise Exception("expected 1 record for {} {} got {} record".format(conf.genomeDb, conf.srcHgDb, len(recs)))
+    conn.close()
+    return recs[0]
 
 class SrcPslGroups(dict):
     """"Load and split source PSLs into a lists of range overlapping PSLs.
@@ -128,6 +137,7 @@ class PslMapper(object):
     def __init__(self, conf, srcHgDb, destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains, keep):
         self.conf = conf
         self.srcHgDb = srcHgDb
+        self.srcGenomeAsm = getSrcGenomeAsm(conf)
         self.destHgDb = destHgDb
         self.srcMetadataTbl = srcMetadataTbl
         self.srcSeqTbl = srcSeqTbl
@@ -203,7 +213,9 @@ class PslMapper(object):
         metaData = self.srcMetadataTbl.getBySrcId(srcId) if self.srcMetadataTbl is not None else None
         fileOps.prRow(mappedPreBigPslFh,
                       bigTransMapMakeRec(self.srcHgDb, srcPsl, mappedPsl, srcSeq,
-                                         self.mappingChains.chainType, metaData))
+                                         self.mappingChains.chainType, metaData,
+                                         self.srcGenomeAsm.commonName,
+                                         self.srcGenomeAsm.orgAbbrev))
 
     def mapPslGroup(self, srcPslsCoords, srcPsls, mappedPreBigPslFh):
         mappedPsls = self.__mapPslsToDest(srcPslsCoords, srcPsls)

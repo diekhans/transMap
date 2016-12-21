@@ -183,6 +183,7 @@ define transMapEnvSetup
 rm -rf output/$@.data output/$@.build
 mkdir -p output/$@.data/src/hg19 output/$@.build/chains/mm10/hg19
 cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.data/src/hg19/hg19.rna.src.db
+sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
 sqlite3 -batch output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
 cp -f input/mm10.hg19.chain output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain
 endef

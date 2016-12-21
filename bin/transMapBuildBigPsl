@@ -48,7 +48,7 @@ def transMapBuildBigPsl(opts):
     # validate
     pipettor.run([["bigPslToPsl", mappedBigPslTmpFile, "stdout"],
                   ["pslCheck", "stdin"]])
-    
+
     fileOps.atomicInstall(mappedBigPslTmpFile, conf.mappedBigPslFile)
     os.unlink(mappedPreBigPsl)
 

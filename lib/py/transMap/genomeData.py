@@ -111,11 +111,11 @@ class ChainsDbTable(HgLiteTable):
 
 
 class GenomeAsm(namedtuple("GenomeDb",
-                           ("hgDb", "clade", "commonName", "scientificName", "annotationTypeSet"))):
+                           ("hgDb", "clade", "commonName", "scientificName", "orgAbbrev", "annotationTypeSet"))):
     "Information about a genome assembly, stored in genome database "
 
-    def __init__(self, hgDb, clade, commonName, scientificName, annotationTypeSet):
-        super(GenomeAsm, self).__init__(hgDb, clade, commonName, scientificName, annotationTypeSet)
+    def __init__(self, hgDb, clade, commonName, scientificName, orgAbbrev, annotationTypeSet):
+        super(GenomeAsm, self).__init__(hgDb, clade, commonName, scientificName, orgAbbrev, annotationTypeSet)
         self.dbNum = hgDbNameParse(hgDb)[1]
 
     def __str__(self):
@@ -127,7 +127,7 @@ class GenomeAsm(namedtuple("GenomeDb",
 
     @staticmethod
     def rowFactory(cur, row):
-        return GenomeAsm(row[0], row[1], row[2], row[3], AnnotationTypeSet.fromStr(row[4]))
+        return GenomeAsm(row[0], row[1], row[2], row[3], row[4], AnnotationTypeSet.fromStr(row[5]))
 
 
 class GenomeAsmsDbTable(HgLiteTable):
@@ -137,8 +137,9 @@ class GenomeAsmsDbTable(HgLiteTable):
             clade text not null,
             commonName text not null,
             scientificName text not null,
+            orgAbbrev text not null,
             annotationTypeSet text);"""
-    __insertSql = """INSERT INTO {table} (hgDb, clade, commonName, scientificName, annotationTypeSet) VALUES (?, ?, ?, ?, ?);"""
+    __insertSql = """INSERT INTO {table} (hgDb, clade, commonName, scientificName, orgAbbrev, annotationTypeSet) VALUES (?, ?, ?, ?, ?, ?);"""
     __indexSql = ["""CREATE INDEX {table}_hgDb on {table} (hgDb);""",
                   """CREATE INDEX {table}_commonName on {table} (commonName);""",
                   """CREATE INDEX {table}_annotationTypeSet on {table} (annotationTypeSet);"""]
@@ -159,6 +160,10 @@ class GenomeAsmsDbTable(HgLiteTable):
     def queryByClades(self, clades):
         sql = "SELECT * FROM {{table}} WHERE clade in ({})".format(",".join((len(clades) * ["?"])))
         return self.queryRows(sql, GenomeAsm.rowFactory, *clades)
+
+    def queryByHdDb(self, hgDb):
+        sql = "SELECT * FROM {table} WHERE hgDb = ?"
+        return self.queryRows(sql, GenomeAsm.rowFactory, hgDb)
 
 
 class Organism(object):

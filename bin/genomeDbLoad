@@ -79,8 +79,16 @@ def getAnnotationTypes(hgDbConn, hgDb, genbankConf):
         return AnnotationTypeSet(annTypes)
 
 
+def orgShortName(scientificName):
+    """Get the short name for an organism.  Based on kent browser function"""
+    maxOrgSize = 6
+    orgName = scientificName[0:maxOrgSize]
+    return orgName.split()[0]
+
+
 def mkGenomeAsm(hgDbConn, dbDb, genbankConf):
     return GenomeAsm(dbDb["name"], dbDb["clade"], dbDb["commonName"], dbDb["scientificName"],
+                     orgShortName(dbDb["scientificName"]),
                      getAnnotationTypes(hgDbConn, dbDb["name"], genbankConf))
 
 
