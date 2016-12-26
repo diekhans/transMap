@@ -7,9 +7,9 @@ import sys, os
 rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
 
 def _addExtern(module, relDir):
-    modDir = os.path.join(rootDir,  "extern", module, relDir)
+    modDir = os.path.join(rootDir, "extern", module, relDir)
     if not os.path.exists(modDir):
-        raise Exception("can't fine {} directory: {}".format(module, modDir))
+        raise Exception("can't find {} directory: {}".format(module, modDir))
     sys.path.insert(0, modDir)
 _addExtern("pycbio", "lib")
 _addExtern("pipettor", "build/lib")
