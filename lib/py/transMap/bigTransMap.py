@@ -16,7 +16,10 @@ def _mkRelCommaList(off, elems):
 
 
 def _pslToBedIdent(psl):
-    return int(10 * psl.identity())
+    return int(1000 * psl.identity())
+
+def _pslToBedAligned(psl):
+    return int(1000 * psl.queryAligned())
 
 
 def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata,
@@ -67,6 +70,7 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata,
            srcPsl.tStart,  # srcChromStart
            srcPsl.tEnd,  # srcChromEnd
            _pslToBedIdent(srcPsl),  # srcScore
+           _pslToBedAligned(srcPsl),  # srcAligned
            geneName,
            geneId,
            geneType,

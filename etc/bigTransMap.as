@@ -1,11 +1,11 @@
-table bigPsl
-"bigPsl pairwise alignment"
+table bigTransMap
+"bigPsl derived pairwise alignment with additional information"
     (
     string chrom;       "Reference sequence chromosome or scaffold"
     uint   chromStart;  "Start position in chromosome"
     uint   chromEnd;    "End position in chromosome"
     string name;        "Name or ID of item, ideally both human readable and unique"
-    uint score;         "Score (0-1000, percent identity * 10"
+    uint score;         "Score (0-1000), faction identity * 1000"
     char[1] strand;     "+ or - indicates whether the query aligns to the + or - strand on the reference"
     uint thickStart;    "Start of where display should be thick (start codon)"
     uint thickEnd;      "End of where display should be thick (stop codon)"
@@ -34,7 +34,8 @@ table bigPsl
     string srcChrom;  "source organism chromosome name"
     uint srcChromStart; "start position in source chromosome"
     uint srcChromEnd; "end position in source chromosome"
-    uint srcScore;    "source source (percent identity * 10)
+    uint srcScore;    "source source (faction identity * 1000)
+    uint srcAligned;   "fraction of source aligned (faction identity * 1000)
     string geneName;  "gene name"
     string geneId;  "gene identifier"
     string geneType; "type of gene"
