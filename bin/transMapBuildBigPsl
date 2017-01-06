@@ -43,6 +43,7 @@ def transMapBuildBigPsl(opts):
     mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
     pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
                   "-as={}/etc/bigTransMap.as".format(conf.codeRootDir),
+                  "-extraIndex=name",
                   mappedPreBigPsl, getChromSizes(conf.destHgDb),
                   mappedBigPslTmpFile])
     # validate
