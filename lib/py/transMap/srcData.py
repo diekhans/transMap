@@ -18,7 +18,7 @@ class SourceDbTables(object):
     srcSeqTbl = "srcSeq"
 
 
-class SrcMetadata(namedtuple("SrcMetadata", ("srcId", "accv", "cds", "geneId", "geneName", "geneType", "transcriptType"))):
+class SrcMetadata(namedtuple("SrcMetadata", ("srcId", "accv", "cds", "geneName", "geneId", "geneType", "transcriptType"))):
     """metedata on gene or mRNA """
     __slots__ = ()
 
@@ -31,11 +31,11 @@ class SrcMetadataDbTable(HgLiteTable):
             srcId text not null,
             accv text not null,
             cds text,
-            geneId text,
             geneName text,
+            geneId text,
             geneType text,
             transcriptType text);"""
-    __insertSql = """INSERT INTO {table} (srcId, accv, cds, geneId, geneName, geneType, transcriptType) VALUES (?, ?, ?, ?, ?, ?, ?);"""
+    __insertSql = """INSERT INTO {table} (srcId, accv, cds, geneName, geneId, geneType, transcriptType) VALUES (?, ?, ?, ?, ?, ?, ?);"""
     __indexSql = """CREATE UNIQUE INDEX {table}_srcId on {table} (srcId);"""
 
     def __init__(self, conn, table, create=False):

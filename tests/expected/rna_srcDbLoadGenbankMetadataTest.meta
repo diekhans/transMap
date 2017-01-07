@@ -1,8 +1,8 @@
-hg19:AB035966.1	AB035966.1	56..1408		TASP	protein_coding	protein_coding
+hg19:AB035966.1	AB035966.1	56..1408	TASP		protein_coding	protein_coding
 hg19:AB097004.1	AB097004.1	56..574			protein_coding	protein_coding
-hg19:AF353942.1	AF353942.1	56..1408		LANCL2	protein_coding	protein_coding
-hg19:AF395824.1	AF395824.1	75..581		GASP	protein_coding	protein_coding
-hg19:AJ278245.1	AJ278245.1	187..1539		lancl2	protein_coding	protein_coding
+hg19:AF353942.1	AF353942.1	56..1408	LANCL2		protein_coding	protein_coding
+hg19:AF395824.1	AF395824.1	75..581	GASP		protein_coding	protein_coding
+hg19:AJ278245.1	AJ278245.1	187..1539	lancl2		protein_coding	protein_coding
 hg19:AK000539.1	AK000539.1				unknown	unknown
 hg19:AK023882.1	AK023882.1				unknown	unknown
 hg19:AK075391.1	AK075391.1	131..649			protein_coding	protein_coding
