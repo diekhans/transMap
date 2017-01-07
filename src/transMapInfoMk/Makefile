@@ -1,5 +1,0 @@
-ROOT = ../..
-include ${ROOT}/src/defs.mk
-
-PROGS = transMapInfoMk
-include ${HGTOOLS_ROOT}/build/defRules.mk

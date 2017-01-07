@@ -1,2 +1,0 @@
-${OBJDIR}/transMapInfoMk.o: ../../src/lib/mapInfo.h
-${OBJDIR}/transMapInfoMk.o: transMapInfoMk.c

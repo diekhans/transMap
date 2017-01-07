@@ -18,6 +18,7 @@ def _mkRelCommaList(off, elems):
 def _pslToBedIdent(psl):
     return int(1000 * psl.identity())
 
+
 def _pslToBedAligned(psl):
     return int(1000 * psl.queryAligned())
 

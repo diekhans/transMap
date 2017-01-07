@@ -50,6 +50,7 @@ def parseArgs():
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
 
+
 def getSrcGenomeAsm(conf):
     """get GenomeAsm record for srcDb"""
     conn = sqlite3.connect(conf.genomeDb)
@@ -59,6 +60,7 @@ def getSrcGenomeAsm(conf):
         raise Exception("expected 1 record for {} {} got {} record".format(conf.genomeDb, conf.srcHgDb, len(recs)))
     conn.close()
     return recs[0]
+
 
 class SrcPslGroups(dict):
     """"Load and split source PSLs into a lists of range overlapping PSLs.

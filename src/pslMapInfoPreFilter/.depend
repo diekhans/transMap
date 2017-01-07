@@ -1,3 +1,0 @@
-${OBJDIR}/pslMapInfoPreFilter.o: ../../src/lib/alignPair.h
-${OBJDIR}/pslMapInfoPreFilter.o: ../../src/lib/mapInfo.h
-${OBJDIR}/pslMapInfoPreFilter.o: pslMapInfoPreFilter.c
