@@ -195,3 +195,6 @@ tmdir=~/compbio/projs/transMap/transMap-dev
 pushd /hive/data/outside/transMap/V4
 (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-01-05.a.full.log &
 
+# check for lost job completions with
+# for some reason, this hangs after completion
+for p in $(parasol list batches | awk '/markd/{print $12}') ; do echo ==== $p; para-ps -b $p ; done   >x

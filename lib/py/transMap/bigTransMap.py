@@ -35,7 +35,7 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata,
         if metadata.geneName is not None:
             geneName = metadata.geneName
         if metadata.geneId is not None:
-            geneName = metadata.geneId
+            geneId = metadata.geneId
         if metadata.geneType is not None:
             geneType = metadata.geneType
         if metadata.transcriptType is not None:

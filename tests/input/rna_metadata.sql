@@ -4,15 +4,15 @@ CREATE TABLE srcMetadata (
             srcId text not null,
             accv text not null,
             cds text,
-            geneId text,
             geneName text,
+            geneId text,
             geneType text,
             transcriptType text);
-INSERT INTO "srcMetadata" VALUES('hg19:AB035966.1','AB035966.1','56..1408',NULL,'TASP','protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AB035966.1','AB035966.1','56..1408','TASP',NULL,'protein_coding','protein_coding');
 INSERT INTO "srcMetadata" VALUES('hg19:AB097004.1','AB097004.1','56..574',NULL,NULL,'protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF353942.1','AF353942.1','56..1408',NULL,'LANCL2','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AF395824.1','AF395824.1','75..581',NULL,'GASP','protein_coding','protein_coding');
-INSERT INTO "srcMetadata" VALUES('hg19:AJ278245.1','AJ278245.1','187..1539',NULL,'lancl2','protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AF353942.1','AF353942.1','56..1408','LANCL2',NULL,'protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AF395824.1','AF395824.1','75..581','GASP',NULL,'protein_coding','protein_coding');
+INSERT INTO "srcMetadata" VALUES('hg19:AJ278245.1','AJ278245.1','187..1539','lancl2',NULL,'protein_coding','protein_coding');
 INSERT INTO "srcMetadata" VALUES('hg19:AK000539.1','AK000539.1',NULL,NULL,NULL,'unknown','unknown');
 INSERT INTO "srcMetadata" VALUES('hg19:AK023882.1','AK023882.1',NULL,NULL,NULL,'unknown','unknown');
 INSERT INTO "srcMetadata" VALUES('hg19:AK075391.1','AK075391.1','131..649',NULL,NULL,'protein_coding','protein_coding');

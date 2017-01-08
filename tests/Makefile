@@ -182,7 +182,7 @@ mappingChainsBuildAllTest: mkdirs
 define transMapEnvSetup
 rm -rf output/$@.data output/$@.build
 mkdir -p output/$@.data/src/hg19 output/$@.build/chains/mm10/hg19
-cat input/rna_align.sql input/rna_seq.sql input/rna_metadata.sql | sqlite3 -batch output/$@.data/src/hg19/hg19.rna.src.db
+cat input/refseq_align.sql input/refseq_seq.sql input/refseq_metadata.sql | sqlite3 -batch output/$@.data/src/hg19/hg19.refseq.src.db
 sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
 sqlite3 -batch output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
 cp -f input/mm10.hg19.chain output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain
@@ -190,20 +190,20 @@ endef
 
 transMapJobTest: mkdirs
 	${transMapEnvSetup}
-	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapJob} input/testTransMapConf.py hg19 mm10 rna all 1 11 output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed
-	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed
-	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/rna/results/parts/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
+	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapJob} input/testTransMapConf.py hg19 mm10 refseq all 1 11 output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed
+	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed
+	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
 
 transMapBatchTest: mkdirs
 	${transMapEnvSetup}
-	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBatch} --directRun input/testTransMapConf.py hg19 mm10 rna all
-	${diff} expected/$@.preBigPsl output/transMapBatchTest.build/results/mm10/mm10.hg19.rna.preBigPsl
+	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBatch} --directRun input/testTransMapConf.py hg19 mm10 refseq all
+	${diff} expected/$@.preBigPsl output/transMapBatchTest.build/results/mm10/mm10.hg19.refseq.preBigPsl
 
 transMapBuildBigPslTest: mkdirs
 	mkdir -p output/$@.build/results/mm10/
-	cp -f expected/transMapBatchTest.preBigPsl output/$@.build/results/mm10/mm10.hg19.rna.preBigPsl
-	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBuildBigPsl} input/testTransMapConf.py mm10 rna hg19
-	bigBedToBed output/transMapBuildBigPslTest.data/mapped/mm10/mm10.rna.transMap.bigPsl output/$@.preBigPsl
+	cp -f expected/transMapBatchTest.preBigPsl output/$@.build/results/mm10/mm10.hg19.refseq.preBigPsl
+	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBuildBigPsl} input/testTransMapConf.py mm10 refseq hg19
+	bigBedToBed output/transMapBuildBigPslTest.data/mapped/mm10/mm10.refseq.transMap.bigPsl output/$@.preBigPsl
 	${diff} expected/transMapBatchTest.preBigPsl output/$@.preBigPsl
 
 transMapInfoTest: mkdirs
