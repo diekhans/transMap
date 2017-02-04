@@ -4,7 +4,7 @@ This is not a program, it is in the bin directory so that is will be
 automatically on the path.
 """
 import sys, os
-rootDir = os.path.normpath(os.path.dirname(os.path.dirname(sys.argv[0])))
+rootDir = os.path.dirname(os.path.abspath(os.path.dirname(sys.argv[0])))
 
 def _addExtern(module, relDir):
     modDir = os.path.join(rootDir, "extern", module, relDir)

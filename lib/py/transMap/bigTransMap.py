@@ -24,7 +24,7 @@ def _pslToBedAligned(psl):
 
 
 def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata,
-                       commonName, orgAbbrev):
+                       commonName, scientificName, orgAbbrev):
     """object used to build bigTransMap rows; metadata maybe None"""
     if mappedPsl.getTStrand() == '-':
         mappedPsl = mappedPsl.reverseComplement()
@@ -78,6 +78,7 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata,
            transcriptType,
            chainType,
            commonName,
+           scientificName,
            orgAbbrev]
     return row
 

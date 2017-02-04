@@ -16,6 +16,8 @@ transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
 luigiTransMap = ../bin/luigiTransMap
 
+bigTransMapAs = ${HOME}/kent/src/hg/lib/bigTransMap.as
+
 genbankTypes = rna refseq est
 genbankMetaTypes = rna refseq
 # gencode is a pseudo-type for constructing test cases
@@ -192,7 +194,7 @@ transMapJobTest: mkdirs
 	${transMapEnvSetup}
 	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapJob} input/testTransMapConf.py hg19 mm10 refseq all 1 11 output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed
 	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed
-	bedToBigBed -type=bed12+20 -as=../etc/bigTransMap.as -tab output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
+	bedToBigBed -type=bed12+20 -as=${bigTransMapAs} -tab output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
 
 transMapBatchTest: mkdirs
 	${transMapEnvSetup}

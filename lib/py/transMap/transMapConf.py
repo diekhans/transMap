@@ -164,6 +164,9 @@ class TransMapConf(object):
         self.__needOptions("buildTmpDir", "srcHgDb", "destHgDb", "annotationType")
         return self.getBatchSrcHgDbPreBigPsl(self.srcHgDb)
 
+    @property
+    def bigTransMapAsPath(self):
+        return os.path.expanduser("~/kent/src/hg/lib/bigTransMap.as")
 
 def transMapConfLoad(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                      annotationType=None, chainType=None, buildTmpDir=None):

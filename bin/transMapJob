@@ -217,6 +217,7 @@ class PslMapper(object):
                       bigTransMapMakeRec(self.srcHgDb, srcPsl, mappedPsl, srcSeq,
                                          self.mappingChains.chainType, metaData,
                                          self.srcGenomeAsm.commonName,
+                                         self.srcGenomeAsm.scientificName,
                                          self.srcGenomeAsm.orgAbbrev))
 
     def mapPslGroup(self, srcPslsCoords, srcPsls, mappedPreBigPslFh):
