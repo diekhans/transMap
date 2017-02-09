@@ -206,4 +206,8 @@ for p in $(parasol list batches | awk '/markd/{print $12}') ; do echo ==== $p; p
 tmdir=~/compbio/projs/transMap/transMap-dev
 pushd /hive/data/outside/transMap/V4
 mkdir logs
-(time nice ${tmdir}/bin/luigiTransMap --rebuildGenomeDb --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-01-12.log &
+(time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-01-12.log &
+
+2017-02-07:
+ - rebuild to add source ids
+ (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-02-07.log &

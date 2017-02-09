@@ -3,7 +3,7 @@ support for build bigTransMap files
 """
 import os
 from pycbio.sys import fileOps
-from transMap import getSortProg
+from transMap import getSortProg, alignIdToSrcId, srcIdToAccv
 import pipettor
 
 
@@ -67,6 +67,7 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata,
            mappedPsl.nCount,  # nCount
            1,  # seqType 1=nucleotide
            srcDb,  # srcDb
+           srcIdToAccv(alignIdToSrcId(srcPsl.qName)),  # srcTransId
            srcPsl.tName,  # srcChrom
            srcPsl.tStart,  # srcChromStart
            srcPsl.tEnd,  # srcChromEnd

@@ -24,4 +24,5 @@ def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                         buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
     if os.environ.get("noRequired", None) is not None:
         conf.requiredPreviousDestHgDbs = frozenset()
+    conf.gbdbDir = _getConfVal("gbdbDir", None)   # None will prevent overwrite of real /gbdb
     return conf

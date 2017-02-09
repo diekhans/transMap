@@ -190,6 +190,19 @@ class Mapping(namedtuple("Mapping",
     pass
 
 
+def mappingsFilter(mappings, srcHgDbSubset, destHgDbSubset):
+    "subset mappings based on command line srcHgDb/destHgDb restrictions"
+    if srcHgDbSubset is not None:
+        mappings = [m for m in mappings if m.srcHgDb in srcHgDbSubset]
+    if destHgDbSubset is not None:
+        mappings = [m for m in mappings if m.destHgDb in destHgDbSubset]
+    return mappings
+
+class DestDbMapping(namedtuple("DestDbMapping",
+                               ("destHgDb", "annotationType"))):
+    """Mapping to a destHgDb for an annotation type"""
+    pass
+
 class Genomes(object):
     """Object containing genome definitions, loaded from database for clades
     of interested. Also used to query relevant changes for mapping """
@@ -300,10 +313,22 @@ class Genomes(object):
         return destHgDbMappings
 
     def getCurrentMappings(self):
+        "get list of Mapping object for current database"
         currentMappings = []
         for destHgDb in self.findCurrentDestHgDbs():
             currentMappings.extend(self.__getDestHgDbMappings(destHgDb))
         return currentMappings
+
+    @staticmethod
+    def __mappingToDestDbMapping(mapping):
+        return DestDbMapping(mapping.destHgDb, mapping.annotationType)
+    
+    def getCurrentDestDbMappings(self):
+        "build list of DestDbMapping for all current mappings"
+        destDbMappings = set()
+        for mapping in self.getCurrentMappings():
+            destDbMappings.add(self.__mappingToDestDbMapping(mapping))
+        return list(destDbMappings)
 
     def dump(self, fh):
         "print for debugging purposes"

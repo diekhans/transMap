@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import sys
+import os
+import argparse
+import pipettor
+from pycbio.sys import fileOps, loggingOps
+from transMap.genomeData import AnnotationType
+from transMap.transMapConf import transMapConfLoad
+from transMap.genomeData import Genomes, mappingsFilter
+
+
+def parseArgs():
+    desc = """symlink TransMap mapped files to GBDB
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    loggingOps.addCmdOptions(parser)
+    parser.add_argument("--destHgDb", action="append", default=None, dest="destHgDbSubset",
+                        help="""limit to these destination databases for testing, maybe repeated""")
+    parser.add_argument("--srcHgDb", action="append", default=None, dest="srcHgDbSubset",
+                        help="""limit to these sources databases for testing, maybe repeated""")
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    opts = parser.parse_args()
+    loggingOps.setupFromCmd(opts, sys.argv[0])
+    return opts
+
+def symlinkIsSame(bigPslFile, gbdbFile):
+    if not os.path.exists(gbdbFile):
+        return False
+    if not os.path.islink(gbdbFile):
+        raise Exception("/gbdb bigPslFile exists but is not a synlink".format(gbdbFile))
+    curLink = os.path.readlink(gbdbFile)
+    return curLink == bigPslFile
+
+def symlinkIfDiff(bigPslFile, gbdbFile):
+    if not symlinkIsSame(bigPslFile, gbdbFile):
+        if os.path.exists(gbdbFile):
+            os.path.unlink(gbdbFile)
+        os.symlink(os.path.abspath(bigPslFile), gbdbFile)
+
+def linkDestDbMappingToGbDb(conf, destDbMapping):
+    "Return false if bigPsl file is not found"
+    bigPslFile = conf.getMappedBigPslFileForDestHgDb(destDbMapping.destHgDb, destDbMapping.annotationType)
+    if not os.path.exists(bigPslFile):
+        sys.stderr.write("Error: bigPsl file not found: {}\n".format(bigPslFile))
+        return False
+    gbdbFile = conf.getMappedGbdbBigPslFile(destDbMapping.destHgDb, destDbMapping.annotationType)
+    fileOps.ensureFileDir(gbdbFile)
+    symlinkIfDiff(bigPslFile, gbdbFile)
+    return True
+
+def linkToGbdb(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    genomes = Genomes(conf)
+    missingFileCount = 0
+    for destDbMapping in genomes.getCurrentDestDbMappings():
+        if not linkDestDbMappingToGbDb(conf, destDbMapping):
+            missingFileCount += 1
+    if missingFileCount > 0:
+        raise Exception("{} bigPsl files were not found".format(missingFileCount))
+
+linkToGbdb(parseArgs())

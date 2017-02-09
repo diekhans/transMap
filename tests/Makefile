@@ -15,6 +15,7 @@ transMapBatch = ../bin/transMapBatch
 transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
 luigiTransMap = ../bin/luigiTransMap
+linkToGbdb = ../bin/linkToGbdb
 
 bigTransMapAs = ${HOME}/kent/src/hg/lib/bigTransMap.as
 
@@ -40,7 +41,7 @@ test: srcDbTests mappingTests
 #########################################################################################
 srcDbTests: srcDbLoadGenbankAlignsTests srcDbLoadGenbankMetadataTests srcDbLoadGenbankSeqsTests \
 	srcDbLoadEnsemblAlignsTests srcDbLoadEnsemblSeqsTests srcDbLoadEnsemblMetadataTests \
-	srcDbCheckTests genomeDbLoadTests
+	srcDbCheckTests genomeDbLoadTests submitTests
 
 
 ###
@@ -214,6 +215,26 @@ transMapInfoTest: mkdirs
 	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
 	dataDir=output/$@.data ${transMapInfo} input/testTransMapConf.py output/$@.tsv
 	${diff} expected/$@.tsv output/$@.tsv
+
+
+#########################################################################################
+submitTests: linkToGbdbTest
+
+linkTestBigPsls = \
+	mm10/mm10.rna.transMap.bigPsl \
+	hg19/hg19.refseq.transMap.bigPsl hg19/hg19.est.transMap.bigPsl \
+	mm10/mm10.refseq.transMap.bigPsl hg19/hg19.rna.transMap.bigPsl \
+	mm10/mm10.est.transMap.bigPsl hg19/hg19.ensembl.transMap.bigPsl \
+	mm10/mm10.ensembl.transMap.bigPsl
+
+
+linkToGbdbTest: mkdirs
+	@rm -rf output/$@.data output/$@.gbdb
+	for bp in ${linkTestBigPsls:%=output/$@.data/mapped/%} ; do mkdir -p $$(dirname $${bp}) && touch $${bp} ; done
+	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
+	dataDir=output/$@.data gbdbDir=output/$@.gbdb ${linkToGbdb} input/testTransMapConf.py --destHgDb=canFam3 --srcHgDb=felCat8
+	find output/linkToGbdbTest.gbdb -type l | sort > output/$@.files
+	diff expected/$@.files output/$@.files
 
 #########################################################################################
 

@@ -8,7 +8,7 @@ import logging
 from collections import defaultdict
 from pycbio.sys import fileOps, loggingOps
 from transMap.transMapConf import transMapConfLoad
-from transMap.genomeData import Genomes, AnnotationType, ChainType
+from transMap.genomeData import Genomes, AnnotationType, ChainType, mappingsFilter
 import pipettor
 import luigi
 
@@ -20,9 +20,9 @@ def parseArgs():
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)
     parser.add_argument("--destHgDb", action="append", default=None, dest="destHgDbSubset",
-                        help="""limit to these destination databases testing, maybe repeated""")
+                        help="""limit to these destination databases for testing, maybe repeated""")
     parser.add_argument("--srcHgDb", action="append", default=None, dest="srcHgDbSubset",
-                        help="""limit to these sources databases testing, maybe repeated""")
+                        help="""limit to these sources databases for testing, maybe repeated""")
     parser.add_argument("--rebuildGenomeDb", action="store_true", default=False,
                         help="""rebuild the genome database, picking up any changes""")
     parser.add_argument("--workers", default=2, type=int,
@@ -31,10 +31,6 @@ def parseArgs():
                         help="""configuration python file""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
-    if opts.srcHgDbSubset is not None:
-        opts.srcHgDbSubset = frozenset(opts.srcHgDbSubset)
-    if opts.destHgDbSubset is not None:
-        opts.destHgDbSubset = frozenset(opts.destHgDbSubset)
     return opts
 
 
@@ -192,15 +188,6 @@ class TransMapBuildBigPslTask(luigi.Task):
         return luigi.LocalTarget(self.conf.mappedBigPslFile)
 
 
-def filterMappings(mappings, srcHgDbSubset, destHgDbSubset):
-    "subset mappings based on command line srcHgDb/destHgDb restrictions"
-    if srcHgDbSubset is not None:
-        mappings = [m for m in mappings if m.srcHgDb in srcHgDbSubset]
-    if destHgDbSubset is not None:
-        mappings = [m for m in mappings if m.destHgDb in destHgDbSubset]
-    return mappings
-
-
 def splitMappings(mappings):
     "split by (descDb, annotationType)"
     mappingsSplit = defaultdict(list)
@@ -267,7 +254,7 @@ class StartTask(luigi.WrapperTask):
     def requires(self):
         conf = transMapConfLoad(self.configPyFile)
         genomes = Genomes(conf)
-        mappingsSplit = splitMappings(filterMappings(genomes.getCurrentMappings(),
+        mappingsSplit = splitMappings(mappingsFilter(genomes.getCurrentMappings(),
                                                      noneIfEmpty(self.srcHgDbSubset),
                                                      noneIfEmpty(self.destHgDbSubset)))
         for task in getMappingTasks(conf, mappingsSplit):
