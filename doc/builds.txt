@@ -189,7 +189,7 @@
 #######################################################################
 # vertebrate V4
 #######################################################################
-2016-12-09:  initial V4 full build
+2016-12-09:  initial V4 full build, first using bigPsl files
 
 tmdir=~/compbio/projs/transMap/transMap-dev
 pushd /hive/data/outside/transMap/V4
@@ -211,3 +211,7 @@ mkdir logs
 2017-02-07:
  - rebuild to add source ids
  (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-02-07.log &
+
+2017-02-08:
+  - create symlinks
+    ${tmdir}/bin/linkToGbdb  ${tmdir}/etc/transMapBuildConf.py

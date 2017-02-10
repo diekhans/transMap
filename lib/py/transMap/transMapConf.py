@@ -39,7 +39,7 @@ class TransMapConf(object):
 
         # install
         self.gbdbDir = "/gbdb"
-        
+
         # selecting genomes
         self.clades = frozenset(["vertebrate", "mammal"])
 
@@ -102,14 +102,14 @@ class TransMapConf(object):
 
     def __bigPslFileBasename(self, destHgDb, annotationType):
         return "{}.{}.transMap{}.bigPsl".format(destHgDb, annotationType, self.version)
-            
+
     def getMappedBigPslFileForDestHgDb(self, destHgDb, annotationType):
         return os.path.join(self.getMappedDataDirForDestHgDb(destHgDb),
                             self.__bigPslFileBasename(destHgDb, annotationType))
 
     def getMappedGbdbDir(self, destHgDb):
         return os.path.join(self.gbdbDir, destHgDb, "transMap", self.version)
-    
+
     def getMappedGbdbBigPslFile(self, destHgDb, annotationType):
         return os.path.join(self.getMappedGbdbDir(destHgDb),
                             self.__bigPslFileBasename(destHgDb, annotationType))
@@ -180,6 +180,7 @@ class TransMapConf(object):
     @property
     def bigTransMapAsPath(self):
         return os.path.expanduser("~/kent/src/hg/lib/bigTransMap.as")
+
 
 def transMapConfLoad(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
                      annotationType=None, chainType=None, buildTmpDir=None):

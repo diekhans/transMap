@@ -4,11 +4,9 @@ import transMapProgSetup  # noqa: F401
 import sys
 import os
 import argparse
-import pipettor
 from pycbio.sys import fileOps, loggingOps
-from transMap.genomeData import AnnotationType
+from transMap.genomeData import Genomes
 from transMap.transMapConf import transMapConfLoad
-from transMap.genomeData import Genomes, mappingsFilter
 
 
 def parseArgs():
@@ -16,15 +14,12 @@ def parseArgs():
     """
     parser = argparse.ArgumentParser(description=desc)
     loggingOps.addCmdOptions(parser)
-    parser.add_argument("--destHgDb", action="append", default=None, dest="destHgDbSubset",
-                        help="""limit to these destination databases for testing, maybe repeated""")
-    parser.add_argument("--srcHgDb", action="append", default=None, dest="srcHgDbSubset",
-                        help="""limit to these sources databases for testing, maybe repeated""")
     parser.add_argument("configPyFile",
                         help="""configuration python file""")
     opts = parser.parse_args()
     loggingOps.setupFromCmd(opts, sys.argv[0])
     return opts
+
 
 def symlinkIsSame(bigPslFile, gbdbFile):
     if not os.path.exists(gbdbFile):
@@ -34,11 +29,13 @@ def symlinkIsSame(bigPslFile, gbdbFile):
     curLink = os.path.readlink(gbdbFile)
     return curLink == bigPslFile
 
+
 def symlinkIfDiff(bigPslFile, gbdbFile):
     if not symlinkIsSame(bigPslFile, gbdbFile):
         if os.path.exists(gbdbFile):
             os.path.unlink(gbdbFile)
         os.symlink(os.path.abspath(bigPslFile), gbdbFile)
+
 
 def linkDestDbMappingToGbDb(conf, destDbMapping):
     "Return false if bigPsl file is not found"
@@ -50,6 +47,7 @@ def linkDestDbMappingToGbDb(conf, destDbMapping):
     fileOps.ensureFileDir(gbdbFile)
     symlinkIfDiff(bigPslFile, gbdbFile)
     return True
+
 
 def linkToGbdb(opts):
     conf = transMapConfLoad(opts.configPyFile)

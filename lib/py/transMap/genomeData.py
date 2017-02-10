@@ -198,10 +198,12 @@ def mappingsFilter(mappings, srcHgDbSubset, destHgDbSubset):
         mappings = [m for m in mappings if m.destHgDb in destHgDbSubset]
     return mappings
 
+
 class DestDbMapping(namedtuple("DestDbMapping",
                                ("destHgDb", "annotationType"))):
     """Mapping to a destHgDb for an annotation type"""
     pass
+
 
 class Genomes(object):
     """Object containing genome definitions, loaded from database for clades
@@ -322,7 +324,7 @@ class Genomes(object):
     @staticmethod
     def __mappingToDestDbMapping(mapping):
         return DestDbMapping(mapping.destHgDb, mapping.annotationType)
-    
+
     def getCurrentDestDbMappings(self):
         "build list of DestDbMapping for all current mappings"
         destDbMappings = set()

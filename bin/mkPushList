@@ -1,52 +1,79 @@
 #!/usr/bin/env python
-import transMapProgSetup
-from optparse import OptionParser
-from pycbio.sys import fileOps,dbOps
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+from collections import defaultdict
+import sys
+import os
+import argparse
+from pycbio.sys import dbOps, loggingOps
 from pycbio.hgdata import hgDb
-from collections import namedtuple
+from transMap.genomeData import Genomes
+from transMap.transMapConf import transMapConfLoad
 
-HgCentralServer = namedtuple("HgCentralServer", ("host", "db"))
+
+def parseArgs():
+    desc = """Generate list of genome assemblies and /gbdb bigTransMap files to get list
+    of active databases.  Only those databases that are active on hgwbeta are and not
+    already in hgwbeta trackDb are selected for push.  """
+    parser = argparse.ArgumentParser(description=desc)
+    loggingOps.addCmdOptions(parser)
+    parser.add_argument("--forcePush", action="store_true", default=False,
+                        help="""don't checked if table appears to be loaded on hgwbeta""")
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    parser.add_argument("pushDbList",
+                        help="""output trackDb database to push to this file""")
+    parser.add_argument("pushGbdbList",
+                        help="""output gbdb files to push to this file""")
+    opts = parser.parse_args()
+    loggingOps.setupFromCmd(opts, sys.argv[0])
+    return opts
+
+hgwbetaCentralDb = "hgcentralbeta"
+hgwbetaHgConf = os.path.expanduser("~/.hg.mysqlbeta.conf")
 
 
-class CmdLine(object):
-    usage="""%prog [options] version destDbs
+def getActiveHgwbetaDbs(conn):
+    return frozenset([row[0] for row in dbOps.query(conn, "select name from {}.dbDb where active=1".format(hgwbetaCentralDb))])
 
-    Generate list of tables to push.  This checks the RR and hgwbeta hgcentral servers
-    to get list of active databases.  Only those databases that are active are pushed.
-"""
-    def __init__(self):
-        parser = OptionParser(usage=CmdLine.usage)
-        (opts, args) = parser.parse_args()
-        if len(args) < 2:
-            parser.error("wrong number of arguments")
-        self.version = args[0]
-        self.destDbs = args[1:]
-        self.centralServers = (HgCentralServer("genome-centdb", "hgcentral"),
-                               HgCentralServer("mysqlbeta", "hgcentralbeta"))
-        self.__dict__.update(opts.__dict__)
 
-def getActiveDbsServer(centralServer):
-    conn = hgDb.connect(centralServer.db, host=centralServer.host)
-    try:
-        return frozenset([row[0] for row in dbOps.queryConnection(conn, "select name from dbDb where active=1")])
-    finally:
-        conn.close()
+def hasTransMapTrackDbs(conf, conn, destHgDb):
+    rows = list(dbOps.query(conn, "select count(*) from hg19.trackDb where tableName=%s;",
+                            ("transMap{}".format(conf.version),)))
+    return (rows[0][0] != 0)
 
-def getActiveDbs(centralServers):
-    activeDbs = set()
-    for centralServer in centralServers:
-        activeDbs |= getActiveDbsServer(centralServer)
-    return frozenset(activeDbs)
-    
-def listTransMapTbls(conn, db, version, fh):
-    for row in dbOps.queryConnection(conn,  'show tables from ' + db + ' like "transMap%' + version + '"'):
-        fh.write(db + "." + row[0] + "\n")
-    
-opts = CmdLine()
-activeDbs = getActiveDbs(opts.centralServers)
 
-conn = hgDb.connect()
-listTransMapTbls(conn, "hgFixed", opts.version, sys.stdout)
-for db in opts.destDbs:
-    if db in activeDbs:
-        listTransMapTbls(conn, db, opts.version, sys.stdout)
+def getPushDestDbMappings(conf, conn, genomes, forcePush):
+    pushDestDbMappings = defaultdict(list)
+    activeHgwbetaDbs = getActiveHgwbetaDbs(conn)
+    for destDbMapping in genomes.getCurrentDestDbMappings():
+        if ((destDbMapping.destHgDb in activeHgwbetaDbs) and
+            (forcePush or not hasTransMapTrackDbs(conf, conn, destDbMapping))):
+            pushDestDbMappings[destDbMapping.destHgDb].append(destDbMapping)
+    return pushDestDbMappings
+
+
+def writeGbdbPushInfo(conf, destDbMapping, pushGbdbFh):
+        gbdbFile = conf.getMappedGbdbBigPslFile(destDbMapping.destHgDb, destDbMapping.annotationType)
+        if not os.path.exists(gbdbFile):
+            raise Exception("gbdb file not found: {}".format(gbdbFile))
+        print(gbdbFile, file=pushGbdbFh)
+
+
+def writeDestDbPushInfo(conf, destDb, destDbMappings, pushDbFh, pushGbdbFh):
+    print(destDb, file=pushDbFh)
+    for destDbMapping in destDbMappings:
+        writeGbdbPushInfo(conf, destDbMapping, pushGbdbFh)
+
+
+def mkPushList(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    conn = hgDb.connect(confFile=hgwbetaHgConf)
+    genomes = Genomes(conf)
+    pushDestDbMappings = getPushDestDbMappings(conf, conn, genomes, opts.forcePush)
+    with open(opts.pushDbList, "w") as pushDbFh, open(opts.pushGbdbList, "w") as pushGbdbFh:
+        for destDb in pushDestDbMappings.keys():
+            writeDestDbPushInfo(conf, destDb, pushDestDbMappings[destDb], pushDbFh, pushGbdbFh)
+
+mkPushList(parseArgs())

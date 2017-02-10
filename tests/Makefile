@@ -16,6 +16,7 @@ transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
 luigiTransMap = ../bin/luigiTransMap
 linkToGbdb = ../bin/linkToGbdb
+mkPushList = ../bin/mkPushList
 
 bigTransMapAs = ${HOME}/kent/src/hg/lib/bigTransMap.as
 
@@ -218,23 +219,32 @@ transMapInfoTest: mkdirs
 
 
 #########################################################################################
-submitTests: linkToGbdbTest
+submitTests: linkToGbdbTest mkPushListTest
 
-linkTestBigPsls = \
-	mm10/mm10.rna.transMap.bigPsl \
-	hg19/hg19.refseq.transMap.bigPsl hg19/hg19.est.transMap.bigPsl \
-	mm10/mm10.refseq.transMap.bigPsl hg19/hg19.rna.transMap.bigPsl \
-	mm10/mm10.est.transMap.bigPsl hg19/hg19.ensembl.transMap.bigPsl \
-	mm10/mm10.ensembl.transMap.bigPsl
+submitDestDbs = mm10 hg19
+submitBigPslTypes = refseq.transMap.bigPsl est.transMap.bigPsl \
+	rna.transMap.bigPsl ensembl.transMap.bigPsl \
 
+linkTestBigPsls = $(foreach db,${submitDestDbs},$(foreach tp,${submitBigPslTypes}, mapped/${db}/${db}.${tp}))
 
 linkToGbdbTest: mkdirs
 	@rm -rf output/$@.data output/$@.gbdb
-	for bp in ${linkTestBigPsls:%=output/$@.data/mapped/%} ; do mkdir -p $$(dirname $${bp}) && touch $${bp} ; done
+	for bp in ${linkTestBigPsls:%=output/$@.data/%} ; do mkdir -p $$(dirname $${bp}) && touch $${bp} ; done
 	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
-	dataDir=output/$@.data gbdbDir=output/$@.gbdb ${linkToGbdb} input/testTransMapConf.py --destHgDb=canFam3 --srcHgDb=felCat8
+	dataDir=output/$@.data gbdbDir=output/$@.gbdb ${linkToGbdb} input/testTransMapConf.py
 	find output/linkToGbdbTest.gbdb -type l | sort > output/$@.files
-	diff expected/$@.files output/$@.files
+	${diff} expected/$@.files output/$@.files
+
+
+mkPushBigPsls = $(foreach db,${submitDestDbs},$(foreach tp,${submitBigPslTypes}, ${db}/transMap/${db}.${tp}))
+mkPushListTest: mkdirs
+	@rm -rf output/$@.data output/$@.gbdb
+	for bp in ${mkPushBigPsls:%=output/$@.gbdb/%} ; do mkdir -p $$(dirname $${bp}) && touch $${bp} ; done
+	mkdir -p output/$@.data
+	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
+	dataDir=output/$@.data gbdbDir=output/$@.gbdb ${mkPushList} --forcePush input/testTransMapConf.py output/$@.pushDbs.lst output/$@.pushGbdbs.lst
+	${diff} expected/$@.pushDbs.lst output/$@.pushDbs.lst
+	${diff} expected/$@.pushGbdbs.lst output/$@.pushGbdbs.lst
 
 #########################################################################################
 

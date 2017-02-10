@@ -3,7 +3,7 @@ progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
 	srcDbLoadEnsemblAligns srcDbLoadEnsemblMetadata srcDbLoadEnsemblSeqs \
 	srcDbCheck genomeDbLoad mappingChainBuild mappingChainIndex \
 	transMapJob transMapBatch transMapBuildBigPsl transMapInfo \
-	luigiTransMap
+	luigiTransMap linkToGbdb mkPushList
 
 # getEnsemblMetadata
 # FIXME: change this to do all once cleaned out
