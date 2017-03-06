@@ -35,9 +35,12 @@ class SrcMetadataDbTable(HgLiteTable):
             geneId text,
             geneType text,
             transcriptType text);"""
-    __insertSql = """INSERT INTO {table} (srcId, accv, cds, geneName, geneId, geneType, transcriptType) VALUES (?, ?, ?, ?, ?, ?, ?);"""
+    __insertSql = """INSERT INTO {table} ({columns}) VALUES ({values});"""
     __indexSql = """CREATE UNIQUE INDEX {table}_srcId on {table} (srcId);"""
 
+    columnNames = ("srcId", "accv", "cds", "geneName", "geneId", "geneType",
+                   "transcriptType")
+    
     def __init__(self, conn, table, create=False):
         super(SrcMetadataDbTable, self).__init__(conn, table)
         if create:
@@ -53,12 +56,12 @@ class SrcMetadataDbTable(HgLiteTable):
 
     def loads(self, rows):
         """load rows into table.  Each element of row is a list, tuple, or SrcMetadata objects"""
-        self._inserts(self.__insertSql, rows)
+        self._inserts(self.__insertSql, self.columnNames, rows)
 
     def getBySrcId(self, srcId):
         "return row or error if not found"
-        sql = """SELECT * FROM {table} WHERE srcId = ?"""
-        rows = list(self.queryRows(sql, lambda cur, row: SrcMetadata(*row), srcId))
+        sql = """SELECT {columns} FROM {table} WHERE srcId = ?"""
+        rows = list(self.queryRows(sql, self.columnNames, lambda cur, row: SrcMetadata(*row), srcId))
         if len(rows) == 0:
             raise Exception("can't find metadata for {}".format(srcId))
         return rows[0]
@@ -93,6 +96,7 @@ class SrcXRefDbTable(HgLiteTable):
     __insertSql = """INSERT INTO {table} (srcAlignId, srcId, accv) VALUES (?, ?, ?);"""
     __indexSql = ["""CREATE UNIQUE INDEX {table}_srcAlignId on {table} (srcAlignId);""",
                   """CREATE INDEX {table}_accv on {table} (accv);"""]
+    columnNames = ("srcAlignId", "srcId", "accv")
 
     def __init__(self, conn, table, create=False):
         super(SrcXRefDbTable, self).__init__(conn, table)
@@ -109,18 +113,18 @@ class SrcXRefDbTable(HgLiteTable):
 
     def loads(self, rows):
         """load rows into table.  Each element of row is a list, tuple, or SrcMetadata objects"""
-        self._inserts(self.__insertSql, rows)
+        self._inserts(self.__insertSql, self.columnNames, rows)
 
     def getSrcIds(self):
         "get generator over unique source ids"
         sql = "SELECT distinct(srcId) FROM {table};"
-        for row in self.query(sql):
+        for row in self.query(sql, []):
             yield row[0]
 
     def getAccvs(self):
         "get generator over unique source accv"
         sql = "SELECT distinct(accv) FROM {table};"
-        for row in self.query(sql):
+        for row in self.query(sql, []):
             yield row[0]
 
 
@@ -134,7 +138,7 @@ class SrcAlignDbTable(PslDbTable):
         """get set of accv for PSLs that were loaded; use to restrict set for testing"""
         sql = """SELECT qName FROM {table};"""
         return frozenset([srcIdToAccv(alignIdToSrcId(row[0]))
-                          for row in self.query(sql)])
+                          for row in self.query(sql, [])])
 
     def getAllAcc(self):
         """get set of acc (no version) for PSLs that were loaded; use to restrict set for testing"""
@@ -168,4 +172,4 @@ def loadSeqFa(tmpSeqFa, srcDbConn):
 
 def querySrcPsls(srcDbConn):
     srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
-    return srcAlignTbl.query("SELECT {} FROM {{table}};".format(SrcAlignDbTable.columnsNamesSql))
+    return srcAlignTbl.query("SELECT {columns} FROM {table};", SrcAlignDbTable.columnNames)

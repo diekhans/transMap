@@ -14,12 +14,13 @@ class MappingChainsDbTables(object):
 
 class MappingChainLoc(namedtuple("MappingChainsIndex",
                                  ("bin", "qName", "qStart", "qEnd", "offset", "length"))):
-    """Index of chain record"""
+    """Index of chain record; we include bin just to simplify loading"""
     __slots__ = ()
 
     @staticmethod
     def factory(qName, qStart, qEnd, offset, length):
-        return MappingChainLoc(Binner.calcBin(qStart, qEnd), qName, qStart, qEnd, offset, length)
+        bin = Binner.calcBin(qStart, qEnd)
+        return MappingChainLoc(bin, qName, qStart, qEnd, offset, length)
 
 
 class MappingChainsIndexDbTable(HgLiteTable):
@@ -33,9 +34,11 @@ class MappingChainsIndexDbTable(HgLiteTable):
             qEnd int unsigned not null,
             offset int unsigned not null,
             length int unsigned not null);"""
-    __insertSql = """INSERT INTO {table} (bin, qName, qStart, qEnd, offset, length) VALUES (?, ?, ?, ?, ?, ?);"""
+    __insertSql = """INSERT INTO {table} ({columns}) VALUES ({values});"""
     __indexSql = """CREATE INDEX {table}_chrom_bin on {table} (qName, bin)"""
 
+    columnNames = ("bin", "qName", "qStart", "qEnd", "offset", "length")
+    
     def __init__(self, conn, table, create=False):
         super(MappingChainsIndexDbTable, self).__init__(conn, table)
         if create:
@@ -50,9 +53,10 @@ class MappingChainsIndexDbTable(HgLiteTable):
 
     def loads(self, rows):
         """load rows, which should already have bin"""
-        self._inserts(self.__insertSql, rows)
+        self._inserts(self.__insertSql, self.columnNames, rows)
 
     def getRangeOverlap(self, qName, qStart, qEnd):
         """Get index entries for overlapping range"""
-        sql = "SELECT * FROM {{table}} WHERE {};".format(Binner.getOverlappingSqlExpr("bin", "qName", "qStart", "qEnd", qName, qStart, qEnd))
-        return self.queryRows(sql, lambda cur, row: MappingChainLoc(*row))
+        binWhere = Binner.getOverlappingSqlExpr("bin", "qName", "qStart", "qEnd", qName, qStart, qEnd)
+        sql = "SELECT {{columns}} FROM {{table}} WHERE {};".format(binWhere)
+        return self.queryRows(sql, self.columnNames, lambda cur, row: MappingChainLoc(*row))

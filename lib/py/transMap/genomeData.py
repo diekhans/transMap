@@ -77,6 +77,8 @@ class ChainsDbTable(HgLiteTable):
     __indexSql = ["""CREATE INDEX {table}_srcHgDb on {table} (srcHgDb);""",
                   """CREATE INDEX {table}_destHgDb on {table} (destHgDb);"""]
 
+    columnNames = ("srcHgDb", "destHgDb", "chainType", "chainFile", "netFile")
+    
     def __init__(self, conn, table, create=False):
         super(ChainsDbTable, self).__init__(conn, table)
         if create:
@@ -88,20 +90,20 @@ class ChainsDbTable(HgLiteTable):
 
     def loads(self, rows):
         """load rows into table"""
-        self._inserts(self.__insertSql, rows)
+        self._inserts(self.__insertSql, self.columnNames, rows)
 
     def queryByDbs(self, srcHgDb, destHgDb):
-        sql = "SELECT * FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?)"
-        return self.queryRows(sql, Chains.rowFactory, srcHgDb, destHgDb)
+        sql = "SELECT {columns} FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?)"
+        return self.queryRows(sql, self.columnNames, Chains.rowFactory, srcHgDb, destHgDb)
 
     def queryByDestHgDb(self, destHgDb):
-        sql = "SELECT * FROM {table} WHERE (destHgDb=?)"
-        return self.queryRows(sql, Chains.rowFactory, destHgDb)
+        sql = "SELECT {columns} FROM {table} WHERE (destHgDb=?)"
+        return self.queryRows(sql, self.columnNames, Chains.rowFactory, destHgDb)
 
     def queryByDbsType(self, srcHgDb, destHgDb, chainType):
         "return Chain or None"
-        sql = "SELECT * FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?) AND (chainType=?)"
-        rows = list(self.queryRows(sql, Chains.rowFactory, srcHgDb, destHgDb, chainType))
+        sql = "SELECT {columns} FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?) AND (chainType=?)"
+        rows = list(self.queryRows(sql, self.columnNames, Chains.rowFactory, srcHgDb, destHgDb, chainType))
         if len(rows) == 0:
             return None
         elif len(rows) == 1:
@@ -143,6 +145,8 @@ class GenomeAsmsDbTable(HgLiteTable):
     __indexSql = ["""CREATE INDEX {table}_hgDb on {table} (hgDb);""",
                   """CREATE INDEX {table}_commonName on {table} (commonName);""",
                   """CREATE INDEX {table}_annotationTypeSet on {table} (annotationTypeSet);"""]
+    columnNames = ("hgDb", "clade", "commonName", "scientificName",
+                   "orgAbbrev", "annotationTypeSet",)
 
     def __init__(self, conn, table, create=False):
         super(GenomeAsmsDbTable, self).__init__(conn, table)
@@ -155,15 +159,15 @@ class GenomeAsmsDbTable(HgLiteTable):
 
     def loads(self, rows):
         """load rows into table"""
-        self._inserts(self.__insertSql, rows)
+        self._inserts(self.__insertSql, self.columnNames, rows)
 
     def queryByClades(self, clades):
-        sql = "SELECT * FROM {{table}} WHERE clade in ({})".format(",".join((len(clades) * ["?"])))
-        return self.queryRows(sql, GenomeAsm.rowFactory, *clades)
+        sql = "SELECT {{columns}} FROM {{table}} WHERE clade in ({})".format(",".join((len(clades) * ["?"])))
+        return self.queryRows(sql, self.columnNames, GenomeAsm.rowFactory, *clades)
 
     def queryByHdDb(self, hgDb):
-        sql = "SELECT * FROM {table} WHERE hgDb = ?"
-        return self.queryRows(sql, GenomeAsm.rowFactory, hgDb)
+        sql = "SELECT {columns} FROM {table} WHERE hgDb = ?"
+        return self.queryRows(sql, self.columnNames, GenomeAsm.rowFactory, hgDb)
 
 
 class Organism(object):
