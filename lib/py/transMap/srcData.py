@@ -40,7 +40,7 @@ class SrcMetadataDbTable(HgLiteTable):
 
     columnNames = ("srcId", "accv", "cds", "geneName", "geneId", "geneType",
                    "transcriptType")
-    
+
     def __init__(self, conn, table, create=False):
         super(SrcMetadataDbTable, self).__init__(conn, table)
         if create:

@@ -217,3 +217,7 @@ mkdir logs
     ${tmdir}/bin/linkToGbdb  ${tmdir}/etc/transMapBuildConf.py
   - create push lists
       ${tmdir}/bin/mkPushList ${tmdir}/etc/transMapBuildConf.py db.push.lst gbdb.push.lst
+
+2017-03-07
+   - rebuild bigPsls to add search indexes
+   (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-03-07.log &

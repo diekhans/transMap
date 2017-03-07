@@ -38,7 +38,7 @@ class MappingChainsIndexDbTable(HgLiteTable):
     __indexSql = """CREATE INDEX {table}_chrom_bin on {table} (qName, bin)"""
 
     columnNames = ("bin", "qName", "qStart", "qEnd", "offset", "length")
-    
+
     def __init__(self, conn, table, create=False):
         super(MappingChainsIndexDbTable, self).__init__(conn, table)
         if create:

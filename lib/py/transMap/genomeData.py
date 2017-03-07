@@ -78,7 +78,7 @@ class ChainsDbTable(HgLiteTable):
                   """CREATE INDEX {table}_destHgDb on {table} (destHgDb);"""]
 
     columnNames = ("srcHgDb", "destHgDb", "chainType", "chainFile", "netFile")
-    
+
     def __init__(self, conn, table, create=False):
         super(ChainsDbTable, self).__init__(conn, table)
         if create:

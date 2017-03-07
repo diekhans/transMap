@@ -31,11 +31,19 @@ def parseArgs():
     return opts
 
 
+def getIndexFields(conf):
+    indexFields = ["name", "srcTransId"]
+    if conf.annotationType in (AnnotationType.refseq, AnnotationType.ensembl):
+        indexFields += ["geneName", "geneId"]
+    elif conf.annotationType in (AnnotationType.rna,):
+        indexFields += ["geneName"]
+    return indexFields
+
+
 def transMapBuildBigPsl(opts):
     conf = transMapConfLoad(opts.configPyFile,
                             destHgDb=opts.destHgDb,
                             annotationType=opts.annotationType)
-
     inPreBigPsls = [conf.getBatchSrcHgDbPreBigPsl(srcHgDb) for srcHgDb in opts.srcHgDbs]
     mappedPreBigPsl = fileOps.tmpFileGet("transMap.dest.", "preBigPsl")
     bigTransMapSortMerge(inPreBigPsls, mappedPreBigPsl)
@@ -43,7 +51,7 @@ def transMapBuildBigPsl(opts):
     mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
     pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
                   "-as={}".format(conf.bigTransMapAsPath),
-                  "-extraIndex=name",
+                  "-extraIndex={}".format(",".join(getIndexFields(conf))),
                   mappedPreBigPsl, getChromSizes(conf.destHgDb),
                   mappedBigPslTmpFile])
     # validate
