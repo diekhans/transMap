@@ -3,10 +3,9 @@
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 from collections import defaultdict
-import sys
 import os
 import argparse
-from pycbio.sys import dbOps, loggingOps
+from pycbio.sys import dbOps
 from pycbio.hgdata import hgDb
 from transMap.genomeData import Genomes
 from transMap.transMapConf import transMapConfLoad
@@ -47,7 +46,7 @@ def hasTransMapTrackDbs(conf, conn, destHgDb):
 def getPushDestDbMappings(conf, conn, genomes, forcePush):
     pushDestDbMappings = defaultdict(list)
     activeHgwbetaDbs = getActiveHgwbetaDbs(conn)
-    for destDbMapping in genomes.getCurrentDestDbMappings():
+    for destDbMapping in genomes.getCandidateDestDbMappings():
         if ((destDbMapping.destHgDb in activeHgwbetaDbs) and
             (forcePush or not hasTransMapTrackDbs(conf, conn, destDbMapping))):
             pushDestDbMappings[destDbMapping.destHgDb].append(destDbMapping)

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
-import logging
 from transMap.genomeData import AnnotationType
 from transMap import alignIdToSrcId
 from transMap.srcData import querySrcPsls, loadSeqFa
@@ -39,7 +39,7 @@ def getSrcGenePred(srcHgDb, annotationType, srcDbConn):
     # use alignments rather than original genePreds so if they are filtered, it all bubbles down
     tmpSrcGp = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".gp")
     mrnaToGeneCmd = ("mrnaToGene", "-insertMergeSize=-1", "-noCds", "/dev/stdin", tmpSrcGp)
-    with pipettor.Popen([mrnaToGeneCmd], "w", logger=logging.getLogger()) as pslFh:
+    with pipettor.Popen([mrnaToGeneCmd], "w") as pslFh:
         writeSrcPsls(srcDbConn, pslFh)
     return tmpSrcGp
 
@@ -50,7 +50,7 @@ def getSeqFasta(srcHgDb, annotationType, srcGp):
 
     # already has srcId with srcHgDb in it!
     getRnaPredCmd = ("getRnaPred", srcHgDb, srcGp, "all", "/dev/stdout")
-    pipettor.run([getRnaPredCmd], stdout=tmpSeqFa, logger=logging.getLogger())
+    pipettor.run([getRnaPredCmd], stdout=tmpSeqFa)
     return tmpSeqFa
 
 

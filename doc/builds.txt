@@ -221,3 +221,6 @@ mkdir logs
 2017-03-07
    - rebuild bigPsls to add search indexes
    (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-03-07.log &
+   mkdir stats
+   ${tmdir}/bin/transMapInfo ${tmdir}/etc/transMapBuildConf.py stats/2017-03-07.info
+   ${tmdir}/bin/transMapStats  ${tmdir}/etc/transMapBuildConf.py stats/2017-03-07.stats

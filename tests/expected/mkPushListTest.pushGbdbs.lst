@@ -1,8 +1,8 @@
-output/mkPushListTest.gbdb/mm10/transMap/mm10.rna.transMap.bigPsl
+output/mkPushListTest.gbdb/hg19/transMap/hg19.refseq.transMap.bigPsl
+output/mkPushListTest.gbdb/hg19/transMap/hg19.rna.transMap.bigPsl
+output/mkPushListTest.gbdb/hg19/transMap/hg19.est.transMap.bigPsl
+output/mkPushListTest.gbdb/hg19/transMap/hg19.ensembl.transMap.bigPsl
 output/mkPushListTest.gbdb/mm10/transMap/mm10.refseq.transMap.bigPsl
+output/mkPushListTest.gbdb/mm10/transMap/mm10.rna.transMap.bigPsl
 output/mkPushListTest.gbdb/mm10/transMap/mm10.est.transMap.bigPsl
 output/mkPushListTest.gbdb/mm10/transMap/mm10.ensembl.transMap.bigPsl
-output/mkPushListTest.gbdb/hg19/transMap/hg19.refseq.transMap.bigPsl
-output/mkPushListTest.gbdb/hg19/transMap/hg19.est.transMap.bigPsl
-output/mkPushListTest.gbdb/hg19/transMap/hg19.rna.transMap.bigPsl
-output/mkPushListTest.gbdb/hg19/transMap/hg19.ensembl.transMap.bigPsl

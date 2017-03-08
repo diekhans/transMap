@@ -88,7 +88,7 @@ class TransMapConf(object):
     @property
     def srcDataDir(self):
         self.__needOptions("srcHgDb")
-        return self.getSrcDataDir(srcHgDb)
+        return self.getSrcDataDir(self.srcHgDb)
 
     def getSrcDb(self, srcHgDb, annotationType):
         return os.path.join(self.getSrcDataDir(srcHgDb), "{}.{}.src.db".format(srcHgDb, annotationType))

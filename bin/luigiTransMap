@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import transMapProgSetup  # noqa: F401
-import sys
 import os
 import argparse
-import logging
 from collections import defaultdict
-from pycbio.sys import fileOps, loggingOps
+from pycbio.sys import fileOps
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import Genomes, AnnotationType, ChainType, mappingsFilter
 import pipettor
@@ -63,8 +62,7 @@ class SrcDataTask(luigi.Task):
         self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, annotationType=self.annotationType)
 
     def __runCmd(self, prog, srcDbTmp):
-        pipettor.run([os.path.join(self.conf.binDir, prog), self.srcHgDb, self.annotationType, srcDbTmp],
-                     logger=logging.getLogger())
+        pipettor.run([os.path.join(self.conf.binDir, prog), self.srcHgDb, self.annotationType, srcDbTmp])
 
     def __ensemblProgs(self):
         return ["srcDbLoadEnsemblAligns",
@@ -109,8 +107,7 @@ class MappingChainBuildTask(luigi.Task):
         mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
 
         pipettor.run([os.path.join(self.conf.binDir, "mappingChainBuild"),
-                      self.conf.genomeDb, self.srcHgDb, self.destHgDb, self.chainType, mappingChainsTmp],
-                     logger=logging.getLogger())
+                      self.conf.genomeDb, self.srcHgDb, self.destHgDb, self.chainType, mappingChainsTmp])
 
         fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.conf.mappingChains))
         fileOps.atomicInstall(mappingChainsTmp, self.conf.mappingChains)
@@ -139,8 +136,7 @@ class TransMapBatchTask(luigi.Task):
         # transMapBatch handles atomic file
         pipettor.run([os.path.join(self.conf.binDir, "transMapBatch"),
                       self.configPyFile, self.srcHgDb, self.destHgDb,
-                      self.annotationType, self.chainType],
-                     logger=logging.getLogger())
+                      self.annotationType, self.chainType])
 
     def requires(self):
         return [SrcDataTask(configPyFile=self.configPyFile,
@@ -171,8 +167,7 @@ class TransMapBuildBigPslTask(luigi.Task):
         # transMapBuildBigPsl handles atomic install
         pipettor.run([os.path.join(self.conf.binDir, "transMapBuildBigPsl"),
                       self.configPyFile, self.destHgDb,
-                      self.annotationType] + list(self.srcHgDbs),
-                     logger=logging.getLogger())
+                      self.annotationType] + list(self.srcHgDbs))
 
     def requires(self):
         # chain type is not significant.  Ensembl and gencode
@@ -203,7 +198,7 @@ def genomeDbBuild(conf, srcHgDbSubset, destHgDbSubset):
     if destHgDbSubset is not None:
         cmd += ["--hgDb={}".format(hgDb) for hgDb in destHgDbSubset]
     cmd.append(conf.configPyFile)
-    pipettor.run(cmd, logger=logging.getLogger())
+    pipettor.run(cmd)
 
 
 def genomeDbSetup(conf, opts):
@@ -254,7 +249,7 @@ class StartTask(luigi.WrapperTask):
     def requires(self):
         conf = transMapConfLoad(self.configPyFile)
         genomes = Genomes(conf)
-        mappingsSplit = splitMappings(mappingsFilter(genomes.getCurrentMappings(),
+        mappingsSplit = splitMappings(mappingsFilter(genomes.getCandidateMappings(),
                                                      noneIfEmpty(self.srcHgDbSubset),
                                                      noneIfEmpty(self.destHgDbSubset)))
         for task in getMappingTasks(conf, mappingsSplit):

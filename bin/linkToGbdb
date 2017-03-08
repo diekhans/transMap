@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import sys
 import os
 import argparse
-from pycbio.sys import fileOps, loggingOps
+from pycbio.sys import fileOps
 from transMap.genomeData import Genomes
 from transMap.transMapConf import transMapConfLoad
 
@@ -53,7 +54,7 @@ def linkToGbdb(opts):
     conf = transMapConfLoad(opts.configPyFile)
     genomes = Genomes(conf)
     missingFileCount = 0
-    for destDbMapping in genomes.getCurrentDestDbMappings():
+    for destDbMapping in genomes.getCandidateDestDbMappings():
         if not linkDestDbMappingToGbDb(conf, destDbMapping):
             missingFileCount += 1
     if missingFileCount > 0:

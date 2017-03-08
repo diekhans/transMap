@@ -250,24 +250,25 @@ class Genomes(object):
         "lookup db name or None"
         return self.genomeAsms.get(hgDb)
 
-    def findCurrentDestHgDbs(self):
-        """find list of current destHgDb.  This is the newest from the target clades,
-        plus previous ones required in the config.
+    def findCandidateDestHgDbs(self):
+        """Find list of candidate destHgDb.  This is the newest from the target clades,
+        plus previous ones required in the config.  This may not actually be used
+        if their are no chains.
         """
-        currentDestHgDbs = set()
+        candidateDestHgDbs = set()
         for org in self.orgs.itervalues():
-            currentDestHgDbs.add(org.genomeAsms[0].hgDb)
+            candidateDestHgDbs.add(org.genomeAsms[0].hgDb)
         for hgDb in self.conf.requiredPreviousDestHgDbs:
             if self.getAsmByName(hgDb) is None:
                 raise Exception("config requiredPreviousDestHgDbs {} is not a valid hgDb".format(hgDb))
-            currentDestHgDbs.add(hgDb)
-        return currentDestHgDbs
+            candidateDestHgDbs.add(hgDb)
+        return candidateDestHgDbs
 
     def __getDestDbChains(self, destHgDb):
         return self.chainsTbl.queryByDestHgDb(destHgDb)
 
     def __getChainsBySrcOrg(self, destHgDb):
-        # skip srcHgDb not in table, these are outside of the specified clades
+        "skip if srcHgDb not in table, these are outside of the specified clades"
         chainsBySrcOrg = defaultdict(list)
         for chain in self.__getDestDbChains(destHgDb):
             if chain.srcHgDb in self.hgDbToOrg:
@@ -286,7 +287,7 @@ class Genomes(object):
         return None
 
     def __getDestHgDbSrcHgPreferedChain(self, destHgDb, srcHgDb, srcChainsList):
-        # get most appropriate chain for the clade differences
+        "get most appropriate chain for the clade differences"
         for preferedChainType in self.__getPreferedChainTypes(destHgDb, srcHgDb):
             matchChain = self.__findChainMatchingPrefered(preferedChainType, srcChainsList)
             if matchChain is not None:
@@ -296,7 +297,8 @@ class Genomes(object):
                                 srcHgDb, self.genomeAsms[srcHgDb].clade,
                                 srcChainsList))
 
-    def __getDestHgDbSrcHgMappings(self, destHgDb, srcHgDb, srcChainsList):
+    def __getDestHgDbSrcHgDbMappings(self, destHgDb, srcHgDb, srcChainsList):
+        "get mappings from dest to src with required chains"
         preferedChain = self.__getDestHgDbSrcHgPreferedChain(destHgDb, srcHgDb, srcChainsList)
         # build for each annotation set in src
         srcAsm = self.getAsmByName(srcHgDb)
@@ -307,34 +309,42 @@ class Genomes(object):
         srcHgDb = srcOrg.genomeAsms[0].hgDb  # newest
         srcHgDbChains = [c for c in srcOrgChainsList if c.srcHgDb == srcHgDb]
         if len(srcHgDbChains) > 0:
-            return list(self.__getDestHgDbSrcHgMappings(destHgDb, srcHgDb, srcHgDbChains))
+            return list(self.__getDestHgDbSrcHgDbMappings(destHgDb, srcHgDb, srcHgDbChains))
         else:
             return []
 
     def __getDestHgDbMappings(self, destHgDb):
+        "get mappings to this destHgDb"
         destHgDbMappings = []
         chainsBySrcOrg = self.__getChainsBySrcOrg(destHgDb)
         for srcOrg in chainsBySrcOrg.iterkeys():
             destHgDbMappings.extend(self.__getDestHgDbSrcOrgMappings(destHgDb, srcOrg, chainsBySrcOrg[srcOrg]))
         return destHgDbMappings
 
-    def getCurrentMappings(self):
-        "get list of Mapping object for current database"
-        currentMappings = []
-        for destHgDb in self.findCurrentDestHgDbs():
-            currentMappings.extend(self.__getDestHgDbMappings(destHgDb))
-        return currentMappings
+    def getCandidateMappings(self):
+        "get sorted list of Mapping object for candidate database"
+        candidateMappings = []
+        for destHgDb in self.findCandidateDestHgDbs():
+            candidateMappings.extend(self.__getDestHgDbMappings(destHgDb))
+        return sorted(candidateMappings, key=lambda m: m)
 
     @staticmethod
     def __mappingToDestDbMapping(mapping):
         return DestDbMapping(mapping.destHgDb, mapping.annotationType)
 
-    def getCurrentDestDbMappings(self):
-        "build list of DestDbMapping for all current mappings"
+    def getCandidateDestDbMappings(self):
+        "build sorted list of DestDbMapping for all candidate mappings"
         destDbMappings = set()
-        for mapping in self.getCurrentMappings():
+        for mapping in self.getCandidateMappings():
             destDbMappings.add(self.__mappingToDestDbMapping(mapping))
-        return list(destDbMappings)
+        return sorted(destDbMappings, key=lambda m: m)
+
+    def getCandidateSrcHgDbs(self):
+        "build sorted list of srcHg for all candidate mappings"
+        srcHgDbs = set()
+        for mapping in self.getCandidateMappings():
+            srcHgDbs.add(mapping.srcHgDb)
+        return sorted(list(srcHgDbs))
 
     def dump(self, fh):
         "print for debugging purposes"

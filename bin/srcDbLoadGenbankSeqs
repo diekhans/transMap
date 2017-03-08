@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import sqlite3
 import argparse
-import sys
-import logging
-from pycbio.sys import loggingOps
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, SrcXRefDbTable, loadSeqFa
 from pycbio.sys import fileOps
@@ -42,7 +40,7 @@ def getSeqFasta(srcHgDb, annotationType, tmpAccFile):
     srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDb),
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
     cmds = [getRnaCmd, srcDbCmd]
-    pipettor.run(cmds, stdout=tmpSeqFa, logger=logging.getLogger())
+    pipettor.run(cmds, stdout=tmpSeqFa)
     return tmpSeqFa
 
 

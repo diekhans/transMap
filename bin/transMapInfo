@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import transMapProgSetup  # noqa: F401
-import sys
 import os
 import argparse
-from pycbio.sys import loggingOps
 from pycbio.sys import fileOps
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import Genomes
@@ -24,6 +23,10 @@ def parseArgs():
     transMapProgSetup.setupFromCmd(opts)
     return opts
 
+header = ("srcHgDb", "srcCommonName", "srcScientificName",
+          "destHgDb", "destCommonName", "destScientificName",
+          "state", "annotationType", "chainType")
+
 
 def getState(conf, mapping):
     if os.path.exists(conf.getMappedBigPslFileForDestHgDb(mapping.destHgDb, mapping.annotationType)):
@@ -32,11 +35,20 @@ def getState(conf, mapping):
         return "needed"
 
 
+def writeTransMapMapping(conf, outFh, genomes, mapping):
+    srcAsm = genomes.genomeAsms[mapping.srcHgDb]
+    destAsm = genomes.genomeAsms[mapping.destHgDb]
+    fileOps.prRowv(outFh,
+                   mapping.srcHgDb, srcAsm.commonName, srcAsm.scientificName,
+                   mapping.destHgDb, destAsm.commonName, destAsm.scientificName,
+                   mapping.annotationType, getState(conf, mapping),
+                   mapping.chains.chainType)
+
+
 def writeTransMapInfo(conf, outFh, genomes):
-    fileOps.prRowv(outFh, "destHgDb", "state", "srcHgDb", "annotationType", "chainType")
-    for mapping in genomes.getCurrentMappings():
-        fileOps.prRowv(outFh, mapping.destHgDb, getState(conf, mapping),
-                       mapping.srcHgDb, mapping.annotationType, mapping.chains.chainType)
+    fileOps.prRow(outFh, header)
+    for mapping in genomes.getCandidateMappings():
+        writeTransMapMapping(conf, outFh, genomes, mapping)
 
 
 def transMapInfo(opts):

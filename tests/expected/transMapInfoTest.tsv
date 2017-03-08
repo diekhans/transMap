@@ -1,9 +1,9 @@
-destHgDb	state	srcHgDb	annotationType	chainType
-mm10	needed	hg19	refseq	syn
-mm10	needed	hg19	est	syn
-mm10	needed	hg19	rna	syn
-mm10	needed	hg19	ensembl	syn
-hg19	needed	mm10	refseq	syn
-hg19	needed	mm10	est	syn
-hg19	needed	mm10	rna	syn
-hg19	needed	mm10	ensembl	syn
+srcHgDb	srcCommonName	srcScientificName	destHgDb	destCommonName	destScientificName	state	annotationType	chainType
+mm10	Mouse	Mus musculus	hg19	Human	Homo sapiens	refseq	needed	syn
+mm10	Mouse	Mus musculus	hg19	Human	Homo sapiens	rna	needed	syn
+mm10	Mouse	Mus musculus	hg19	Human	Homo sapiens	est	needed	syn
+mm10	Mouse	Mus musculus	hg19	Human	Homo sapiens	ensembl	needed	syn
+hg19	Human	Homo sapiens	mm10	Mouse	Mus musculus	refseq	needed	syn
+hg19	Human	Homo sapiens	mm10	Mouse	Mus musculus	rna	needed	syn
+hg19	Human	Homo sapiens	mm10	Mouse	Mus musculus	est	needed	syn
+hg19	Human	Homo sapiens	mm10	Mouse	Mus musculus	ensembl	needed	syn
