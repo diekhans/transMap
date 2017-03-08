@@ -16,14 +16,14 @@ def parseArgs():
     desc = """Obtain RNA sequence file for the GenBank and RefSeq alignments.
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 

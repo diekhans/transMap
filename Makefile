@@ -2,7 +2,7 @@
 progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
 	srcDbLoadEnsemblAligns srcDbLoadEnsemblMetadata srcDbLoadEnsemblSeqs \
 	srcDbCheck genomeDbLoad mappingChainBuild mappingChainIndex \
-	transMapJob transMapBatch transMapBuildBigPsl transMapInfo \
+	transMapJob transMapBatch transMapBuildBigPsl transMapInfo transMapStats \
 	luigiTransMap linkToGbdb mkPushList
 
 # getEnsemblMetadata

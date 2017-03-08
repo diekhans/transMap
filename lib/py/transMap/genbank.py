@@ -1,6 +1,5 @@
 import os
 import pipettor
-import logging
 from pycbio.hgdata import hgDb
 from transMap import setSortLocale
 from transMap.genomeData import AnnotationType
@@ -89,7 +88,7 @@ class GenbankHgData(object):
             getAlignCmd, tmpPslFile = self.__getPslCmdSplit(pslTables, testAccSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
-        with pipettor.Popen([getAlignCmd, sortCmd, uniqCmd], logger=logging.getLogger()) as fh:
+        with pipettor.Popen([getAlignCmd, sortCmd, uniqCmd]) as fh:
             for line in fh:
                 yield line.rstrip().split("\t")
         if tmpPslFile is not None:

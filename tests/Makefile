@@ -14,6 +14,7 @@ transMapJob = ../bin/transMapJob
 transMapBatch = ../bin/transMapBatch
 transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
+transMapStats = ../bin/transMapStats
 luigiTransMap = ../bin/luigiTransMap
 linkToGbdb = ../bin/linkToGbdb
 mkPushList = ../bin/mkPushList
@@ -165,7 +166,7 @@ genomeDbLoadTest: mkdirs
 #########################################################################################
 mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
 	transMapJobTest transMapBatchTest transMapBuildBigPslTest \
-	transMapInfoTest
+	transMapInfoTest transMapStatsTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -215,6 +216,17 @@ transMapInfoTest: mkdirs
 	mkdir -p output/$@.data
 	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
 	dataDir=output/$@.data ${transMapInfo} input/testTransMapConf.py output/$@.tsv
+	${diff} expected/$@.tsv output/$@.tsv
+
+transMapStatsTest: mkdirs
+	${transMapEnvSetup}
+	sqlite3 -batch output/$@.data/genome.db \
+	   'update genomeAsms set annotationTypeSet="refseq" where hgDb="hg19";' \
+	   'update genomeAsms set annotationTypeSet="" where hgDb="mm10";'
+	mkdir -p output/$@.build/results/mm10/
+	cp -f expected/transMapBatchTest.preBigPsl output/$@.build/results/mm10/mm10.hg19.refseq.preBigPsl
+	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBuildBigPsl} input/testTransMapConf.py mm10 refseq hg19
+	dataDir=output/$@.data ${transMapStats} input/testTransMapConf.py output/$@.tsv
 	${diff} expected/$@.tsv output/$@.tsv
 
 

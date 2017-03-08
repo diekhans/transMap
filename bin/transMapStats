@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+
+import transMapProgSetup  # noqa: F401
+import sys
+import re
+import argparse
+import pipettor
+import logging
+import sqlite3
+from pycbio.sys import loggingOps
+from pycbio.sys import fileOps
+from transMap.transMapConf import transMapConfLoad
+from transMap.genomeData import Genomes, AnnotationType
+from transMap.srcData import SourceDbTables
+
+
+def parseArgs():
+    desc = """Get statics about a current transMap build
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    parser.add_argument("outTsv",
+                        help="""write results to this file""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+header = ("use", "hgDb", "annotationType", "count")
+
+
+def prStats(tsvFh, use, hgDb, annotationType, count):
+    fileOps.prRowv(tsvFh, use, hgDb, annotationType, count)
+
+
+def queryOneValue(conn, sql):
+    cur = conn.cursor()
+    try:
+        cur.execute(sql)
+        row = cur.fetchone()
+        if row is None:
+            raise Exception("no results from SQL query: {}".format(sql))
+        return row[0]
+    finally:
+        cur.close()
+
+
+def reportSrcHgDbAnnot(conf, tsvFh, hgDb, annotationType):
+    srcDb = conf.getSrcDb(hgDb, annotationType)
+    logging.getLogger().debug("srcDb: {}".format(srcDb))
+    conn = sqlite3.connect(srcDb)
+    sql = "SELECT count(*) FROM {}".format(SourceDbTables.srcAlignTbl)
+    count = queryOneValue(conn, sql)
+    conn.close()
+    prStats(tsvFh, "src", hgDb, annotationType, count)
+
+
+def reportSrcHgDb(conf, tsvFh, hgDbAsm):
+    for annotationType in AnnotationType:
+        if annotationType in hgDbAsm.annotationTypeSet:
+            reportSrcHgDbAnnot(conf, tsvFh, hgDbAsm.hgDb, annotationType)
+
+
+def reportSrcs(conf, tsvFh, genomes):
+    for hgDb in sorted(genomes.genomeAsms.keys()):
+        reportSrcHgDb(conf, tsvFh, genomes.genomeAsms[hgDb])
+
+
+def queryBigPslItemCount(bigPsl):
+    out = pipettor.runout(["bigBedInfo", bigPsl], logger=logging.getLogger())
+    m = re.match(".*itemCount: ([0-9]+).*", out, re.DOTALL)
+    return int(m.group(1))
+
+
+def reportDestHgDbAnnot(conf, tsvFh, hgDb, annotationType):
+    bigPsl = conf.getMappedBigPslFileForDestHgDb(hgDb, annotationType)
+    logging.getLogger().debug("mappedBigPsl: {}".format(bigPsl))
+    count = queryBigPslItemCount(bigPsl)
+    prStats(tsvFh, "dest", hgDb, annotationType, count)
+
+
+def reportDests(conf, tsvFh, genomes):
+    destDbMappings = sorted(genomes.getCurrentDestDbMappings(), key=lambda m: (m.destHgDb, m.annotationType))
+    for destDbMapping in destDbMappings:
+        reportDestHgDbAnnot(conf, tsvFh, destDbMapping.destHgDb, destDbMapping.annotationType)
+
+
+def writeTransMapStats(conf, tsvFh, genomes):
+    fileOps.prRow(tsvFh, header)
+    reportSrcs(conf, tsvFh, genomes)
+    reportDests(conf, tsvFh, genomes)
+
+
+def transMapStats(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    genomes = Genomes(conf)
+    with open(opts.outTsv, "w") as tsvFh:
+        writeTransMapStats(conf, tsvFh, genomes)
+
+
+# entry
+transMapStats(parseArgs())

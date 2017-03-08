@@ -32,7 +32,7 @@ class AnnotationTypeSet(frozenset):
 
     @staticmethod
     def fromStr(sval):
-        if sval is None:
+        if (sval is None) or (len(sval) == 0):
             return AnnotationTypeSet()
         else:
             return AnnotationTypeSet([AnnotationType(str(v)) for v in sval.split(',')])

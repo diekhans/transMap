@@ -2,8 +2,12 @@
 Import this to do standard library and executable path setup for python programs.
 This is not a program, it is in the bin directory so that is will be
 automatically on the path.
+
+Also provides some common initialization functions
 """
-import sys, os
+import sys
+import os
+import logging
 rootDir = os.path.dirname(os.path.abspath(os.path.dirname(sys.argv[0])))
 
 def _addExtern(module, relDir):
@@ -20,3 +24,13 @@ os.environ["PATH"] = "{}:{}:{}:{}".format(os.path.join(rootDir, "bin"),
                                           os.path.expanduser("~/kent/bin/x86_64"),
                                           "/cluster/bin/x86_64",
                                           os.environ["PATH"])
+
+from pycbio.sys import loggingOps
+import pipettor
+
+def addCmdOptions(parser):
+    loggingOps.addCmdOptions(parser)
+
+def setupFromCmd(opts):
+    loggingOps.setupFromCmd(opts, sys.argv[0])
+    pipettor.setDefaultLogging(logging.getLogger(), logging.DEBUG)

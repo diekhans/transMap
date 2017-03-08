@@ -27,7 +27,7 @@ def parseArgs():
     all work, including filtering, recalculating match stats, etc.
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--keep", action="store_true",
                         help="""mysql database for source assembly""")
     parser.add_argument("configPyFile",
@@ -47,7 +47,7 @@ def parseArgs():
     parser.add_argument("mappedPreBigPsl",
                         help="""output for input to bedToBigBed""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 

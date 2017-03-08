@@ -1,0 +1,3 @@
+use	hgDb	annotationType	count
+src	hg19	refseq	14
+dest	mm10	refseq	9

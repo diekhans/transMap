@@ -17,14 +17,14 @@ def parseArgs():
     desc = """Validate a transmap source sqlite3 database
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("srcHgDb", help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type to obtain""")
     parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 

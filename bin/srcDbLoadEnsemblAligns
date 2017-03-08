@@ -15,7 +15,7 @@ def parseArgs():
     desc = """Obtain PSL alignments for GENCODE or Ensembl from ucsc database files.
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--testAccvFile", default=None,
                         help="""limit to test accession, with version, in this file testing purposes""")
     parser.add_argument("srcHgDb",
@@ -25,7 +25,7 @@ def parseArgs():
     parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 

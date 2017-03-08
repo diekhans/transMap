@@ -4,7 +4,6 @@ from pycbio.sys import fileOps, dbOps
 from transMap import setSortLocale
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
 import pipettor
-import logging
 
 # FIXME:  filter by biotype to removed small RNAs
 
@@ -96,7 +95,7 @@ class EnsemblHgData(object):
         getGenePredCmd, toPslCmd = self.__getGenePredToPslCmds("/dev/stdout", "/dev/null", testAccvSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
-        with pipettor.Popen([getGenePredCmd, toPslCmd, sortCmd, uniqCmd], "r", logger=logging.getLogger()) as fh:
+        with pipettor.Popen([getGenePredCmd, toPslCmd, sortCmd, uniqCmd], "r") as fh:
             for line in fh:
                 yield line.rstrip().split("\t")
 
@@ -111,7 +110,7 @@ class EnsemblHgData(object):
 
     def __getCdsSpecs(self, testAccvSubset):
         getGenePredCmd, toCdsCmd = self.__getGenePredToPslCmds("/dev/null", "/dev/stdout", testAccvSubset)
-        with pipettor.Popen([getGenePredCmd, toCdsCmd], "r", logger=logging.getLogger()) as cdsFh:
+        with pipettor.Popen([getGenePredCmd, toCdsCmd], "r") as cdsFh:
             cdsSpecs = {}
             for line in fileOps.iterLines(cdsFh):
                 self.__processCdsSpecLine(line, testAccvSubset, cdsSpecs)

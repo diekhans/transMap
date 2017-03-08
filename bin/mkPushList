@@ -17,7 +17,7 @@ def parseArgs():
     of active databases.  Only those databases that are active on hgwbeta are and not
     already in hgwbeta trackDb are selected for push.  """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--forcePush", action="store_true", default=False,
                         help="""don't checked if table appears to be loaded on hgwbeta""")
     parser.add_argument("configPyFile",
@@ -27,7 +27,7 @@ def parseArgs():
     parser.add_argument("pushGbdbList",
                         help="""output gbdb files to push to this file""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 hgwbetaCentralDb = "hgcentralbeta"

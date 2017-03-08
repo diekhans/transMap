@@ -14,7 +14,7 @@ def parseArgs():
     desc = """Obtain metadata for Ensembl or GENCODE source transcripts.
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--testLimit", action="store_true", default=False,
                         help="""limit to alignments that are in srcAlign table for testing""")
     parser.add_argument("srcHgDb",
@@ -24,7 +24,7 @@ def parseArgs():
     parser.add_argument("srcDb",
                         help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 

@@ -81,15 +81,22 @@ class TransMapConf(object):
         self.__needOptions("dataDir")
         return os.path.join(self.dataDir, "genome.db")
 
+    def getSrcDataDir(self, srcHgDb):
+        self.__needOptions("dataDir")
+        return os.path.join(self.dataDir, "src", srcHgDb)
+
     @property
     def srcDataDir(self):
-        self.__needOptions("dataDir", "srcHgDb")
-        return os.path.join(self.dataDir, "src", self.srcHgDb)
+        self.__needOptions("srcHgDb")
+        return self.getSrcDataDir(srcHgDb)
+
+    def getSrcDb(self, srcHgDb, annotationType):
+        return os.path.join(self.getSrcDataDir(srcHgDb), "{}.{}.src.db".format(srcHgDb, annotationType))
 
     @property
     def srcDb(self):
         self.__needOptions("srcHgDb", "annotationType")
-        return os.path.join(self.srcDataDir, "{}.{}.src.db".format(self.srcHgDb, self.annotationType))
+        return self.getSrcDb(self.srcHgDb, self.annotationType)
 
     def getMappedDataDirForDestHgDb(self, destHgDb):
         self.__needOptions("dataDir")

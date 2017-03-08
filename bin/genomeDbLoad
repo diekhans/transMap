@@ -23,13 +23,13 @@ def parseArgs():
     Approximate run time: 15 minutes
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--hgDb", action="append", default=None, dest="subsetHgDbs",
                         help="""limit to these databases for testing, maybe repeated""")
     parser.add_argument("configPyFile",
                         help="""configuration python file""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 

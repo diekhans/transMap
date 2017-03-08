@@ -20,7 +20,7 @@ def parseArgs():
     given the same batch directory.
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--directRun", action="store_true", default=False,
                         help="""run the batch file as a script, for testing when parasol isn't available """)
     parser.add_argument("configPyFile",
@@ -34,7 +34,7 @@ def parseArgs():
     parser.add_argument("chainType", choices=(ChainType.all, ChainType.syn, ChainType.rbest), type=ChainType,
                         help="""type of chains to use""")
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 

@@ -5,7 +5,7 @@ import sys
 import os
 import argparse
 import pipettor
-from pycbio.sys import fileOps, loggingOps
+from pycbio.sys import fileOps
 from transMap import setSortLocale, getChromSizes
 from transMap.genomeData import AnnotationType
 from transMap.transMapConf import transMapConfLoad
@@ -17,7 +17,7 @@ def parseArgs():
     a single bigPsl.
     """
     parser = argparse.ArgumentParser(description=desc)
-    loggingOps.addCmdOptions(parser)
+    transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("configPyFile",
                         help="""configuration python file""")
     parser.add_argument("destHgDb",
@@ -27,7 +27,7 @@ def parseArgs():
     parser.add_argument("srcHgDbs", nargs="*",
                         help="""source hgDb for all source assemblies """)
     opts = parser.parse_args()
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    transMapProgSetup.setupFromCmd(opts)
     return opts
 
 
