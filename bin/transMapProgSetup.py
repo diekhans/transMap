@@ -24,9 +24,11 @@ os.environ["PATH"] = "{}:{}:{}:{}".format(os.path.join(rootDir, "bin"),
                                           os.path.expanduser("~/kent/bin/x86_64"),
                                           "/cluster/bin/x86_64",
                                           os.environ["PATH"])
-
 from pycbio.sys import loggingOps
+from pycbio.sys import fileOps
 import pipettor
+
+fileOps.setTmpEnv()
 
 def addCmdOptions(parser):
     loggingOps.addCmdOptions(parser)

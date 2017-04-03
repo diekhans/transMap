@@ -224,3 +224,9 @@ mkdir logs
    mkdir stats
    ${tmdir}/bin/transMapInfo ${tmdir}/etc/transMapBuildConf.py stats/2017-03-07.info
    ${tmdir}/bin/transMapStats  ${tmdir}/etc/transMapBuildConf.py stats/2017-03-07.stats
+
+2017-04-01:
+   - fixed bug with chain reverse strand lookup
+   - run in /hive/data/outside/transMap/V4rebuild then move in place
+   tmdir=~/compbio/projs/transMap/transMap-dev
+   (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-04-01.log &

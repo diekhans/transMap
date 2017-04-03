@@ -73,8 +73,8 @@ def reportSrcs(conf, tsvFh, genomes):
 
 def queryBigPslItemCount(bigPsl):
     out = pipettor.runout(["bigBedInfo", bigPsl])
-    m = re.match(".*itemCount: ([0-9]+).*", out, re.DOTALL)
-    return int(m.group(1))
+    m = re.search("^itemCount: ([0-9,]+)$", out, re.DOTALL | re.MULTILINE)
+    return int(m.group(1).replace(',', ''))
 
 
 def reportDestHgDbAnnot(conf, tsvFh, genomes, destHgDb, annotationType):

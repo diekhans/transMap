@@ -5,6 +5,7 @@ import transMapProgSetup  # noqa: F401
 import argparse
 import sqlite3
 from pycbio.sys import fileOps
+from pycbio.hgdata import dnaOps
 from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable, MappingChainLoc
 
 
@@ -22,9 +23,18 @@ def parseArgs():
 
 
 def buildChainLoc(startLine, offset, length):
-    # chain 1009 chr9 136372045 + 68288114 68330909 BC040840 1033 - 0 1018 1
+    # chain 478186844 chr1 248956422 + 933237 58547094 chr4 156508116 - 252172 53194635 3
     words = startLine.split()
-    return MappingChainLoc.factory(words[7], int(words[10]), int(words[11]), offset, length)
+    qName = words[7]
+    qSize = int(words[8])
+    qStrand = words[9]
+    qStart = int(words[10])
+    qEnd = int(words[11])
+    chainId = int(words[12])
+    if qStrand == '-':
+        qStart, qEnd = dnaOps.reverseCoords(qStart, qEnd, qSize)
+    
+    return MappingChainLoc.factory(qName, qStart, qEnd, chainId, offset, length)
 
 
 def generateChainIndex(chainFh):

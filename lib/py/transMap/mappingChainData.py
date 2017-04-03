@@ -13,31 +13,35 @@ class MappingChainsDbTables(object):
 
 
 class MappingChainLoc(namedtuple("MappingChainsIndex",
-                                 ("bin", "qName", "qStart", "qEnd", "offset", "length"))):
-    """Index of chain record; we include bin just to simplify loading"""
+                                 ("bin", "qName", "qStart", "qEnd", "chainId", "offset", "length"))):
+    """Index of chain record; we include bin just to simplify loading,
+    query coordinates are on positive strand."""
     __slots__ = ()
 
     @staticmethod
-    def factory(qName, qStart, qEnd, offset, length):
+    def factory(qName, qStart, qEnd, chainId, offset, length):
+        "query coordinates must be positive strand."
         bin = Binner.calcBin(qStart, qEnd)
-        return MappingChainLoc(bin, qName, qStart, qEnd, offset, length)
+        return MappingChainLoc(bin, qName, qStart, qEnd, chainId, offset, length)
 
 
 class MappingChainsIndexDbTable(HgLiteTable):
     """
     Database table containing index into mapping chains.
+    query confidantes are kept in terms of positive strand.
     """
     __createSql = """CREATE TABLE {table} (
             bin int unsigned not null,
             qName text not null,
             qStart int unsigned not null,
             qEnd int unsigned not null,
+            chainId int unsigned not null,
             offset int unsigned not null,
             length int unsigned not null);"""
     __insertSql = """INSERT INTO {table} ({columns}) VALUES ({values});"""
     __indexSql = """CREATE INDEX {table}_chrom_bin on {table} (qName, bin)"""
 
-    columnNames = ("bin", "qName", "qStart", "qEnd", "offset", "length")
+    columnNames = ("bin", "qName", "qStart", "qEnd", "chainId", "offset", "length")
 
     def __init__(self, conn, table, create=False):
         super(MappingChainsIndexDbTable, self).__init__(conn, table)

@@ -6,6 +6,7 @@ import sys
 import sqlite3
 import argparse
 import pipettor
+import logging
 from collections import deque
 from pycbio.hgbrowser.coords import Coords
 from pycbio.sys import fileOps
@@ -28,7 +29,7 @@ def parseArgs():
     parser = argparse.ArgumentParser(description=desc)
     transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--keep", action="store_true",
-                        help="""mysql database for source assembly""")
+                        help="""keep temporary files""")
     parser.add_argument("configPyFile",
                         help="""configuration python file""")
     parser.add_argument("srcHgDb",
@@ -123,8 +124,11 @@ class MappingChains(object):
             self.__dumpToTmpFile(coords, tmpFh)
 
     def __dumpToTmpFile(self, coords, tmpFh):
+        cnt = 0
         for loc in self.indexTbl.getRangeOverlap(coords.chrom, coords.start, coords.end):
             self.__dumpOneChain(loc, tmpFh)
+            cnt += 1
+        logging.debug("chains: {} chains for {}".format(cnt, coords))
 
     def __dumpOneChain(self, loc, tmpFh):
         self.fh.seek(loc.offset)
@@ -194,7 +198,7 @@ class PslMapper(object):
         mappedPsls = PslTbl(mappedPslTmpFile)
         tmpFiles = [srcPslTmpFile, srcSeqsTmpFile, chainsTmpFile, mappedPslTmpFile]
         if self.keep:
-            sys.stderr.write("keep files: {}\n".format(tmpFiles))
+            sys.stderr.write("keep files: {}\n".format(" ".join(tmpFiles)))
         else:
             fileOps.rmFiles(*tmpFiles)
         return mappedPsls
