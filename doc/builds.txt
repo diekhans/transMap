@@ -230,3 +230,20 @@ mkdir logs
    - run in /hive/data/outside/transMap/V4rebuild then move in place
    tmdir=~/compbio/projs/transMap/transMap-dev
    (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-04-01.log &
+   ${tmdir}/bin/transMapInfo ${tmdir}/etc/transMapBuildConf.py stats/2017-04-02.info
+   ${tmdir}/bin/transMapStats  ${tmdir}/etc/transMapBuildConf.py stats/2017-04-02.stats
+
+
+2017-04-14:
+   rebuild in V4redo to change comments and name or srcScore -> srcIdent
+   (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/$(idate).log
+   ${tmdir}/bin/transMapInfo ${tmdir}/etc/transMapBuildConf.py stats/$(idate).info
+   ${tmdir}/bin/transMapStats ${tmdir}/etc/transMapBuildConf.py stats/$(idate).stats
+
+#detect lost jobs
+parafoo() {
+   parasol list batches | fgrep "$1"
+   para-ps -b $1 | awk -v d="$(dirname $1)" '$0~d || /^ku/'
+}
+paraNodeStatus -long <(echo ku-1-22.local) | fgrep $(dirname )
+parasol list batches |awk '$2==1'

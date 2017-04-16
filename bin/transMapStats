@@ -14,7 +14,7 @@ from transMap.srcData import SourceDbTables
 
 
 def parseArgs():
-    desc = """Get statics about a current transMap build
+    desc = """Get statistics about a current transMap build
     """
     parser = argparse.ArgumentParser(description=desc)
     transMapProgSetup.addCmdOptions(parser)

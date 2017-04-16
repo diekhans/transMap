@@ -112,7 +112,7 @@ class ChainsDbTable(HgLiteTable):
             raise Exception("too many rows returned")
 
 
-class GenomeAsm(namedtuple("GenomeDb",
+class GenomeAsm(namedtuple("GenomeAsm",
                            ("hgDb", "clade", "commonName", "scientificName", "orgAbbrev", "annotationTypeSet"))):
     "Information about a genome assembly, stored in genome database "
 

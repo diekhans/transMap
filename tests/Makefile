@@ -15,6 +15,7 @@ transMapBatch = ../bin/transMapBatch
 transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
 transMapStats = ../bin/transMapStats
+transMapDetails = ../bin/transMapDetails
 luigiTransMap = ../bin/luigiTransMap
 linkToGbdb = ../bin/linkToGbdb
 mkPushList = ../bin/mkPushList
@@ -157,16 +158,16 @@ genomeDbLoadTests: genomeDbLoadTest
 # felCat3 is projection ensembl
 genomeDbLoadTest: mkdirs
 	rm -rf output/$@.data
-	dataDir=output/$@.data ${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 input/testTransMapConf.py
-	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from chains order by srcHgDb, destHgDb, chainType' >output/$@.chainsinfo
-	sqlite3 -batch output/$@.data/genome.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
+	dataRootDir=output/$@.root ${genomeDbLoad} --hgDb=mm10 --hgDb=hg19 --hgDb=hg38 --hgDb=felCat3 --hgDb=canFam3 input/testTransMapConf.py
+	sqlite3 -batch output/$@.root/data/genome.db '.header on' 'select * from chains order by srcHgDb, destHgDb, chainType' >output/$@.chainsinfo
+	sqlite3 -batch output/$@.root/data/genome.db '.header on' 'select * from genomeAsms order by hgDb' >output/$@.genomeasms
 	${diff} expected/$@.chainsinfo output/$@.chainsinfo
 	${diff} expected/$@.genomeasms output/$@.genomeasms
 
 #########################################################################################
 mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
 	transMapJobTest transMapBatchTest transMapBuildBigPslTest \
-	transMapInfoTest transMapStatsTest
+	transMapInfoTest transMapStatsTest transMapDetailsTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -185,76 +186,85 @@ mappingChainsBuildAllTest: mkdirs
 
 # sets up test files for batch/job tests
 define transMapEnvSetup
-rm -rf output/$@.data output/$@.build
-mkdir -p output/$@.data/src/hg19 output/$@.build/chains/mm10/hg19
-cat input/refseq_align.sql input/refseq_seq.sql input/refseq_metadata.sql | sqlite3 -batch output/$@.data/src/hg19/hg19.refseq.src.db
-sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
-sqlite3 -batch output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
-cp -f input/mm10.hg19.chain output/$@.build/chains/mm10/hg19/hg19.mm10.all.chain
+rm -rf output/$@.root
+mkdir -p output/$@.root/data/src/hg19 output/$@.root/build/chains/mm10/hg19
+cat input/refseq_align.sql input/refseq_seq.sql input/refseq_metadata.sql | sqlite3 -batch output/$@.root/data/src/hg19/hg19.refseq.src.db
+sqlite3 -batch output/$@.root/data/genome.db < input/mappingGenomeDb.sql
+sqlite3 -batch output/$@.root/build/chains/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
+cp -f input/mm10.hg19.chain output/$@.root/build/chains/mm10/hg19/hg19.mm10.all.chain
+endef
+
+# setup hg19->mm10 test bigPsl
+define transMapBigPslSetup
+mkdir -p output/$@.root/build/results/mm10/
+cp -f expected/transMapBatchTest.preBigPsl output/$@.root/build/results/mm10/mm10.hg19.refseq.preBigPsl
+dataRootDir=output/$@.root ${transMapBuildBigPsl} input/testTransMapConf.py mm10 refseq hg19
 endef
 
 transMapJobTest: mkdirs
 	${transMapEnvSetup}
-	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapJob} input/testTransMapConf.py hg19 mm10 refseq all 1 11 output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed
+	dataRootDir=output/$@.root ${transMapJob} input/testTransMapConf.py hg19 mm10 refseq all 1 11 output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed
 	${diff} expected/$@.preBigPsl output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed
 	bedToBigBed -type=bed12+20 -as=${bigTransMapAs} -tab output/transMapJobTest.build/hg19/mm10/refseq/results/parts/1.11.preBigBed input/mm10.chrom.sizes output/$@.bigPsl
 
 transMapBatchTest: mkdirs
 	${transMapEnvSetup}
-	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBatch} --directRun input/testTransMapConf.py hg19 mm10 refseq all
-	${diff} expected/$@.preBigPsl output/transMapBatchTest.build/results/mm10/mm10.hg19.refseq.preBigPsl
+	dataRootDir=output/$@.root ${transMapBatch} --directRun input/testTransMapConf.py hg19 mm10 refseq all
+	${diff} expected/$@.preBigPsl output/transMapBatchTest.root/build/results/mm10/mm10.hg19.refseq.preBigPsl
 
 transMapBuildBigPslTest: mkdirs
-	mkdir -p output/$@.build/results/mm10/
-	cp -f expected/transMapBatchTest.preBigPsl output/$@.build/results/mm10/mm10.hg19.refseq.preBigPsl
-	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBuildBigPsl} input/testTransMapConf.py mm10 refseq hg19
-	bigBedToBed output/transMapBuildBigPslTest.data/mapped/mm10/mm10.refseq.transMap.bigPsl output/$@.preBigPsl
+	${transMapBigPslSetup}
+	bigBedToBed output/transMapBuildBigPslTest.root/results/mapped/mm10/mm10.refseq.transMapV1.bigPsl output/$@.preBigPsl
 	${diff} expected/transMapBatchTest.preBigPsl output/$@.preBigPsl
 
 transMapInfoTest: mkdirs
-	rm -rf output/$@.data
-	mkdir -p output/$@.data
-	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
-	dataDir=output/$@.data ${transMapInfo} input/testTransMapConf.py output/$@.tsv
+	rm -rf output/$@.root/data
+	mkdir -p output/$@.root/data
+	sqlite3 -batch output/$@.root/data/genome.db < input/mappingGenomeDb.sql
+	dataRootDir=output/$@.root ${transMapInfo} input/testTransMapConf.py output/$@.tsv
 	${diff} expected/$@.tsv output/$@.tsv
 
 transMapStatsTest: mkdirs
 	${transMapEnvSetup}
-	sqlite3 -batch output/$@.data/genome.db \
+	sqlite3 -batch output/$@.root/data/genome.db \
 	   'update genomeAsms set annotationTypeSet="refseq" where hgDb="hg19";' \
 	   'update genomeAsms set annotationTypeSet="" where hgDb="mm10";'
-	mkdir -p output/$@.build/results/mm10/
-	cp -f expected/transMapBatchTest.preBigPsl output/$@.build/results/mm10/mm10.hg19.refseq.preBigPsl
-	buildTmpDir=output/$@.build dataDir=output/$@.data ${transMapBuildBigPsl} input/testTransMapConf.py mm10 refseq hg19
-	dataDir=output/$@.data ${transMapStats} input/testTransMapConf.py output/$@.tsv
+	${transMapBigPslSetup}
+	dataRootDir=output/$@.root ${transMapStats} input/testTransMapConf.py output/$@.tsv
 	${diff} expected/$@.tsv output/$@.tsv
 
+transMapDetailsTest: mkdirs
+	${transMapEnvSetup}
+	${transMapBigPslSetup}
+	dataRootDir=output/$@.root ${transMapDetails} input/testTransMapConf.py mm10 output/$@.tsv
+	${diff} expected/$@.tsv output/$@.tsv
 
 #########################################################################################
 submitTests: linkToGbdbTest mkPushListTest
 
 submitDestDbs = mm10 hg19
-submitBigPslTypes = refseq.transMap.bigPsl est.transMap.bigPsl \
-	rna.transMap.bigPsl ensembl.transMap.bigPsl \
+submitBigPslTypes = refseq.transMapV1.bigPsl est.transMapV1.bigPsl \
+	rna.transMapV1.bigPsl ensembl.transMapV1.bigPsl \
 
 linkTestBigPsls = $(foreach db,${submitDestDbs},$(foreach tp,${submitBigPslTypes}, mapped/${db}/${db}.${tp}))
 
 linkToGbdbTest: mkdirs
-	@rm -rf output/$@.data output/$@.gbdb
-	for bp in ${linkTestBigPsls:%=output/$@.data/%} ; do mkdir -p $$(dirname $${bp}) && touch $${bp} ; done
-	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
-	dataDir=output/$@.data gbdbDir=output/$@.gbdb ${linkToGbdb} input/testTransMapConf.py
+	@rm -rf output/$@.root/data output/$@.root/results output/$@.gbdb
+	@mkdir -p output/$@.root/data output/$@.root/results output/$@.gbdb
+	for bp in ${linkTestBigPsls:%=output/$@.root/results/%} ; do mkdir -p $$(dirname $${bp}) && touch $${bp} ; done
+	sqlite3 -batch output/$@.root/data/genome.db < input/mappingGenomeDb.sql
+	dataRootDir=output/$@.root gbdbDir=output/$@.gbdb ${linkToGbdb} input/testTransMapConf.py
 	find output/linkToGbdbTest.gbdb -type l | sort > output/$@.files
 	${diff} expected/$@.files output/$@.files
 
 
-mkPushBigPsls = $(foreach db,${submitDestDbs},$(foreach tp,${submitBigPslTypes}, ${db}/transMap/${db}.${tp}))
+mkPushBigPsls = $(foreach db,${submitDestDbs},$(foreach tp,${submitBigPslTypes}, ${db}/transMap/V1/${db}.${tp}))
 mkPushListTest: mkdirs
-	@rm -rf output/$@.data output/$@.gbdb
+	@rm -rf output/$@.root output/$@.gbdb
+	mkdir -p output/$@.root/data output/$@.root/results
 	for bp in ${mkPushBigPsls:%=output/$@.gbdb/%} ; do mkdir -p $$(dirname $${bp}) && touch $${bp} ; done
-	mkdir -p output/$@.data
-	sqlite3 -batch output/$@.data/genome.db < input/mappingGenomeDb.sql
-	dataDir=output/$@.data gbdbDir=output/$@.gbdb ${mkPushList} --forcePush input/testTransMapConf.py output/$@.pushDbs.lst output/$@.pushGbdbs.lst
+	sqlite3 -batch output/$@.root/data/genome.db < input/mappingGenomeDb.sql
+	dataRootDir=output/$@.root gbdbDir=output/$@.gbdb ${mkPushList} --forcePush input/testTransMapConf.py output/$@.pushDbs.lst output/$@.pushGbdbs.lst
 	${diff} expected/$@.pushDbs.lst output/$@.pushDbs.lst
 	${diff} expected/$@.pushGbdbs.lst output/$@.pushGbdbs.lst
 
@@ -278,7 +288,7 @@ bigClean:
 
 .PHONY: luigiTest
 luigiTest:
-	nice ${luigiTransMap} --logConfFile=../etc/logging.conf --destHgDb=canFam3 --srcHgDb=felCat8 input/testLuigiTransMapConf.py
+	nice ${luigiTransMap} --logConfFile=input/testLuigiLogging.conf --destHgDb=canFam3 --srcHgDb=felCat8 input/testLuigiTransMapConf.py
 
 luigiBatchClean:
 	rm -rf luigiTest/build/*/*/{est,rna,refseq,ensembl,gencode}
@@ -321,8 +331,8 @@ update: ${genbankTypes:%=%_genbankAlignsUpdate} ${genbankTypes:%=%_genbankSeqsUp
 	sqlite3 -batch output/$*_srcDbLoadEnsemblMetadataTest.db '.dump srcMetadata' > input/$*_metadata.sql
 
 mappingGenomeDbUpdate: mkdirs
-	dataDir=output/$@.data ${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 input/testTransMapConf.py
-	sqlite3 -batch output/$@.data/genome.db \
+	dataRootDir=output/$@.root ${genomeDbLoad} --hgDb=hg19 --hgDb=mm10 input/testTransMapConf.py
+	sqlite3 -batch output/$@.root/data/genome.db \
 	   'update chains set chainFile="input/mm10.hg19.chain", netFile="input/mm10.hg19.net" where srcHgDb="hg19"' \
 	   '.dump' > input/mappingGenomeDb.sql
 

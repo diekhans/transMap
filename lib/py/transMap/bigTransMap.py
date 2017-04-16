@@ -4,7 +4,53 @@ support for build bigTransMap files
 import os
 from pycbio.sys import fileOps
 from transMap import getSortProg, alignIdToSrcId, srcIdToAccv
+from collections import namedtuple
 import pipettor
+
+
+def _toIntArray(a):
+    "ensure values in array are ints"
+    return [int(v) for v in a]
+
+
+class BigTransMap(namedtuple("BigTransMap",
+                             ("chrom", "chromStart", "chromEnd", "name", "score", "strand", "thickStart",
+                              "thickEnd", "reserved", "blockCount", "blockSizes", "chromStarts",
+                              "oChromStart", "oChromEnd", "oStrand", "oChromSize", "oChromStarts",
+                              "oSequence", "oCDS", "chromSize", "match", "misMatch", "repMatch", "nCount",
+                              "seqType", "srcDb", "srcTransId", "srcChrom", "srcChromStart", "srcChromEnd",
+                              "srcIdent", "srcAligned", "geneName", "geneId", "geneType", "transcriptType",
+                              "chainType", "commonName", "scientificName", "orgAbbrev"))):
+    __slots__ = ()
+
+    def __init__(self, chrom, chromStart, chromEnd, name, score, strand,
+                 thickStart, thickEnd, reserved, blockCount, blockSizes,
+                 chromStarts, oChromStart, oChromEnd, oStrand, oChromSize,
+                 oChromStarts, oSequence, oCDS, chromSize, match, misMatch,
+                 repMatch, nCount, seqType, srcDb, srcTransId, srcChrom,
+                 srcChromStart, srcChromEnd, srcIdent, srcAligned, geneName,
+                 geneId, geneType, transcriptType, chainType, commonName,
+                 scientificName, orgAbbrev):
+        super(BigTransMap, self).__init__(chrom, int(chromStart),
+                                          int(chromEnd), name, int(score),
+                                          strand, int(thickStart),
+                                          int(thickEnd), int(reserved),
+                                          int(blockCount),
+                                          _toIntArray(blockSizes),
+                                          _toIntArray(chromStarts),
+                                          int(oChromStart), int(oChromEnd),
+                                          oStrand, int(oChromSize),
+                                          _toIntArray(oChromStarts),
+                                          oSequence, oCDS, int(chromSize),
+                                          int(match), int(misMatch),
+                                          int(repMatch), int(nCount),
+                                          int(seqType), srcDb, srcTransId,
+                                          srcChrom, int(srcChromStart),
+                                          int(srcChromEnd), int(srcIdent),
+                                          int(srcAligned), geneName, geneId,
+                                          geneType, transcriptType, chainType,
+                                          commonName, scientificName,
+                                          orgAbbrev)
 
 
 def _mkCommaList(elems):
@@ -71,7 +117,7 @@ def bigTransMapMakeRec(srcDb, srcPsl, mappedPsl, sequence, chainType, metadata,
            srcPsl.tName,  # srcChrom
            srcPsl.tStart,  # srcChromStart
            srcPsl.tEnd,  # srcChromEnd
-           _pslToBedIdent(srcPsl),  # srcScore
+           _pslToBedIdent(srcPsl),  # srcIdent
            _pslToBedAligned(srcPsl),  # srcAligned
            geneName,
            geneId,

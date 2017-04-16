@@ -13,15 +13,16 @@ def _getConfVal(name, supplied):
     else:
         return os.environ.get(name, None)
 
-def getConfig(configPyFile, dataDir=None, srcHgDb=None, destHgDb=None,
-              annotationType=None, chainType=None, buildTmpDir=None):
+def getConfig(configPyFile, dataRootDir=None, srcHgDb=None, destHgDb=None,
+              annotationType=None, chainType=None):
     conf = TransMapConf(configPyFile,
-                        dataDir=_getConfVal("dataDir", dataDir),
+                        dataRootDir=_getConfVal("dataRootDir", dataRootDir),
                         srcHgDb=_getConfVal("srcHgDb", srcHgDb),
                         destHgDb=_getConfVal("destHgDb", destHgDb),
                         annotationType=_getConfVal("annotationType", annotationType),
                         chainType=_getConfVal("chainType", chainType),
-                        buildTmpDir=_getConfVal("buildTmpDir", buildTmpDir))
+                        version="V1",
+                        batchGen=1)
     if os.environ.get("noRequired", None) is not None:
         conf.requiredPreviousDestHgDbs = frozenset()
     conf.gbdbDir = _getConfVal("gbdbDir", None)   # None will prevent overwrite of real /gbdb

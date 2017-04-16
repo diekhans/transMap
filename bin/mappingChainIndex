@@ -33,7 +33,7 @@ def buildChainLoc(startLine, offset, length):
     chainId = int(words[12])
     if qStrand == '-':
         qStart, qEnd = dnaOps.reverseCoords(qStart, qEnd, qSize)
-    
+
     return MappingChainLoc.factory(qName, qStart, qEnd, chainId, offset, length)
 
 
