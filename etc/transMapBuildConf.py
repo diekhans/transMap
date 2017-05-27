@@ -15,7 +15,7 @@ def getConfig(configPyFile, dataRootDir=None, srcHgDb=None, destHgDb=None,
     
     # increment to prevent reusing batch directories on restart
     batchGen = 1
-    dataRootDir = os.path.join("/hive/data/outside/transMap", versionDir)
+    dataRootDir = os.path.join("/hive/data/inside/transMap", versionDir)
     conf = TransMapConf(configPyFile,
                         dataRootDir=dataRootDir,
                         srcHgDb=srcHgDb,
