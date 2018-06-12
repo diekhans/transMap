@@ -3,15 +3,14 @@
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import sys
-import sqlite3
 import argparse
 import pipettor
 import logging
 from collections import deque
-from pycbio.hgbrowser.coords import Coords
+from pycbio.hgdata.coords import Coords
 from pycbio.sys import fileOps
 from pycbio.hgdata.psl import PslTbl
-from pycbio.hgdata.hgLite import sqliteHaveTable
+from pycbio.db.sqliteOps import sqliteConnect, sqliteHaveTable
 from transMap import setSortLocale
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
 from transMap.genomeData import AnnotationType, ChainType, GenomesDbTables, GenomeAsmsDbTable
@@ -53,7 +52,7 @@ def parseArgs():
 
 def getSrcGenomeAsm(conf):
     """get GenomeAsm record for srcDb"""
-    conn = sqlite3.connect(conf.genomeDb)
+    conn = sqliteConnect(conf.genomeDb)
     genomeAsmTbl = GenomeAsmsDbTable(conn, GenomesDbTables.genomeAsmsTbl)
     recs = list(genomeAsmTbl.queryByHdDb(conf.srcHgDb))
     if len(recs) != 1:
@@ -67,7 +66,7 @@ class SrcPslGroups(dict):
     Object is index by Coords. This prevents reading unnecessary chains.  Doing
     this is the cluster jobs simplifies batch setup."""
     def __init__(self, srcDbConn, startOid, endOid):
-        pslq = deque(SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getRows(startOid, endOid))
+        pslq = deque(SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getByOid(startOid, endOid))
         self.__groupAligns(pslq)
 
     def __groupAligns(self, pslq):
@@ -114,7 +113,7 @@ class SrcPslGroups(dict):
 
 class MappingChains(object):
     def __init__(self, mappingChainsFile, chainType):
-        self.conn = sqlite3.connect("{}.db".format(mappingChainsFile))
+        self.conn = sqliteConnect("{}.db".format(mappingChainsFile))
         self.chainType = chainType
         self.indexTbl = MappingChainsIndexDbTable(self.conn, MappingChainsDbTables.mappingChainsTbl)
         self.fh = open(mappingChainsFile)
@@ -125,7 +124,7 @@ class MappingChains(object):
 
     def __dumpToTmpFile(self, coords, tmpFh):
         cnt = 0
-        for loc in self.indexTbl.getRangeOverlap(coords.chrom, coords.start, coords.end):
+        for loc in self.indexTbl.getRangeOverlap(coords.name, coords.start, coords.end):
             self.__dumpOneChain(loc, tmpFh)
             cnt += 1
         logging.debug("chains: {} chains for {}".format(cnt, coords))
@@ -234,7 +233,7 @@ def transMapJob(opts):
                             destHgDb=opts.destHgDb,
                             annotationType=opts.annotationType,
                             chainType=opts.chainType)
-    srcDbConn = sqlite3.connect(conf.srcDb)
+    srcDbConn = sqliteConnect(conf.srcDb)
     if sqliteHaveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
         srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl)
     else:

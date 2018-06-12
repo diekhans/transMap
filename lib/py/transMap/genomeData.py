@@ -1,9 +1,9 @@
 """"Database with genomes and chains."""
-import sqlite3
 from collections import namedtuple, defaultdict
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import fileOps
 from pycbio.hgdata.hgLite import HgLiteTable
+from pycbio.db.sqliteOps import sqliteConnect
 from transMap import hgDbNameParse
 
 
@@ -38,20 +38,11 @@ class AnnotationTypeSet(frozenset):
             return AnnotationTypeSet([AnnotationType(str(v)) for v in sval.split(',')])
 
 
-# FIXME register_converter doesn't seem to be working due to using rowFactory.  Pick one approach
-sqlite3.register_adapter(AnnotationTypeSet, str)
-sqlite3.register_converter("annotationTypes", AnnotationTypeSet.fromStr)
-
-
 class ChainType(SymEnum):
     "type of chains, which can either be existing or ones filtered on the fly."
     all = 1
     syn = 2
     rbest = 3
-
-
-sqlite3.register_adapter(ChainType, lambda chainType: str(chainType))
-sqlite3.register_converter("chainType", ChainType)
 
 
 class Chains(namedtuple("Chains",
@@ -64,6 +55,9 @@ class Chains(namedtuple("Chains",
     def rowFactory(cur, row):
         return Chains(row[0], row[1], ChainType(str(row[2])), row[3], row[4])
 
+    def toRow(self):
+        # was sqlite3.register_adapter(ChainType, lambda chainType: str(chainType))
+        return (self.srcHgDb, self.destHgDb, str(self.chainType), self.chainFile, self.netFile)
 
 class ChainsDbTable(HgLiteTable):
     """Interface todata on chains stored in the database"""
@@ -90,7 +84,7 @@ class ChainsDbTable(HgLiteTable):
 
     def loads(self, rows):
         """load rows into table"""
-        self._inserts(self.__insertSql, self.columnNames, rows)
+        self._inserts(self.__insertSql, self.columnNames, [r.toRow() for r in rows])
 
     def queryByDbs(self, srcHgDb, destHgDb):
         sql = "SELECT {columns} FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?)"
@@ -103,7 +97,7 @@ class ChainsDbTable(HgLiteTable):
     def queryByDbsType(self, srcHgDb, destHgDb, chainType):
         "return Chain or None"
         sql = "SELECT {columns} FROM {table} WHERE (srcHgDb=?) AND (destHgDb=?) AND (chainType=?)"
-        rows = list(self.queryRows(sql, self.columnNames, Chains.rowFactory, srcHgDb, destHgDb, chainType))
+        rows = list(self.queryRows(sql, self.columnNames, Chains.rowFactory, srcHgDb, destHgDb, str(chainType)))
         if len(rows) == 0:
             return None
         elif len(rows) == 1:
@@ -130,6 +124,10 @@ class GenomeAsm(namedtuple("GenomeAsm",
     @staticmethod
     def rowFactory(cur, row):
         return GenomeAsm(row[0], row[1], row[2], row[3], row[4], AnnotationTypeSet.fromStr(row[5]))
+
+    def toRow(self):
+        # was sqlite3.register_adapter(AnnotationTypeSet, str)
+        return (self.hgDb, self.clade, self.commonName, self.scientificName, self.orgAbbrev, str(self.annotationTypeSet))
 
 
 class GenomeAsmsDbTable(HgLiteTable):
@@ -159,7 +157,7 @@ class GenomeAsmsDbTable(HgLiteTable):
 
     def loads(self, rows):
         """load rows into table"""
-        self._inserts(self.__insertSql, self.columnNames, rows)
+        self._inserts(self.__insertSql, self.columnNames, [r.toRow() for r in rows])
 
     def queryByClades(self, clades):
         sql = "SELECT {{columns}} FROM {{table}} WHERE clade in ({})".format(",".join((len(clades) * ["?"])))
@@ -218,7 +216,7 @@ class Genomes(object):
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.hgDbToOrg = dict()
 
-        self.genomeDbConn = sqlite3.connect(conf.genomeDb)
+        self.genomeDbConn = sqliteConnect(conf.genomeDb)
         self.__loadGenomes()
         self.__finish()
         self.chainsTbl = ChainsDbTable(self.genomeDbConn, GenomesDbTables.chainsTbl)

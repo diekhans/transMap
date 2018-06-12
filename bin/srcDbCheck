@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
-import sqlite3
 import argparse
 from transMap import getChromSizes
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables
 from pycbio.sys import fileOps
 from pycbio.hgdata.hgLite import SequenceDbTable, PslDbTable
+from pycbio.db.sqliteOps import sqliteConnect
 import pipettor
 
 
@@ -100,7 +100,7 @@ def checkMetadata(srcDbConn):
 
 
 def checkTransMapSrcDb(srcHgDb, annotationType, srcDb):
-    srcDbConn = sqlite3.connect(srcDb)
+    srcDbConn = sqliteConnect(srcDb)
     checkAlignments(srcHgDb, annotationType, srcDbConn)
     checkXRef(srcDbConn)
     if annotationType != AnnotationType.est:

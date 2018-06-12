@@ -2,8 +2,8 @@
 
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
-import sqlite3
 import argparse
+from pycbio.db.sqliteOps import sqliteConnect
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, SrcXRefDbTable, loadSeqFa
 from pycbio.sys import fileOps
@@ -46,7 +46,7 @@ def getSeqFasta(srcHgDb, annotationType, tmpAccFile):
 
 def getGenbankSeqs(srcHgDb, annotationType, srcDb):
     fileOps.ensureFileDir(srcDb)
-    srcDbConn = sqlite3.connect(srcDb)
+    srcDbConn = sqliteConnect(srcDb, create=True)
     tmpAccFile = getSrcAccsFile(annotationType, srcDbConn)
     tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpAccFile)
     loadSeqFa(tmpSeqFa, srcDbConn)

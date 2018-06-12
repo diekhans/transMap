@@ -247,3 +247,9 @@ parafoo() {
 }
 paraNodeStatus -long <(echo ku-1-22.local) | fgrep $(dirname )
 parasol list batches |awk '$2==1'
+
+2018-06-11
+  - add Mouse lemur Feb. 2017 (Mmur_3.0/micMur3) by request
+tmdir=~/compbio/projs/transMap/transMap-dev
+pushd /hive/data/outside/transMap/V4
+(time nice ${tmdir}/bin/luigiTransMap --rebuildGenomeDb --destHgDb=micMur3 --workers=10 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2018-06-11.a.incr.log &

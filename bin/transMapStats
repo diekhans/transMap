@@ -6,8 +6,8 @@ import re
 import argparse
 import pipettor
 import logging
-import sqlite3
 from pycbio.sys import fileOps
+from pycbio.db.sqliteOps import sqliteConnect
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import Genomes, AnnotationType
 from transMap.srcData import SourceDbTables
@@ -53,7 +53,7 @@ def reportSrcHgDbAnnot(conf, tsvFh, genomes, srcHgDb, annotationType):
     logging.getLogger().debug("srcDb: {}".format(srcDb))
     if not os.path.exists(srcDb):
         raise Exception("srcDb does not exists: {}".format(srcDb))
-    conn = sqlite3.connect(srcDb)
+    conn = sqliteConnect(srcDb)
     sql = "SELECT count(*) FROM {}".format(SourceDbTables.srcAlignTbl)
     count = queryOneValue(conn, sql)
     conn.close()

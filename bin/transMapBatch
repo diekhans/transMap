@@ -3,11 +3,11 @@
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import os
-import sqlite3
 import argparse
 import pipettor
 from pycbio.sys import fileOps
 from pycbio.distrib.parasol import Para
+from pycbio.db.sqliteOps import sqliteConnect
 from transMap import setSortLocale
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import AnnotationType, ChainType
@@ -39,7 +39,7 @@ def parseArgs():
 
 
 def getSrcAlignOidRange(conf):
-    srcDbConn = sqlite3.connect(conf.srcDb)
+    srcDbConn = sqliteConnect(conf.srcDb)
     try:
         srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
         return srcAlignTbl.getOidRange()
