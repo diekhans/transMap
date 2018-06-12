@@ -1,0 +1,260 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import sys
+import sqlite3
+import argparse
+import pipettor
+import logging
+from collections import deque
+from pycbio.hgbrowser.coords import Coords
+from pycbio.sys import fileOps
+from pycbio.hgdata.psl import PslTbl
+from pycbio.hgdata.hgLite import sqliteHaveTable
+from transMap import setSortLocale
+from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
+from transMap.genomeData import AnnotationType, ChainType, GenomesDbTables, GenomeAsmsDbTable
+from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
+from transMap.bigTransMap import bigTransMapMakeRec
+from pycbio.hgdata.hgLite import SequenceDbTable
+from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable
+from transMap.transMapConf import transMapConfLoad
+
+
+def parseArgs():
+    desc = """Run transmap algorithm on a range of alignment OIDs, do
+    all work, including filtering, recalculating match stats, etc.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("--keep", action="store_true",
+                        help="""keep temporary files""")
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    parser.add_argument("srcHgDb",
+                        help="""mysql database for source assembly""")
+    parser.add_argument("destHgDb",
+                        help="""destination browser database """)
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
+                        help="""annotation set type""")
+    parser.add_argument("chainType", choices=(ChainType.all, ChainType.syn, ChainType.rbest), type=ChainType,
+                        help="""type of chains to use""")
+    parser.add_argument("startOid",
+                        help="""object id of start row in srcDb.srcAligns""")
+    parser.add_argument("endOid",
+                        help="""object id of one past last row in srcDb.srcAligns""")
+    parser.add_argument("mappedPreBigPsl",
+                        help="""output for input to bedToBigBed""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+def getSrcGenomeAsm(conf):
+    """get GenomeAsm record for srcDb"""
+    conn = sqlite3.connect(conf.genomeDb)
+    genomeAsmTbl = GenomeAsmsDbTable(conn, GenomesDbTables.genomeAsmsTbl)
+    recs = list(genomeAsmTbl.queryByHdDb(conf.srcHgDb))
+    if len(recs) != 1:
+        raise Exception("expected 1 record for {} {} got {} record".format(conf.genomeDb, conf.srcHgDb, len(recs)))
+    conn.close()
+    return recs[0]
+
+
+class SrcPslGroups(dict):
+    """"Load and split source PSLs into a lists of range overlapping PSLs.
+    Object is index by Coords. This prevents reading unnecessary chains.  Doing
+    this is the cluster jobs simplifies batch setup."""
+    def __init__(self, srcDbConn, startOid, endOid):
+        pslq = deque(SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getRows(startOid, endOid))
+        self.__groupAligns(pslq)
+
+    def __groupAligns(self, pslq):
+        while len(pslq) > 0:
+            coords, pslGroup = self.__buildOneGroup(pslq)
+            assert coords not in self
+            self[coords] = pslGroup
+
+    @staticmethod
+    def __pslRangeOverlaps(tName, tStart, tEnd, psl):
+        return (tName == psl.tName) and (tStart < psl.tEnd) and (tEnd > psl.tStart)
+
+    @staticmethod
+    def __buildOneGroup(pslq):
+        "group psls, removing from queue"
+
+        # seed with first psl, then iterate until we have all overlapping
+        # expanding range or we have consumed all
+        tName, tStart, tEnd = pslq[0].tName, pslq[0].tStart, pslq[0].tEnd
+        pslGroup = [pslq.popleft()]
+        processedSome = True
+        while (len(pslq) > 0) and processedSome:
+            processedSome = False
+            i = 0
+            while i < len(pslq):
+                if SrcPslGroups.__pslRangeOverlaps(tName, tStart, tEnd, pslq[i]):
+                    psl = SrcPslGroups.__dequeue(pslq, i)
+                    pslGroup.append(psl)
+                    tStart = min(psl.tStart, tStart)
+                    tEnd = max(psl.tEnd, tEnd)
+                    processedSome = True
+                i += 1
+        return Coords(tName, tStart, tEnd), pslGroup
+
+    @staticmethod
+    def __dequeue(pslq, idx):
+        "remove one psl in an efficient way"
+        psl = pslq[idx]
+        if idx < len(pslq) - 1:
+            pslq[idx] = pslq.pop()  # replace with last element
+        del pslq[-1]
+        return psl
+
+
+class MappingChains(object):
+    def __init__(self, mappingChainsFile, chainType):
+        self.conn = sqlite3.connect("{}.db".format(mappingChainsFile))
+        self.chainType = chainType
+        self.indexTbl = MappingChainsIndexDbTable(self.conn, MappingChainsDbTables.mappingChainsTbl)
+        self.fh = open(mappingChainsFile)
+
+    def dumpToTmpFile(self, coords, tmpFile):
+        with open(tmpFile, "w") as tmpFh:
+            self.__dumpToTmpFile(coords, tmpFh)
+
+    def __dumpToTmpFile(self, coords, tmpFh):
+        cnt = 0
+        for loc in self.indexTbl.getRangeOverlap(coords.chrom, coords.start, coords.end):
+            self.__dumpOneChain(loc, tmpFh)
+            cnt += 1
+        logging.debug("chains: {} chains for {}".format(cnt, coords))
+
+    def __dumpOneChain(self, loc, tmpFh):
+        self.fh.seek(loc.offset)
+        buf = self.fh.read(loc.length)
+        if len(buf) != loc.length:
+            raise Exception("expected {} chain bytes, got {}".format(loc.length, len(buf)))
+        tmpFh.write(buf)
+
+
+class PslMapper(object):
+    def __init__(self, conf, srcHgDb, destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains, keep):
+        self.conf = conf
+        self.srcHgDb = srcHgDb
+        self.srcGenomeAsm = getSrcGenomeAsm(conf)
+        self.destHgDb = destHgDb
+        self.srcMetadataTbl = srcMetadataTbl
+        self.srcSeqTbl = srcSeqTbl
+        self.mappingChains = mappingChains
+        self.keep = keep
+
+    def __writeSrcPsls(self, srcPsls):
+        srcPslTmpFile = fileOps.tmpFileGet("transMap.src.", ".psl")
+        with open(srcPslTmpFile, "w") as pslFh:
+            for psl in srcPsls:
+                psl.write(pslFh)
+        return srcPslTmpFile
+
+    def __writeSrcSeq(self, srcId, faFh):
+        srcSeq = self.srcSeqTbl.getByName(srcId)
+        faFh.write(srcSeq.toFasta())
+
+    def __getUniqPslSrcId(self, srcPsls):
+        return set([alignIdToSrcId(p.qName) for p in srcPsls])
+
+    def __writeSrcSeqs(self, srcPsls):
+        srcSeqsTmpFile = fileOps.tmpFileGet("transMap.src.", ".fa")
+        with open(srcSeqsTmpFile, "w") as faFh:
+            for srcId in self.__getUniqPslSrcId(srcPsls):
+                self.__writeSrcSeq(srcId, faFh)
+        return srcSeqsTmpFile
+
+    def __writeMappingChains(self, srcPslsCoords):
+        chainsTmpFile = fileOps.tmpFileGet("transMap.mapping.", ".chain")
+        self.mappingChains.dumpToTmpFile(srcPslsCoords, chainsTmpFile)
+        return chainsTmpFile
+
+    def __mapPslsToDest(self, srcPslsCoords, srcPsls):
+        srcPslTmpFile = self.__writeSrcPsls(srcPsls)
+        srcSeqsTmpFile = self.__writeSrcSeqs(srcPsls)
+        chainsTmpFile = self.__writeMappingChains(srcPslsCoords)
+        mappedPslTmpFile = fileOps.tmpFileGet("transMap.mapped.", ".psl")
+        pslMapCmd = ["pslMap", "-chainMapFile",
+                     srcPslTmpFile, chainsTmpFile, "stdout"]
+        pslQueryUniqCmd = ["pslQueryUniq"]
+        pslCDnaFilterCmd = ["pslCDnaFilter", "-verbose=0",
+                            "-minQSize={}".format(self.conf.mappedMinQSize),
+                            "-maxAligns={}".format(self.conf.mappedMaxAligns),
+                            "-minCover={}".format(self.conf.mappedMinCover),
+                            "-globalNearBest={}".format(self.conf.mappedGlobalNearBest),
+                            "stdin", "stdout"]
+        tsortCmd = ["sort", "-k", "14,14", "-k", "16,16n"]
+        pslRecalcMatchCmd = ["pslRecalcMatch", "-ignoreQUniq", "stdin",
+                             getTwoBit(self.destHgDb), srcSeqsTmpFile, "stdout"]
+        cmds = [pslMapCmd, pslCDnaFilterCmd, tsortCmd, pslRecalcMatchCmd, pslQueryUniqCmd]
+        p = pipettor.Pipeline(cmds, stdout=mappedPslTmpFile)
+        p.wait()
+        mappedPsls = PslTbl(mappedPslTmpFile)
+        tmpFiles = [srcPslTmpFile, srcSeqsTmpFile, chainsTmpFile, mappedPslTmpFile]
+        if self.keep:
+            sys.stderr.write("keep files: {}\n".format(" ".join(tmpFiles)))
+        else:
+            fileOps.rmFiles(*tmpFiles)
+        return mappedPsls
+
+    @staticmethod
+    def __findSrcPsl(srcPsls, mappedPsl):
+        srcQName = alignIdDropOneUniq(mappedPsl.qName)
+        for srcPsl in srcPsls:
+            if srcPsl.qName == srcQName:
+                return srcPsl
+        raise Exception("BUG: __findSrcPsl: srcPsl not found for {}".format(srcQName))
+
+    def __writeBigPslRec(self, srcPsls, mappedPsl, mappedPreBigPslFh):
+        srcId = alignIdToSrcId(mappedPsl.qName)
+        srcSeq = self.srcSeqTbl.getByName(srcId)
+        srcPsl = self.__findSrcPsl(srcPsls, mappedPsl)
+        metaData = self.srcMetadataTbl.getBySrcId(srcId) if self.srcMetadataTbl is not None else None
+        fileOps.prRow(mappedPreBigPslFh,
+                      bigTransMapMakeRec(self.srcHgDb, srcPsl, mappedPsl, srcSeq,
+                                         self.mappingChains.chainType, metaData,
+                                         self.srcGenomeAsm.commonName,
+                                         self.srcGenomeAsm.scientificName,
+                                         self.srcGenomeAsm.orgAbbrev))
+
+    def mapPslGroup(self, srcPslsCoords, srcPsls, mappedPreBigPslFh):
+        mappedPsls = self.__mapPslsToDest(srcPslsCoords, srcPsls)
+        for mappedPsl in mappedPsls:
+            self.__writeBigPslRec(srcPsls, mappedPsl, mappedPreBigPslFh)
+
+
+def transMapJob(opts):
+    conf = transMapConfLoad(opts.configPyFile, srcHgDb=opts.srcHgDb,
+                            destHgDb=opts.destHgDb,
+                            annotationType=opts.annotationType,
+                            chainType=opts.chainType)
+    srcDbConn = sqlite3.connect(conf.srcDb)
+    if sqliteHaveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
+        srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl)
+    else:
+        srcMetadataTbl = None  # ESTs
+    srcSeqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl)
+    mappingChains = MappingChains(conf.mappingChains, conf.chainType)
+    srcPslGroups = SrcPslGroups(srcDbConn, opts.startOid, opts.endOid)
+
+    pslMapper = PslMapper(conf, opts.srcHgDb, opts.destHgDb, srcMetadataTbl, srcSeqTbl, mappingChains, opts.keep)
+    srcPslGroups = SrcPslGroups(srcDbConn, opts.startOid, opts.endOid)
+
+    # fields 3,4 are for test stability
+    sortBedCmd = ["sort", "-k1,1", "-k2,2n", "-k3,3n", "-k4,4"]
+
+    tmpMappedPreBigPsl = fileOps.atomicTmpFile(opts.mappedPreBigPsl)
+    fileOps.ensureFileDir(tmpMappedPreBigPsl)
+    with pipettor.Popen([sortBedCmd], "w", stdout=tmpMappedPreBigPsl) as mappedPreBigPslFh:
+        for srcPslsCoords in srcPslGroups.iterkeys():
+            pslMapper.mapPslGroup(srcPslsCoords, srcPslGroups[srcPslsCoords], mappedPreBigPslFh)
+    fileOps.atomicInstall(tmpMappedPreBigPsl, opts.mappedPreBigPsl)
+
+setSortLocale()
+transMapJob(parseArgs())

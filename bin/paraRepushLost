@@ -1,0 +1,163 @@
+#!/usr/bin/tclsh
+set usage {
+    paraRepushLost [options]
+
+options:
+    -h  - print help
+    -d - debug
+}
+
+set debug 0
+set minCheckJobs 2
+
+set paraProg para
+set parasolProg parasol
+
+proc runCmd {cmd} {
+    if {$::debug} {
+        puts stderr "$cmd"
+    }
+    return [split [eval exec $cmd] \n]
+}
+
+# generate list of {{host {job1 ..} ..}, where 
+# job = {jobid host cmd}
+proc getBatchJobs {batch} {
+    # expects blank line to split entries, build array, indexed by host, of
+    # jobs
+    set cmd [list  $::paraProg -verbose=0 running -batch=$batch]
+    foreach line [runCmd $cmd] {
+        if {[string length $line] == 0} {
+            if {[info exists curJob]} {
+                lappend jobTbl($curJob(host)) [list $curJob(jobId) $curJob(host) $curJob(command)]
+                unset curJob
+            }
+        } else {
+            # deal with broken output
+            regsub {Checking finished jobscommand:} $line {command:} line
+            if {[regexp {^([^:]+): (.*)$} $line {} key value]} {
+                set curJob($key) $value
+            }
+        }
+    }
+    
+    set hostJobs {}
+    foreach host [lsort [array names jobTbl]] {
+        lappend hostJobs [list $host [lsort -index 0 -integer $jobTbl($host)]]
+    }
+    return $hostJobs
+}
+
+# generate list of running batches for current users
+# returns list {numRunning batch}
+proc getBatches {user} {
+    set batches {}
+    #user     run   wait   done crash pri max cpu  ram  plan min batch
+    foreach line [runCmd [list $::parasolProg list batches]] {
+        set words [split [regsub -all { +} $line { }]]
+        if {[lindex $words 0] == $user} {
+            lappend batches [list [lindex $words 2] [lindex $words 11]]
+        }
+    }
+    return $batches
+}
+
+# return list of {PID RSS SZ %MEM %CPU S PAGEIN ELAPSED COMMAND}
+proc remotePs {host user useSsh} {
+    set prog [expr {$useSsh ? "ssh" : "/usr/bin/rsh"}]
+    set cmd [list $prog $host ps -u$user --width=2048 -o user,pid,rss,sz,%cpu,%mem,state,pagein,etime,cmd < /dev/null]
+    if {$::debug} {
+        puts stderr "$cmd"
+    }
+    set lines [runCmd $cmd]
+    set cmds {}
+    foreach line [lrange $lines 1 end] {
+        # skip some commands (check last word)
+        set cmd {}
+        regexp {([^ \t]+)$} $line {} cmd
+        switch -exact -- $cmd {
+            ps - sh - tcsh - bash {
+                # skip
+            }
+            default {
+                lappend cmds $line
+            }
+        }
+    }
+    return $cmds
+}
+
+
+# get info for a host and list of jobs
+proc getHostJobs {host user jobs useSsh} {
+    puts [join [remotePs $host $user $useSsh] \n]
+}
+
+proc anyJobsRunning {host user jobs useSsh} {
+    getHostJobs $host $user $jobs $useSsh
+}
+
+proc isBatchReallyRunning {batch user useSsh} {
+    foreach hostJobs [getBatchJobs $batch] {
+        anyJobsRunning [lindex $hostJobs 0] $user [lindex $hostJobs 1] $useSsh
+    }
+}
+
+proc checkBatch {batch user useSsh} {
+    isBatchReallyRunning $batch $user $useSsh
+}
+
+proc processBatches {batchSpecs user useSsh} {
+    foreach batchSpec $batchSpecs {
+        checkBatch [lindex $batchSpec 1] $user $useSsh
+    }
+}
+
+proc popArgv {{opt {}}} {
+    global argc argv
+    if {[llength $argv] == 0} {
+        puts stderr "Error: option $opt requires and argument"
+        exit 1
+    }
+    set val [lindex $argv 0]
+    set argv [lrange $argv 1 end]
+    incr argc -1
+    return $val
+}
+
+set user $::env(USER)
+set useSsh 0
+while {[string match -* [lindex $argv 0]]} {
+    set opt [popArgv]
+    switch -glob -- $opt {
+        -d {
+            set debug 1
+        }
+        -h -
+        -help -
+        --help {
+            puts stderr $usage
+            exit 0
+        }
+        default {
+            puts stderr "Error: invalid option: $opt"
+            exit 1
+        }
+    }
+}
+
+#error "FIXME: not done, finish or drop"
+if {$argc != 0} {
+    puts stderr "Wrong \# args: $usage"
+    exit 1
+}
+
+if {[catch {
+    processBatches [getBatches $user] $user $useSsh
+} msg]} {
+    if {$::debug} {
+        puts stderr $errorInfo
+    }
+    puts stderr "Error: $msg"
+    exit 1
+}

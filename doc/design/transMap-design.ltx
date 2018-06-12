@@ -1,0 +1,47 @@
+\documentclass[12pt]{article}
+
+\begin{document}
+
+\section{Data Model}
+
+Source genomes are genome assemblies with from which annotations are mapped to
+target genome assemblies.  A genome maybe both a source and target genome,
+although not all target genomes will annotations making them suitable to be
+source genomes.
+
+For a given TransMap release consists of a fixed set of source genomes.  New
+target genomes maybe added to a given release, however source genomes and
+already mapped target genomes are not changed until a new release.  Not all source
+genomes maybe available in the public genome browser.
+
+\subsection{Source annotations}
+
+The following source genome annotations sets maybe are if available:
+\begin{itemize}
+\item GENBANK mRNAs from UCSC BLAT alignment track
+\item GENBANK splice ESTs from UCSC BLAT alignment track
+\item RefSeq RNA alignments
+\item Ensembl full gene predictions (not projection), including GENCODE
+\end{itemize}
+
+
+** The following data is create for each annotation set:
+\begin{itemize}
+\item PSL alignments of transcripts, with all qNames prefixed with source database and made unique.
+  These can be actual
+  alignments or artificial alignments generated from genome annotations. PSLs
+  are stored in big PSL format.
+\item Transcript sequences, either transcripts for alignments or predicted transcripts
+  from genome sequences.  In FASTA format, indexed by samtools.
+\item Metadata for transcript, these are not obtained for ESTs.  The following values in a TSV fike:
+  \begin{itemize}
+  \item transcript id in the form srcDb:transcript
+  \item CDS, in GenBank format
+  \item gene name
+  \item gene id
+  \item gene type
+  \item transcript type
+  \end{itemize}
+\end{itemize}
+
+\end{document}

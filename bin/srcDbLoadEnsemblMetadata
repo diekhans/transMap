@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import argparse
+import sqlite3
+from pycbio.sys import fileOps
+from transMap.genomeData import AnnotationType
+from transMap.srcData import SourceDbTables, SrcMetadataDbTable, SrcAlignDbTable
+from transMap.ensembl import EnsemblHgData
+
+
+def parseArgs():
+    desc = """Obtain metadata for Ensembl or GENCODE source transcripts.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("--testLimit", action="store_true", default=False,
+                        help="""limit to alignments that are in srcAlign table for testing""")
+    parser.add_argument("srcHgDb",
+                        help="""Genome database for assembly""")
+    parser.add_argument("annotationType", choices=(AnnotationType.ensembl,), type=AnnotationType,
+                        help="""annotation set type to obtain""")
+    parser.add_argument("srcDb",
+                        help="""sqlite3 database for source dataset; must have srcAlign table loaded with alignments""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+def getTestLimitAccv(srcDbConn):
+    return SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
+
+
+def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
+    ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
+    fileOps.ensureFileDir(srcDb)
+    srcDbConn = sqlite3.connect(srcDb)
+    try:
+        testAccvSubset = getTestLimitAccv(srcDbConn) if testLimit else None
+        metadataReader = ensemblHgData.metadataReader(testAccvSubset)
+        SrcMetadataDbTable.loadStep(srcDbConn, metadataReader)
+    finally:
+        srcDbConn.close()
+
+opts = parseArgs()
+getEnsemblMetadata(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testLimit)

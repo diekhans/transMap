@@ -187,7 +187,63 @@
        nice make loadDb >&load.out
 
 #######################################################################
-# vertebrate V3
+# vertebrate V4
 #######################################################################
-# original
+2016-12-09:  initial V4 full build, first using bigPsl files
 
+tmdir=~/compbio/projs/transMap/transMap-dev
+pushd /hive/data/outside/transMap/V4
+(time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-01-08.a.full.log &
+
+# check for lost job completions with
+# for some reason, this hangs after completion
+for p in $(parasol list batches | awk '/markd/{print $12}') ; do echo ==== $p; para-ps -b $p ; done   >x
+# to restart
+for p in $(parasol list batches | awk '/markd/{print $12}') ; do echo ==== $p; para stop -batch=$p; para push -batch=$p ; done  
+
+2017-01-24: redo to get scientific name
+
+tmdir=~/compbio/projs/transMap/transMap-dev
+pushd /hive/data/outside/transMap/V4
+mkdir logs
+(time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-01-12.log &
+
+2017-02-07:
+ - rebuild to add source ids
+ (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-02-07.log &
+
+2017-02-08:
+  - create symlinks
+    ${tmdir}/bin/linkToGbdb  ${tmdir}/etc/transMapBuildConf.py
+  - create push lists
+      ${tmdir}/bin/mkPushList ${tmdir}/etc/transMapBuildConf.py db.push.lst gbdb.push.lst
+
+2017-03-07
+   - rebuild bigPsls to add search indexes
+   (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-03-07.log &
+   mkdir stats
+   ${tmdir}/bin/transMapInfo ${tmdir}/etc/transMapBuildConf.py stats/2017-03-07.info
+   ${tmdir}/bin/transMapStats  ${tmdir}/etc/transMapBuildConf.py stats/2017-03-07.stats
+
+2017-04-01:
+   - fixed bug with chain reverse strand lookup
+   - run in /hive/data/outside/transMap/V4rebuild then move in place
+   tmdir=~/compbio/projs/transMap/transMap-dev
+   (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2017-04-01.log &
+   ${tmdir}/bin/transMapInfo ${tmdir}/etc/transMapBuildConf.py stats/2017-04-02.info
+   ${tmdir}/bin/transMapStats  ${tmdir}/etc/transMapBuildConf.py stats/2017-04-02.stats
+
+
+2017-04-14:
+   rebuild in V4redo to change comments and name or srcScore -> srcIdent
+   (time nice ${tmdir}/bin/luigiTransMap --workers=32 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/$(idate).log
+   ${tmdir}/bin/transMapInfo ${tmdir}/etc/transMapBuildConf.py stats/$(idate).info
+   ${tmdir}/bin/transMapStats ${tmdir}/etc/transMapBuildConf.py stats/$(idate).stats
+
+#detect lost jobs
+parafoo() {
+   parasol list batches | fgrep "$1"
+   para-ps -b $1 | awk -v d="$(dirname $1)" '$0~d || /^ku/'
+}
+paraNodeStatus -long <(echo ku-1-22.local) | fgrep $(dirname )
+parasol list batches |awk '$2==1'

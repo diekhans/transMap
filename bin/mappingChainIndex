@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import argparse
+import sqlite3
+from pycbio.sys import fileOps
+from pycbio.hgdata import dnaOps
+from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable, MappingChainLoc
+
+
+def parseArgs():
+    desc = """Get information about genomes.  This finds all available chains and
+    source data for all active genomes.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("mappingChainsIndexDb",
+                        help="""sqlite3 database for indexing chains""")
+    parser.add_argument("chainFile",
+                        help="""chain file to index, maybe piped""")
+    opts = parser.parse_args()
+    return opts
+
+
+def buildChainLoc(startLine, offset, length):
+    # chain 478186844 chr1 248956422 + 933237 58547094 chr4 156508116 - 252172 53194635 3
+    words = startLine.split()
+    qName = words[7]
+    qSize = int(words[8])
+    qStrand = words[9]
+    qStart = int(words[10])
+    qEnd = int(words[11])
+    chainId = int(words[12])
+    if qStrand == '-':
+        qStart, qEnd = dnaOps.reverseCoords(qStart, qEnd, qSize)
+
+    return MappingChainLoc.factory(qName, qStart, qEnd, chainId, offset, length)
+
+
+def generateChainIndex(chainFh):
+    chainsLocs = []
+    startLine = startOff = None
+    offset = 0
+    for line in chainFh:
+        if line.startswith("chain"):
+            if startLine is not None:
+                chainsLocs.append(buildChainLoc(startLine, startOff, offset - startOff))
+            startLine = line
+            startOff = offset
+        offset += len(line)
+    if startLine is not None:
+        chainsLocs.append(buildChainLoc(startLine, startOff, offset - startOff))
+    return chainsLocs
+
+
+def mappingChainIndex(mappingChainsIndexDb, chainFile):
+    with open(chainFile) as chainFh:
+        chainsLocs = generateChainIndex(chainFh)
+    fileOps.ensureFileDir(mappingChainsIndexDb)
+    indexDbConn = sqlite3.connect(mappingChainsIndexDb)
+    indexDbTbl = MappingChainsIndexDbTable(indexDbConn, MappingChainsDbTables.mappingChainsTbl, create=True)
+    indexDbTbl.loads(chainsLocs)
+    indexDbTbl.index()
+
+# entry
+opts = parseArgs()
+mappingChainIndex(opts.mappingChainsIndexDb, opts.chainFile)

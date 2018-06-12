@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import argparse
+import sqlite3
+from pycbio.sys import fileOps
+from transMap.genomeData import AnnotationType
+from transMap.srcData import srcAlignXRefLoad
+from transMap.genbank import GenbankHgData
+
+
+def parseArgs():
+    desc = """Obtain PSL alignments for UCSC GenBank files.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("--testAccFile", default=None,
+                        help="""limit to test accession, less version, in this file testing purposes""")
+    parser.add_argument("srcHgDb",
+                        help="""Genome database for assembly""")
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq), type=AnnotationType,
+                        help="""annotation set type to obtain""")
+    parser.add_argument("srcDb",
+                        help="""sqlite3 database for source dataset""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+def srcDbLoadGenbankAligns(srcHgDb, annotationType, srcDb, testAccFile):
+    testAccSubset = fileOps.readFileLines(testAccFile) if testAccFile is not None else None
+    genbankHgData = GenbankHgData(srcHgDb, annotationType)
+    fileOps.ensureFileDir(srcDb)
+    srcDbConn = sqlite3.connect(srcDb)
+    try:
+        srcAlignXRefLoad(srcDbConn, genbankHgData.alignReader(testAccSubset=testAccSubset))
+    finally:
+        srcDbConn.close()
+
+# entry
+opts = parseArgs()
+srcDbLoadGenbankAligns(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testAccFile)

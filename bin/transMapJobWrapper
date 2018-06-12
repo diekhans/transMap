@@ -1,0 +1,12 @@
+#!/bin/bash -e
+
+# ensure enviroment is set, incuding our python, but minimize it to reduce
+# search of /cluster/home
+arch=$(uname -m)
+opt="${HOME}/opt/current/${arch}/bin"
+other="/parasol/bin:/cluster/bin:/cluster/bin/scripts:/cluster/software/bin:/cluster/bin/x86_64:/usr/bin:/bin"
+export PATH="$opt:$other"
+
+binDir=$(dirname $0)
+exec $binDir/transMapJob "$@"
+

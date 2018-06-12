@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import os
+import sqlite3
+import argparse
+import pipettor
+from pycbio.sys import fileOps
+from pycbio.distrib.parasol import Para
+from transMap import setSortLocale
+from transMap.transMapConf import transMapConfLoad
+from transMap.genomeData import AnnotationType, ChainType
+from transMap.srcData import SourceDbTables, SrcAlignDbTable
+from transMap.bigTransMap import bigTransMapSortMerge
+
+
+def parseArgs():
+    desc = """Run a transmap parasol batch.  This attempts to be atomic and restartable
+    given the same batch directory.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("--directRun", action="store_true", default=False,
+                        help="""run the batch file as a script, for testing when parasol isn't available """)
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    parser.add_argument("srcHgDb",
+                        help="""mysql database for source assembly""")
+    parser.add_argument("destHgDb",
+                        help="""destination browser database """)
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
+                        help="""annotation set type""")
+    parser.add_argument("chainType", choices=(ChainType.all, ChainType.syn, ChainType.rbest), type=ChainType,
+                        help="""type of chains to use""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+def getSrcAlignOidRange(conf):
+    srcDbConn = sqlite3.connect(conf.srcDb)
+    try:
+        srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
+        return srcAlignTbl.getOidRange()
+    finally:
+        srcDbConn.close()
+
+
+def srcAlignPartitionGen(conf):
+    startOid, endOid = getSrcAlignOidRange(conf)
+    seqsPerJob = conf.numSeqsPerJob
+    nextOid = startOid
+    while nextOid < endOid:
+        stopOid = min(nextOid + seqsPerJob, endOid)
+        yield nextOid, stopOid
+        nextOid = stopOid
+
+
+def writeBatchJob(conf, batchFh, startOid, endOid, directRun):
+    jobPreBigPsl = conf.getJobPreBigPsl(startOid, endOid)
+    if directRun:
+        outFileSpec = jobPreBigPsl
+    else:
+        outFileSpec = "{{check out exists {}}}".format(jobPreBigPsl)
+
+    cmd = [os.path.join(conf.binDir, "transMapJobWrapper"),
+           conf.configPyFile, conf.srcHgDb, conf.destHgDb,
+           str(conf.annotationType), str(conf.chainType),
+           str(startOid), str(endOid), outFileSpec]
+    batchFh.write("{}\n".format(" ".join(cmd)))
+
+
+def createBatch(conf, directRun):
+    batchFile = conf.batchParaFile
+    fileOps.ensureFileDir(batchFile)
+    tmpBatchFile = fileOps.atomicTmpFile(batchFile)
+    with open(tmpBatchFile, "w") as batchFh:
+        for startOid, endOid in srcAlignPartitionGen(conf):
+            writeBatchJob(conf, batchFh, startOid, endOid, directRun)
+    fileOps.atomicInstall(tmpBatchFile, batchFile)
+
+
+def directRunBatch(conf, batchFile):
+    pipettor.run(["bash", "-ex", batchFile])
+
+
+def paraRunBatch(conf, batchFile):
+    para = Para(conf.paraHost, os.getcwd(), conf.batchParaDir, os.path.abspath(batchFile))
+    para.make()
+
+
+def finishBatch(conf):
+    inPreBigPsls = [conf.getJobPreBigPsl(startOid, endOid)
+                    for startOid, endOid in srcAlignPartitionGen(conf)]
+    bigTransMapSortMerge(inPreBigPsls, conf.batchPreBigPsl)
+
+
+def transMapBatch(opts):
+    conf = transMapConfLoad(opts.configPyFile, srcHgDb=opts.srcHgDb,
+                            destHgDb=opts.destHgDb,
+                            annotationType=opts.annotationType,
+                            chainType=opts.chainType)
+    batchFile = conf.batchParaFile
+    if not os.path.exists(batchFile):
+        createBatch(conf, opts.directRun)
+    if opts.directRun:
+        directRunBatch(conf, batchFile)
+    else:
+        paraRunBatch(conf, batchFile)
+    finishBatch(conf)
+
+setSortLocale()
+transMapBatch(parseArgs())

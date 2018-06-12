@@ -1,3 +1,0 @@
-${OBJDIR}/pslMapInfoSelect.o: ../../src/lib/alignPair.h
-${OBJDIR}/pslMapInfoSelect.o: ../../src/lib/mapInfo.h
-${OBJDIR}/pslMapInfoSelect.o: pslMapInfoSelect.c

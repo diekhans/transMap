@@ -2,25 +2,10 @@
 """
 import re
 from pycbio.exrun import *
-from transMap.genomeDefs import CDnaType
+from transMap.genomeDefs import AnnSetType
+from transMap.genbamk import 
 from transMap import transMap
 from pycbio.sys import fileOps, procOps
-
-# N.B. /dev/stdout is used instead of stdout, as it appears related to fasta corruption problem
-
-def mkGbGetSeqsCmd(tm, srcDb, cdnaType, what, accFile=None):
-    "what is argument to -get="
-    cmd=["/hive/data/outside/genbank/bin/" + tm.arch + "/gbGetSeqs",
-         "-db=" + srcDb.name,
-         "-get=" + what,
-         "-native", "-inclVersion",
-         "-gbRoot=/hive/data/outside/genbank"]
-    if accFile != None:
-        cmd.append("-accFile="+accFile)
-    cmd.extend((("refseq" if (cdnaType == CDnaType.refSeq) else "genbank"),
-                ("est" if (cdnaType == CDnaType.splicedEst) else "mrna"),
-                "/dev/stdout"))
-    return cmd
 
 # FIXME: column stuff is duplicated here and in commands
 def makeColumnWithSrcDbConcat(db, column):
@@ -28,28 +13,28 @@ def makeColumnWithSrcDbConcat(db, column):
 
 class CDnaAligns(CmdRule):
     "obtain cDNA PSL alignments, making the alignment ids unique "
-    def __init__(self, tm, srcDb, cdnaType):
+    def __init__(self, tm, srcDb, annSetType):
         "dbs are GenomeDef objects"
-        psl = tm.getSrcPsl(srcDb, cdnaType)
-        cmd1 = mkGbGetSeqsCmd(tm, srcDb, cdnaType,
-                              ("intronPsl" if (cdnaType == CDnaType.splicedEst) else "psl"))
+        psl = tm.getSrcPsl(srcDb, annSetType)
+        cmd1 = mkGbGetSeqsCmd(tm, srcDb, annSetType,
+                              ("intronPsl" if (annSetType == AnnSetType.splicedEst) else "psl"))
         cmd2 = ("pslQueryUniq", "-p", srcDb.name+":")
         CmdRule.__init__(self, Cmd((cmd1, cmd2), stdout=psl))
 
 class CDnaAlignStats(CmdRule):
     "obtain cDNA PSL alignments statistics"
-    def __init__(self, tm, srcDb, cdnaType):
+    def __init__(self, tm, srcDb, annSetType):
         "dbs are GenomeDef objects"
-        psl = tm.getSrcPsl(srcDb, cdnaType)
-        stats = tm.getSrcAlnStats(srcDb, cdnaType)
+        psl = tm.getSrcPsl(srcDb, annSetType)
+        stats = tm.getSrcAlnStats(srcDb, annSetType)
         CmdRule.__init__(self, Cmd(("pslStats", FileIn(psl), FileOut(stats))))
 
 class CDnaSeqIds(CmdRule):
     "obtain list of cDNA sequence ids (without srcDb prefix or unique suffix)"
-    def __init__(self, tm, srcDb, cdnaType):
+    def __init__(self, tm, srcDb, annSetType):
         "dbs are GenomeDef objects"
-        psl = tm.getSrcPsl(srcDb, cdnaType)
-        ids = tm.getSrcSeqId(srcDb, cdnaType)
+        psl = tm.getSrcPsl(srcDb, annSetType)
+        ids = tm.getSrcSeqId(srcDb, annSetType)
         CmdRule.__init__(self, Cmd((("cut", "-f", "10", FileIn(psl)),
                                     ("sed", "-r", "-e", "s/-.+$//",  "-e", "s/^" + srcDb.name+ "://"),
                                     ("sort", "-u")),
@@ -57,31 +42,31 @@ class CDnaSeqIds(CmdRule):
 
 class CDnaSeqs(CmdRule):
     "obtain cDNA sequences"
-    def __init__(self, tm, srcDb, cdnaType):
+    def __init__(self, tm, srcDb, annSetType):
         self.tm = tm
-        ids = tm.getSrcSeqId(srcDb, cdnaType)
-        fa = tm.getSrcFa(srcDb, cdnaType)
-        cmd1 = mkGbGetSeqsCmd(tm, srcDb, cdnaType, "seq", accFile=FileIn(ids))
+        ids = tm.getSrcSeqId(srcDb, annSetType)
+        fa = tm.getSrcFa(srcDb, annSetType)
+        cmd1 = mkGbGetSeqsCmd(tm, srcDb, annSetType, "seq", accFile=FileIn(ids))
         cmd2 = ("awk", "-v", "srcDb="+srcDb.name, '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
         CmdRule.__init__(self, Cmd((cmd1, cmd2), stdout=fa))
 
 class CDnaMeta(CmdRule):
     "obtain meta data (CDS, geneName)"
-    def __init__(self, tm, srcDb, cdnaType):
+    def __init__(self, tm, srcDb, annSetType):
         "dbs are GenomeDef objects"
-        ids = tm.getSrcSeqId(srcDb, cdnaType)
-        meta = tm.getSrcMeta(srcDb, cdnaType)
-        cmd1 = mkGbGetSeqsCmd(tm, srcDb, cdnaType, "ra")
+        ids = tm.getSrcSeqId(srcDb, annSetType)
+        meta = tm.getSrcMeta(srcDb, annSetType)
+        cmd1 = mkGbGetSeqsCmd(tm, srcDb, annSetType, "ra")
         cmd2 = ("gbRaToMeta", srcDb.name)
         CmdRule.__init__(self, Cmd((cmd1, cmd2), stdout=meta))
 
 class CDnaPolyA(CmdRule):
     "obtain poly information on cDNA sequences"
     # not currently used
-    def __init__(self, tm, srcDb, cdnaType):
+    def __init__(self, tm, srcDb, annSetType):
         self.tm = tm
-        fa = tm.getSrcFa(srcDb, cdnaType)
-        polya = tm.getSrcPoly(srcDb, cdnaType)
+        fa = tm.getSrcFa(srcDb, annSetType)
+        polya = tm.getSrcPoly(srcDb, annSetType)
         cmd = ["faPolyASizes", FileIn(fa), FileOut(polya)]
         CmdRule.__init__(self, Cmd(cmd))
 
@@ -89,8 +74,8 @@ class UcscGenesAligns(CmdRule):
     "obtain PSLs and CDS files for UCSC genes"
     def __init__(self, tm, srcDb):
         self.tm = tm
-        psl = tm.getSrcPsl(srcDb, CDnaType.ucscGenes)
-        cds = tm.getSrcCds(srcDb, CDnaType.ucscGenes)
+        psl = tm.getSrcPsl(srcDb, AnnSetType.ucscGenes)
+        cds = tm.getSrcCds(srcDb, AnnSetType.ucscGenes)
 
         cols = makeColumnWithSrcDbConcat(srcDb.name, "name") + ",chrom,strand,txStart,txEnd,cdsStart,cdsEnd,exonCount,exonStarts,exonEnds"
         cmd1 = ("hgsql", "-Ne",
@@ -104,8 +89,8 @@ class UcscGenesMeta(CmdRule):
     "obtain meta files for UCSC genes, joining with CDS"
     def __init__(self, tm, srcDb):
         self.tm = tm
-        cds = tm.getSrcCds(srcDb, CDnaType.ucscGenes)
-        meta = tm.getSrcMeta(srcDb, CDnaType.ucscGenes)
+        cds = tm.getSrcCds(srcDb, AnnSetType.ucscGenes)
+        meta = tm.getSrcMeta(srcDb, AnnSetType.ucscGenes)
         
         cmd1 = ("getUcscGenesMeta", srcDb.name, FileIn(cds), FileOut(meta))
         CmdRule.__init__(self, Cmd((cmd1,)))
@@ -115,7 +100,7 @@ class UcscGenesSeqs(CmdRule):
         # warning: must get sequences from genePred, or it will not
         # match sizes in generated PSL.
         self.tm = tm
-        fa = tm.getSrcFa(srcDb, CDnaType.ucscGenes)
+        fa = tm.getSrcFa(srcDb, AnnSetType.ucscGenes)
         cmd1 = ("getGenePredFa", srcDb.name, "knownGene", FileOut(fa))
         CmdRule.__init__(self, Cmd((cmd1,)))
 
@@ -166,8 +151,8 @@ class EnsemblAligns(CmdRule):
     "obtain PSLs and CDS files for Ensembl or GENCODE genes"
     def __init__(self, tm, srcDb):
         self.tm = tm
-        psl = tm.getSrcPsl(srcDb, CDnaType.ensembl)
-        cds = tm.getSrcCds(srcDb, CDnaType.ensembl)
+        psl = tm.getSrcPsl(srcDb, AnnSetType.ensembl)
+        cds = tm.getSrcCds(srcDb, AnnSetType.ensembl)
         
         tbls = getGencodeEnsemblTables(srcDb.name)
 
@@ -183,8 +168,8 @@ class EnsemblMeta(CmdRule):
     "obtain meta files for Ensembl or GENCODE genes, joining with CDS"
     def __init__(self, tm, srcDb):
         self.tm = tm
-        cds = tm.getSrcCds(srcDb, CDnaType.ensembl)
-        meta = tm.getSrcMeta(srcDb, CDnaType.ensembl)
+        cds = tm.getSrcCds(srcDb, AnnSetType.ensembl)
+        meta = tm.getSrcMeta(srcDb, AnnSetType.ensembl)
         
         gencodeTbls = getGencodeTables(srcDb.name)
         if gencodeTbls != None:
@@ -198,31 +183,31 @@ class EnsemblSeqs(CmdRule):
         # warning: must get sequences from genePred, or it will not
         # match sizes in generated PSL.
         self.tm = tm
-        fa = tm.getSrcFa(srcDb, CDnaType.ensembl)
+        fa = tm.getSrcFa(srcDb, AnnSetType.ensembl)
         
         geneTbl, ignore = getGencodeEnsemblTables(srcDb.name)
         cmd1 = ("getGenePredFa", srcDb.name, geneTbl, FileOut(fa))
         CmdRule.__init__(self, Cmd((cmd1,)))
 
-def __createCdnaTypeRules(tm, srcDb, cdnaType):
-    if cdnaType == CDnaType.ucscGenes:
+def __createCdnaTypeRules(tm, srcDb, annSetType):
+    if annSetType == AnnSetType.ucscGenes:
         tm.exrun.addRule(UcscGenesAligns(tm, srcDb))
         tm.exrun.addRule(UcscGenesMeta(tm, srcDb))
         tm.exrun.addRule(UcscGenesSeqs(tm, srcDb))
-    elif cdnaType == CDnaType.ensembl:
+    elif annSetType == AnnSetType.ensembl:
         tm.exrun.addRule(EnsemblAligns(tm, srcDb))
         tm.exrun.addRule(EnsemblMeta(tm, srcDb))
         tm.exrun.addRule(EnsemblSeqs(tm, srcDb))
     else:
-        tm.exrun.addRule(CDnaAligns(tm, srcDb, cdnaType))
-        tm.exrun.addRule(CDnaSeqs(tm, srcDb, cdnaType))
+        tm.exrun.addRule(CDnaAligns(tm, srcDb, annSetType))
+        tm.exrun.addRule(CDnaSeqs(tm, srcDb, annSetType))
 
-    tm.exrun.addRule(CDnaAlignStats(tm, srcDb, cdnaType))
-    tm.exrun.addRule(CDnaSeqIds(tm, srcDb, cdnaType))
-    if cdnaType in (CDnaType.refSeq, CDnaType.mrna):
-        tm.exrun.addRule(CDnaMeta(tm, srcDb, cdnaType))
+    tm.exrun.addRule(CDnaAlignStats(tm, srcDb, annSetType))
+    tm.exrun.addRule(CDnaSeqIds(tm, srcDb, annSetType))
+    if annSetType in (AnnSetType.refSeq, AnnSetType.mrna):
+        tm.exrun.addRule(CDnaMeta(tm, srcDb, annSetType))
 
-def createRules(tm, srcDb, cdnaTypes):
+def createRules(tm, srcDb, annSetTypes):
     "create rules to get data files for srcDb"
-    for cdnaType in srcDb.cdnaTypes & cdnaTypes:
-        __createCdnaTypeRules(tm, srcDb, cdnaType)
+    for annSetType in srcDb.annSetTypes & annSetTypes:
+        __createCdnaTypeRules(tm, srcDb, annSetType)

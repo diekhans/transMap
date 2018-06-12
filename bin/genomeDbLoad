@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import argparse
+import sqlite3
+from pycbio.sys import fileOps
+from pycbio.hgdata import hgDb
+from transMap import hgDbNameCheck
+from transMap.transMapConf import transMapConfLoad
+from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
+from transMap.ensembl import haveEnsemblFull, haveGencode
+from transMap.chainsFinder import ChainsFinder
+from transMap.genbankConf import GenbankConf
+from transMap.genbank import haveRnaTrack, haveEstTrack, haveRefseqTrack
+
+
+def parseArgs():
+    desc = """Get information about genomes.  This finds all available chains and
+    source data for all active genomes.
+
+    Approximate run time: 15 minutes
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("--hgDb", action="append", default=None, dest="subsetHgDbs",
+                        help="""limit to these databases for testing, maybe repeated""")
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+def getActiveDbDb(hgDbConn, hgCentralDb, subsetHgDbs=None):
+    "returns rows from hgcentral dbDb"
+    sql = "SELECT DISTINCT dd.name as name, dd.genome as genome, dd.organism as commonName, dd.scientificName as scientificName, gc.clade FROM {hgCentralDb}.dbDb dd, {hgCentralDb}.genomeClade gc WHERE (dd.active = 1) AND (dd.genome = gc.genome) ".format(hgCentralDb=hgCentralDb)
+    if subsetHgDbs is not None:
+        sql += " AND (name in ({}))".format(",".join(['"{}"'.format(db) for db in subsetHgDbs]))
+    cur = hgDbConn.cursor()
+    try:
+        cur.execute(sql)
+        return [row for row in cur if hgDbNameCheck(row["name"])]
+    finally:
+        cur.close()
+
+
+def getGenbankTypes(hgDbConn, hgDb, genbankConf):
+    gbDbConf = genbankConf.get(hgDb)
+    if gbDbConf is None:
+        return set()
+    enabled = gbDbConf.getEnabled()
+    # they maybe enable but there is no data, so must check for tables.
+    annTypes = set()
+    if (AnnotationType.rna in enabled) and haveRnaTrack(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.rna)
+    if (AnnotationType.est in enabled) and haveEstTrack(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.est)
+    if (AnnotationType.refseq in enabled) and haveRefseqTrack(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.refseq)
+    return annTypes
+
+
+def getEnsemblTypes(hgDbConn, hgDb):
+    # gencode wins if have both
+    annTypes = set()
+    if haveGencode(hgDbConn, hgDb) or haveEnsemblFull(hgDbConn, hgDb):
+        annTypes.add(AnnotationType.ensembl)
+    return annTypes
+
+
+def getAnnotationTypes(hgDbConn, hgDb, genbankConf):
+    annTypes = getGenbankTypes(hgDbConn, hgDb, genbankConf) \
+        | getEnsemblTypes(hgDbConn, hgDb)
+    if len(annTypes) == 0:
+        return None
+    else:
+        return AnnotationTypeSet(annTypes)
+
+
+def orgShortName(scientificName):
+    """Get the short name for an organism.  Based on kent browser function"""
+    maxOrgSize = 6
+    orgName = scientificName[0:maxOrgSize]
+    return orgName.split()[0]
+
+
+def mkGenomeAsm(hgDbConn, dbDb, genbankConf):
+    return GenomeAsm(dbDb["name"], dbDb["clade"], dbDb["commonName"], dbDb["scientificName"],
+                     orgShortName(dbDb["scientificName"]),
+                     getAnnotationTypes(hgDbConn, dbDb["name"], genbankConf))
+
+
+def loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf):
+    genomeAsms = [mkGenomeAsm(hgDbConn, dbDb, genbankConf) for dbDb in activeDbDbs]
+    asmsTbl = GenomeAsmsDbTable(genomeDbConn, GenomesDbTables.genomeAsmsTbl, create=True)
+    asmsTbl.loads(genomeAsms)
+    asmsTbl.index()
+
+
+def loadGenomicChains(genomeDbConn, activeHgDbs):
+    chainsFinder = ChainsFinder()
+    chains = chainsFinder.findChains(activeHgDbs)
+    chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl, True)
+    chainsTbl.loads(chains)
+    chainsTbl.index()
+
+
+def genomeDbLoad(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    genbankConf = GenbankConf(conf.genbankConfRa)
+    hgDbConn = hgDb.connect(dictCursor=True)
+    genomeDbTmp = fileOps.atomicTmpFile(conf.genomeDb)
+    fileOps.ensureFileDir(conf.genomeDb)
+    genomeDbConn = sqlite3.connect(genomeDbTmp)
+    activeDbDbs = getActiveDbDb(hgDbConn, conf.hgCentralDb, opts.subsetHgDbs)
+    activeHgDbs = [row["name"] for row in activeDbDbs]
+    loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
+    loadGenomicChains(genomeDbConn, activeHgDbs)
+    genomeDbConn.close()
+    fileOps.atomicInstall(genomeDbTmp, conf.genomeDb)
+    hgDbConn.close()
+
+# entry
+genomeDbLoad(parseArgs())

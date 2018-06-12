@@ -1,0 +1,3 @@
+use	hgDb	commonName	scientificName	annotationType	count
+src	hg19	Human	Homo sapiens	refseq	14
+dest	mm10	Mouse	Mus musculus	refseq	9

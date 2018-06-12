@@ -1,0 +1,4 @@
+*.pyc
+.emacs.bak
+tests/output
+extern

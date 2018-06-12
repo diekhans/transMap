@@ -1,0 +1,112 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import sqlite3
+import argparse
+from transMap import getChromSizes
+from transMap.genomeData import AnnotationType
+from transMap.srcData import SourceDbTables
+from pycbio.sys import fileOps
+from pycbio.hgdata.hgLite import SequenceDbTable, PslDbTable
+import pipettor
+
+
+def parseArgs():
+    desc = """Validate a transmap source sqlite3 database
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("srcHgDb", help="""Genome database for assembly""")
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
+                        help="""annotation set type to obtain""")
+    parser.add_argument("srcDb",
+                        help="""sqlite3 database for source dataset""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+def getSeqSizes(srcDbConn, seqSizesFh):
+    srcSeqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl)
+    sql = "SELECT name, length(seq) FROM {table}"
+    for row in srcSeqTbl.query(sql, []):
+        fileOps.prRow(seqSizesFh, row)
+
+
+def getSeqSizesFile(srcHgDb, annotationType, srcDbConn):
+    tmpSeqSizes = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".sizes")
+    with open(tmpSeqSizes, "w") as seqSizesFh:
+        getSeqSizes(srcDbConn, seqSizesFh)
+    return tmpSeqSizes
+
+
+def writeSrcPsls(srcDbConn, pslFh):
+    srcAlignTbl = PslDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
+    for row in srcAlignTbl.query("SELECT {columns} FROM {table};", PslDbTable.columnNames):
+        fileOps.prRow(pslFh, row)
+
+
+def getPslFile(srcHgDb, annotationType, srcDbConn):
+    tmpPslFile = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".psl")
+    with open(tmpPslFile, "w") as pslFh:
+        writeSrcPsls(srcDbConn, pslFh)
+    return tmpPslFile
+
+
+def pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes):
+    pslCheckCmd = ("pslCheck", "-ignoreQUniq",
+                   "-querySizes={}".format(tmpSeqSizes),
+                   "-targetSizes={}".format(getChromSizes(srcHgDb)),
+                   tmpPslFile)
+    pipettor.run((pslCheckCmd,), stderr=None)
+
+
+def checkAlignments(srcHgDb, annotationType, srcDbConn):
+    tmpPslFile = getPslFile(srcHgDb, annotationType, srcDbConn)
+    tmpSeqSizes = getSeqSizesFile(srcHgDb, annotationType, srcDbConn)
+    pslCheck(srcHgDb, tmpPslFile, tmpSeqSizes)
+    fileOps.rmFiles(tmpPslFile, tmpSeqSizes)
+
+
+def checkZeroCount(srcDbConn, sql):
+    cur = srcDbConn.cursor()
+    cur.execute(sql)
+    row = cur.fetchone()
+    if row[0] != 0:
+        raise Exception("Expected 0 matching rows, got {} from {}".format(row[0], sql))
+    cur.close()
+
+
+def checkXRef(srcDbConn):
+    sql = """SELECT count(*) FROM {srcXRefTbl} """ \
+          """WHERE srcAlignId NOT IN (SELECT qName FROM {srcAlignTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                                 srcAlignTbl=SourceDbTables.srcAlignTbl)
+    checkZeroCount(srcDbConn, sql)
+    sql = """SELECT count(*) FROM {srcAlignTbl} """ \
+          """WHERE qName NOT IN (SELECT srcAlignId FROM {srcXRefTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                                srcAlignTbl=SourceDbTables.srcAlignTbl)
+    checkZeroCount(srcDbConn, sql)
+
+
+def checkMetadata(srcDbConn):
+    sql = """SELECT count(*) FROM {srcXRefTbl} """ \
+          """WHERE srcId NOT IN (SELECT srcId FROM {srcMetadataTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                               srcMetadataTbl=SourceDbTables.srcMetadataTbl)
+    checkZeroCount(srcDbConn, sql)
+    sql = """SELECT count(*) FROM {srcXRefTbl} """ \
+          """WHERE srcId NOT IN (SELECT srcId FROM {srcMetadataTbl})""".format(srcXRefTbl=SourceDbTables.srcXRefTbl,
+                                                                               srcMetadataTbl=SourceDbTables.srcMetadataTbl)
+    checkZeroCount(srcDbConn, sql)
+
+
+def checkTransMapSrcDb(srcHgDb, annotationType, srcDb):
+    srcDbConn = sqlite3.connect(srcDb)
+    checkAlignments(srcHgDb, annotationType, srcDbConn)
+    checkXRef(srcDbConn)
+    if annotationType != AnnotationType.est:
+        checkMetadata(srcDbConn)
+    srcDbConn.close()
+
+# entry
+opts = parseArgs()
+checkTransMapSrcDb(opts.srcHgDb, opts.annotationType, opts.srcDb)

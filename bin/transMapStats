@@ -1,0 +1,108 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import os
+import re
+import argparse
+import pipettor
+import logging
+import sqlite3
+from pycbio.sys import fileOps
+from transMap.transMapConf import transMapConfLoad
+from transMap.genomeData import Genomes, AnnotationType
+from transMap.srcData import SourceDbTables
+
+
+def parseArgs():
+    desc = """Get statistics about a current transMap build
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    parser.add_argument("outTsv",
+                        help="""write results to this file""")
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+header = ("use", "hgDb", "commonName", "scientificName", "annotationType", "count")
+
+
+def prStats(tsvFh, genomes, use, hgDb, annotationType, count):
+    hgDbAsm = genomes.genomeAsms[hgDb]
+    fileOps.prRowv(tsvFh, use, hgDb, hgDbAsm.commonName, hgDbAsm.scientificName,
+                   annotationType, count)
+
+
+def queryOneValue(conn, sql):
+    cur = conn.cursor()
+    try:
+        cur.execute(sql)
+        row = cur.fetchone()
+        if row is None:
+            raise Exception("no results from SQL query: {}".format(sql))
+        return row[0]
+    finally:
+        cur.close()
+
+
+def reportSrcHgDbAnnot(conf, tsvFh, genomes, srcHgDb, annotationType):
+    srcDb = conf.getSrcDb(srcHgDb, annotationType)
+    logging.getLogger().debug("srcDb: {}".format(srcDb))
+    if not os.path.exists(srcDb):
+        raise Exception("srcDb does not exists: {}".format(srcDb))
+    conn = sqlite3.connect(srcDb)
+    sql = "SELECT count(*) FROM {}".format(SourceDbTables.srcAlignTbl)
+    count = queryOneValue(conn, sql)
+    conn.close()
+    prStats(tsvFh, genomes, "src", srcHgDb, annotationType, count)
+
+
+def reportSrcHgDb(conf, tsvFh, genomes, srcHgDbAsm):
+    for annotationType in AnnotationType:
+        if annotationType in srcHgDbAsm.annotationTypeSet:
+            reportSrcHgDbAnnot(conf, tsvFh, genomes, srcHgDbAsm.hgDb, annotationType)
+
+
+def reportSrcs(conf, tsvFh, genomes):
+    for srcHgDb in genomes.getCandidateSrcHgDbs():
+        reportSrcHgDb(conf, tsvFh, genomes, genomes.genomeAsms[srcHgDb])
+
+
+def queryBigPslItemCount(bigPsl):
+    out = pipettor.runout(["bigBedInfo", bigPsl])
+    m = re.search("^itemCount: ([0-9,]+)$", out, re.DOTALL | re.MULTILINE)
+    return int(m.group(1).replace(',', ''))
+
+
+def reportDestHgDbAnnot(conf, tsvFh, genomes, destHgDb, annotationType):
+    bigPsl = conf.getMappedBigPslFileForDestHgDb(destHgDb, annotationType)
+    logging.getLogger().debug("mappedBigPsl: {}".format(bigPsl))
+    if not os.path.exists(bigPsl):
+        raise Exception("dest bigPsl does not exists: {}".format(bigPsl))
+    count = queryBigPslItemCount(bigPsl)
+    prStats(tsvFh, genomes, "dest", destHgDb, annotationType, count)
+
+
+def reportDests(conf, tsvFh, genomes):
+    for destDbMapping in genomes.getCandidateDestDbMappings():
+        reportDestHgDbAnnot(conf, tsvFh, genomes, destDbMapping.destHgDb, destDbMapping.annotationType)
+
+
+def writeTransMapStats(conf, tsvFh, genomes):
+    fileOps.prRow(tsvFh, header)
+    reportSrcs(conf, tsvFh, genomes)
+    reportDests(conf, tsvFh, genomes)
+
+
+def transMapStats(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    genomes = Genomes(conf)
+    with open(opts.outTsv, "w") as tsvFh:
+        writeTransMapStats(conf, tsvFh, genomes)
+
+
+# entry
+transMapStats(parseArgs())

@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import transMapProgSetup  # noqa: F401
+import os
+import argparse
+import pipettor
+from pycbio.sys import fileOps
+from transMap import setSortLocale, getChromSizes
+from transMap.genomeData import AnnotationType
+from transMap.transMapConf import transMapConfLoad
+from transMap.bigTransMap import bigTransMapSortMerge
+
+
+def parseArgs():
+    desc = """combine results of all transmap runs for a destDb into
+    a single bigPsl.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    transMapProgSetup.addCmdOptions(parser)
+    parser.add_argument("configPyFile",
+                        help="""configuration python file""")
+    parser.add_argument("destHgDb",
+                        help="""destination browser database """)
+    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
+                        help="""annotation set type""")
+    parser.add_argument("srcHgDbs", nargs="*",
+                        help="""source hgDb for all source assemblies """)
+    opts = parser.parse_args()
+    transMapProgSetup.setupFromCmd(opts)
+    return opts
+
+
+def getIndexFields(conf):
+    indexFields = ["name", "srcTransId"]
+    if conf.annotationType in (AnnotationType.refseq, AnnotationType.ensembl):
+        indexFields += ["geneName", "geneId"]
+    elif conf.annotationType in (AnnotationType.rna,):
+        indexFields += ["geneName"]
+    return indexFields
+
+
+def transMapBuildBigPsl(opts):
+    conf = transMapConfLoad(opts.configPyFile,
+                            destHgDb=opts.destHgDb,
+                            annotationType=opts.annotationType)
+    inPreBigPsls = [conf.getBatchSrcHgDbPreBigPsl(srcHgDb) for srcHgDb in opts.srcHgDbs]
+    mappedPreBigPsl = fileOps.tmpFileGet("transMap.dest.", "preBigPsl")
+    bigTransMapSortMerge(inPreBigPsls, mappedPreBigPsl)
+    fileOps.ensureFileDir(conf.mappedBigPslFile)
+    mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
+    pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
+                  "-as={}".format(conf.bigTransMapAsPath),
+                  "-extraIndex={}".format(",".join(getIndexFields(conf))),
+                  mappedPreBigPsl, getChromSizes(conf.destHgDb),
+                  mappedBigPslTmpFile])
+    # validate
+    pipettor.run([["bigPslToPsl", mappedBigPslTmpFile, "stdout"],
+                  ["pslCheck", "stdin"]])
+
+    fileOps.atomicInstall(mappedBigPslTmpFile, conf.mappedBigPslFile)
+    os.unlink(mappedPreBigPsl)
+
+
+setSortLocale()
+transMapBuildBigPsl(parseArgs())
