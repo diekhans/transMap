@@ -4,7 +4,8 @@ from pycbio.hgdata import hgDb
 from transMap import setSortLocale
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
-from pycbio.sys import fileOps, dbOps
+from pycbio.sys import fileOps
+from pycbio.db import mysqlOps
 
 
 def valOrNone(val):
@@ -17,18 +18,18 @@ def strOrNoneIfZero(val):
 
 def haveRnaTrack(hgDbConn, hgDb):
     "check if all_mrna exists"
-    return dbOps.haveTablesLike(hgDbConn, "all_mrna", hgDb)
+    return mysqlOps.haveTablesLike(hgDbConn, "all_mrna", hgDb)
 
 
 def haveEstTrack(hgDbConn, hgDb):
     "check if intronEst exists"
     # might be split
-    return dbOps.haveTablesLike(hgDbConn, "%intronEst", hgDb)
+    return mysqlOps.haveTablesLike(hgDbConn, "%intronEst", hgDb)
 
 
 def haveRefseqTrack(hgDbConn, hgDb):
     "check if refSeqAli exists"
-    return dbOps.haveTablesLike(hgDbConn, "refSeqAli", hgDb)
+    return mysqlOps.haveTablesLike(hgDbConn, "refSeqAli", hgDb)
 
 
 class GenbankHgData(object):
@@ -46,7 +47,7 @@ class GenbankHgData(object):
     def __getIntronEstTables(self):
         hgDbConn = hgDb.connect(self.srcHgDb)
         try:
-            return dbOps.getTablesLike(hgDbConn, "%intronEst", self.srcHgDb)
+            return mysqlOps.getTablesLike(hgDbConn, "%intronEst", self.srcHgDb)
         finally:
             hgDbConn.close()
 

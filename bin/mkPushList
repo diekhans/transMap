@@ -5,7 +5,7 @@ import transMapProgSetup  # noqa: F401
 from collections import defaultdict
 import os
 import argparse
-from pycbio.sys import dbOps
+from pycbio.db import mysqlOps
 from pycbio.hgdata import hgDb
 from transMap.genomeData import Genomes
 from transMap.transMapConf import transMapConfLoad
@@ -34,12 +34,12 @@ hgwbetaHgConf = os.path.expanduser("~/.hg.mysqlbeta.conf")
 
 
 def getActiveHgwbetaDbs(conn):
-    return frozenset([row[0] for row in dbOps.query(conn, "select name from {}.dbDb where active=1".format(hgwbetaCentralDb))])
+    return frozenset([row[0] for row in mysqlOps.query(conn, "select name from {}.dbDb where active=1".format(hgwbetaCentralDb))])
 
 
 def hasTransMapTrackDbs(conf, conn, destHgDb):
-    rows = list(dbOps.query(conn, "select count(*) from hg19.trackDb where tableName=%s;",
-                            ("transMap{}".format(conf.version),)))
+    rows = list(mysqlOps.query(conn, "select count(*) from hg19.trackDb where tableName=%s;",
+                               ("transMap{}".format(conf.version),)))
     return (rows[0][0] != 0)
 
 

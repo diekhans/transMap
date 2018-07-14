@@ -1,6 +1,7 @@
 import re
 from pycbio.hgdata import hgDb
-from pycbio.sys import fileOps, dbOps
+from pycbio.sys import fileOps
+from pycbio.db import mysqlOps
 from transMap import setSortLocale
 from transMap.srcData import SrcMetadata, getAccvSubselectClause
 import pipettor
@@ -19,18 +20,18 @@ def isEnsemblProjectionBuild(hgDbConn, srcHgDb):
     """does this ensembl appear to be a projection (full or mixed) gene build?
     this is determined by there being at least one transcript that is mapped multiple times"""
     sql = "SELECT count(*) cnt FROM (SELECT name, count(*) AS cnt FROM {srcHgDb}.{ensGeneTbl} GROUP BY name) AS counts WHERE counts.cnt > 2".format(srcHgDb=srcHgDb, ensGeneTbl=ensGeneTbl)
-    rows = list(dbOps.query(hgDbConn, sql))
+    rows = list(mysqlOps.query(hgDbConn, sql))
     return (rows[0]["cnt"] > 0)
 
 
 def haveEnsemblFull(hgDbConn, srcHgDb):
     """does this database have an Ensembl full or mixed build? (not projection"""
-    return (dbOps.haveTablesLike(hgDbConn, ensGeneTbl, db=srcHgDb)
+    return (mysqlOps.haveTablesLike(hgDbConn, ensGeneTbl, db=srcHgDb)
             and not isEnsemblProjectionBuild(hgDbConn, srcHgDb))
 
 
 def haveGencode(hgDbConn, srcHgDb):
-    return dbOps.haveTablesLike(hgDbConn, "{}%".format(gencodeCompTblBase), db=srcHgDb)
+    return mysqlOps.haveTablesLike(hgDbConn, "{}%".format(gencodeCompTblBase), db=srcHgDb)
 
 
 class EnsemblHgData(object):
@@ -53,7 +54,7 @@ class EnsemblHgData(object):
 
     def __getGencodeCompTables(self):
         tbls = []
-        for tbl in dbOps.getTablesLike(self.srcHgDbConn, "{}%".format(gencodeCompTblBase)):
+        for tbl in mysqlOps.getTablesLike(self.srcHgDbConn, "{}%".format(gencodeCompTblBase)):
             # skip lift tables
             if self.__parseGenbankVersion(tbl) is not None:
                 tbls.append(tbl)
