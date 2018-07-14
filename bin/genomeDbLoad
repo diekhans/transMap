@@ -72,10 +72,7 @@ def getEnsemblTypes(hgDbConn, hgDb):
 def getAnnotationTypes(hgDbConn, hgDb, genbankConf):
     annTypes = getGenbankTypes(hgDbConn, hgDb, genbankConf) \
         | getEnsemblTypes(hgDbConn, hgDb)
-    if len(annTypes) == 0:
-        return None
-    else:
-        return AnnotationTypeSet(annTypes)
+    return AnnotationTypeSet(annTypes)
 
 
 def orgShortName(scientificName):

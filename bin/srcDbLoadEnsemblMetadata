@@ -43,5 +43,6 @@ def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
     finally:
         srcDbConn.close()
 
+
 opts = parseArgs()
 getEnsemblMetadata(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testLimit)

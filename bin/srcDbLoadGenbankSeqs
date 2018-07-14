@@ -53,6 +53,7 @@ def getGenbankSeqs(srcHgDb, annotationType, srcDb):
     srcDbConn.close()
     fileOps.rmFiles(tmpAccFile, tmpSeqFa)
 
+
 # entry
 opts = parseArgs()
 getGenbankSeqs(opts.srcHgDb, opts.annotationType, opts.srcDb)

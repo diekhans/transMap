@@ -76,6 +76,7 @@ def accvToAcc(accver):
     """parse acc.ver into (acc, ver)"""
     return parseAccVer(accver)[0]
 
+
 _hgDbNameRe = re.compile("^([a-zA-Z]+)([0-9]+)$")
 
 

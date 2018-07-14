@@ -39,6 +39,7 @@ def srcDbLoadEnsemblAligns(srcHgDb, annotationType, srcDb, testAccvFile):
     finally:
         srcDbConn.close()
 
+
 # entry
 opts = parseArgs()
 srcDbLoadEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testAccvFile)

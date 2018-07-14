@@ -3,11 +3,12 @@
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import os
+import pickle
 import argparse
 from collections import defaultdict
 from pycbio.sys import fileOps
 from transMap.transMapConf import transMapConfLoad
-from transMap.genomeData import Genomes, AnnotationType, ChainType, mappingsFilter
+from transMap.genomeData import Genomes, AnnotationType, mappingsFilter
 import pipettor
 import luigi
 
@@ -51,9 +52,20 @@ class AnnotationTypeListParameter(luigi.Parameter):
         return map(AnnotationType, s)
 
 
-class ChainTypeParameter(luigi.Parameter):
+class MappingParameter(luigi.Parameter):
+    def serialize(self, mapping):
+        return pickle.dumps(mapping, 0)
+
     def parse(self, s):
-        return ChainType(s)
+        return pickle.loads(s)
+
+
+class MappingListParameter(luigi.Parameter):
+    def serialize(self, mapping):
+        return pickle.dumps(mapping, 0)
+
+    def parse(self, s):
+        return pickle.loads(s)
 
 
 class SrcDataTask(luigi.Task):
@@ -97,22 +109,19 @@ class SrcDataTask(luigi.Task):
 class MappingChainBuildTask(luigi.Task):
     task_namespace = 'transmap'
     configPyFile = luigi.Parameter()
-    srcHgDb = luigi.Parameter()
-    destHgDb = luigi.Parameter()
-    chainType = ChainTypeParameter()
+    mapping = MappingParameter()
 
     def __init__(self, *args, **kwargs):
         super(MappingChainBuildTask, self).__init__(*args, **kwargs)
-        self.chainType = ChainType(self.chainType)
-        self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, destHgDb=self.destHgDb,
-                                     chainType=self.chainType)
+        self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.mapping.srcHgDb, destHgDb=self.mapping.destHgDb,
+                                     chainType=self.mapping.chains.chainType)
 
     def run(self):
         mappingChainsTmp = fileOps.atomicTmpFile(self.conf.mappingChains)
         mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
 
         pipettor.run([os.path.join(self.conf.binDir, "mappingChainBuild"),
-                      self.conf.genomeDb, self.srcHgDb, self.destHgDb, self.chainType, mappingChainsTmp])
+                      self.conf.genomeDb, self.mapping.srcHgDb, self.mapping.destHgDb, self.mapping.chains.chainType, mappingChainsTmp])
 
         fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.conf.mappingChains))
         fileOps.atomicInstall(mappingChainsTmp, self.conf.mappingChains)
@@ -124,36 +133,29 @@ class MappingChainBuildTask(luigi.Task):
 class TransMapBatchTask(luigi.Task):
     task_namespace = 'transmap'
     configPyFile = luigi.Parameter()
-    srcHgDb = luigi.Parameter()
-    destHgDb = luigi.Parameter()
-    annotationType = AnnotationTypeParameter()
-    # chainType is uniquely defined by srcHgDb+destHgDb,  insignificant
-    # allows easy requires on this class
-    chainType = ChainTypeParameter(significant=False)
+    mapping = MappingParameter()
 
     def __init__(self, *args, **kwargs):
         super(TransMapBatchTask, self).__init__(*args, **kwargs)
-        self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, destHgDb=self.destHgDb,
-                                     chainType=self.chainType,
-                                     annotationType=self.annotationType)
+        self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.mapping.srcHgDb, destHgDb=self.mapping.destHgDb,
+                                     chainType=self.mapping.chains.chainType,
+                                     annotationType=self.mapping.annotationType)
 
     def run(self):
         # transMapBatch handles atomic file
         pipettor.run([os.path.join(self.conf.binDir, "transMapBatch"),
-                      self.configPyFile, self.srcHgDb, self.destHgDb,
-                      self.annotationType, self.chainType])
+                      self.configPyFile, self.mapping.srcHgDb, self.mapping.destHgDb,
+                      self.mapping.annotationType, self.mapping.chains.chainType])
 
     def requires(self):
         return [SrcDataTask(configPyFile=self.configPyFile,
-                            srcHgDb=self.srcHgDb,
-                            annotationType=self.annotationType),
+                            srcHgDb=self.mapping.srcHgDb,
+                            annotationType=self.mapping.annotationType),
                 MappingChainBuildTask(configPyFile=self.configPyFile,
-                                      srcHgDb=self.srcHgDb,
-                                      destHgDb=self.destHgDb,
-                                      chainType=self.chainType)]
+                                      mapping=self.mapping)]
 
     def output(self):
-        return luigi.LocalTarget(self.conf.getBatchSrcHgDbPreBigPsl(self.srcHgDb))
+        return luigi.LocalTarget(self.conf.getBatchSrcHgDbPreBigPsl(self.mapping.srcHgDb))
 
 
 class TransMapBuildBigPslTask(luigi.Task):
@@ -163,7 +165,7 @@ class TransMapBuildBigPslTask(luigi.Task):
     configPyFile = luigi.Parameter()
     destHgDb = luigi.Parameter()
     annotationType = AnnotationTypeParameter()
-    srcHgDbs = luigi.ListParameter()
+    mappings = MappingListParameter()
 
     def __init__(self, *args, **kwargs):
         super(TransMapBuildBigPslTask, self).__init__(*args, **kwargs)
@@ -178,20 +180,17 @@ class TransMapBuildBigPslTask(luigi.Task):
         # transMapBuildBigPsl handles atomic install
         pipettor.run([os.path.join(self.conf.binDir, "transMapBuildBigPsl"),
                       self.configPyFile, self.destHgDb,
-                      self.annotationType] + list(self.srcHgDbs))
+                      self.annotationType] + list(getMappingsSrcHgDbs(self.mappings)))
 
     def requires(self):
         # chain type is not significant.  Ensembl and gencode
         # get combined at this point
-        if self.__mappingExists():  # FIXME: document
-            return []
+        if self.__mappingExists():
+            return []   # mapping already exists
         else:
             return [TransMapBatchTask(configPyFile=self.configPyFile,
-                                      srcHgDb=srcHgDb,
-                                      destHgDb=self.destHgDb,
-                                      annotationType=self.annotationType,
-                                      chainType=None)
-                    for srcHgDb in self.srcHgDbs]
+                                      mapping=mapping)
+                    for mapping in self.mappings]
 
     def output(self):
         return luigi.LocalTarget(self.conf.mappedBigPslFile)
@@ -201,8 +200,7 @@ class TransMapDetailedStatsTask(luigi.Task):
     task_namespace = 'transmap'
     configPyFile = luigi.Parameter()
     destHgDb = luigi.Parameter()
-    srcHgDbs = luigi.ListParameter()
-    annotationTypes = AnnotationTypeListParameter()
+    mappings = MappingListParameter()
 
     def __init__(self, *args, **kwargs):
         super(TransMapDetailedStatsTask, self).__init__(*args, **kwargs)
@@ -216,33 +214,37 @@ class TransMapDetailedStatsTask(luigi.Task):
         fileOps.atomicInstall(detailedStatsTsvTmp, self.conf.detailedStatsTsv)
 
     def requires(self):
-        for annotationType in self.annotationTypes:
+        mappingsByAnnotType = splitMappingsByAnnotType(self.mappings)
+        for annotationType in mappingsByAnnotType.keys():
             yield TransMapBuildBigPslTask(configPyFile=self.conf.configPyFile,
                                           destHgDb=self.destHgDb,
                                           annotationType=annotationType,
-                                          srcHgDbs=self.srcHgDbs)
+                                          mappings=mappingsByAnnotType[annotationType])
 
     def output(self):
         return luigi.LocalTarget(self.conf.detailedStatsTsv)
 
 
-def splitMappings(mappings):
-    "return dict[destDB] of Mapping classes"
-    # FIXME: maybe getCandidateMappings should return a complex time and this would
-    # be easier
-    mappingsSplit = defaultdict(list)
+def splitMappingsByDestDb(mappings):
+    "return mapping split by destDb"
+    mappingsByDestDb = defaultdict(list)
     for mapping in mappings:
-        mappingsSplit[mapping.destHgDb].append(mapping)
-    return mappingsSplit
+        mappingsByDestDb[mapping.destHgDb].append(mapping)
+    return mappingsByDestDb
 
 
-def genomeDbBuild(conf, srcHgDbSubset, destHgDbSubset):
-    cmd = [os.path.join(conf.binDir, "genomeDbLoad")]
-    if srcHgDbSubset is not None:
-        cmd += ["--hgDb={}".format(hgDb) for hgDb in srcHgDbSubset]
-    if destHgDbSubset is not None:
-        cmd += ["--hgDb={}".format(hgDb) for hgDb in destHgDbSubset]
-    cmd.append(conf.configPyFile)
+def splitMappingsByAnnotType(mappings):
+    "return mapping split by annotation type"
+    mappingsByAnnotType = defaultdict(list)
+    for mapping in mappings:
+        mappingsByAnnotType[mapping.annotationType].append(mapping)
+    return mappingsByAnnotType
+
+def getMappingsSrcHgDbs(mappings):
+    return frozenset([m.srcHgDb for m in mappings])
+
+def genomeDbBuild(conf):
+    cmd = [os.path.join(conf.binDir, "genomeDbLoad"), conf.configPyFile]
     pipettor.run(cmd)
 
 
@@ -251,38 +253,33 @@ def genomeDbSetup(conf, opts):
     if opts.rebuildGenomeDb and os.path.exists(conf.genomeDb):
         os.unlink(conf.genomeDb)
     if not os.path.exists(conf.genomeDb):
-        genomeDbBuild(conf, opts.srcHgDbSubset, opts.destHgDbSubset)
+        genomeDbBuild(conf)
 
 
 def getDestHgDbMappingTasks(conf, destHgDb, mappings):
     srcHgDbs = set()
-    annotationTypes = set()
+
     # batches
     for mapping in mappings:
         srcHgDbs.add(mapping.srcHgDb)
-        annotationTypes.add(mapping.annotationType)
-        yield TransMapBatchTask(configPyFile=conf.configPyFile,
-                                srcHgDb=mapping.srcHgDb,
-                                destHgDb=mapping.destHgDb,
-                                annotationType=mapping.annotationType,
-                                chainType=mapping.chains.chainType)
+        yield TransMapBatchTask(configPyFile=conf.configPyFile, mapping=mapping)
+
     # combine into big psls
-    for annotationType in annotationTypes:
+    mappingsByAnnotType = splitMappingsByAnnotType(mappings)
+    for annotationType in mappingsByAnnotType.keys():
         yield TransMapBuildBigPslTask(configPyFile=conf.configPyFile,
                                       destHgDb=destHgDb,
                                       annotationType=annotationType,
-                                      srcHgDbs=list(srcHgDbs))
+                                      mappings=mappingsByAnnotType[annotationType])
 
     # build details stats
     yield TransMapDetailedStatsTask(configPyFile=conf.configPyFile,
-                                    destHgDb=destHgDb,
-                                    srcHgDbs=srcHgDbs,
-                                    annotationTypes=annotationTypes)
+                                    destHgDb=destHgDb, mappings=mappings)
 
 
-def getMappingTasks(conf, mappingsSplit):
-    for destHgDb in mappingsSplit.iterkeys():
-        for task in getDestHgDbMappingTasks(conf, destHgDb, mappingsSplit[destHgDb]):
+def getMappingTasks(conf, mappingsByDestDb):
+    for destHgDb in mappingsByDestDb.iterkeys():
+        for task in getDestHgDbMappingTasks(conf, destHgDb, mappingsByDestDb[destHgDb]):
             yield task
 
 
@@ -298,10 +295,10 @@ class StartTask(luigi.WrapperTask):
     def requires(self):
         conf = transMapConfLoad(self.configPyFile)
         genomes = Genomes(conf)
-        mappingsSplit = splitMappings(mappingsFilter(genomes.getCandidateMappings(),
-                                                     noneIfEmpty(self.srcHgDbSubset),
-                                                     noneIfEmpty(self.destHgDbSubset)))
-        for task in getMappingTasks(conf, mappingsSplit):
+        mappingsByDestDb = splitMappingsByDestDb(mappingsFilter(genomes.getCandidateMappings(),
+                                                                noneIfEmpty(self.srcHgDbSubset),
+                                                                noneIfEmpty(self.destHgDbSubset)))
+        for task in getMappingTasks(conf, mappingsByDestDb):
             yield task
 
 

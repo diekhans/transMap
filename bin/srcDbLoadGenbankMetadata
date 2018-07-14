@@ -43,5 +43,6 @@ def getGenbankMetadata(srcHgDb, annotationType, srcDb, testLimit):
     finally:
         srcDbConn.close()
 
+
 opts = parseArgs()
 getGenbankMetadata(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testLimit)

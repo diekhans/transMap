@@ -253,3 +253,5 @@ parasol list batches |awk '$2==1'
 tmdir=~/compbio/projs/transMap/transMap-dev
 pushd /hive/data/outside/transMap/V4
 (time nice ${tmdir}/bin/luigiTransMap --rebuildGenomeDb --destHgDb=micMur3 --workers=10 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2018-06-11.a.incr.log &
+
+(time nice ${tmdir}/bin/luigiTransMap --destHgDb=micMur3 --workers=10 --logConfFile=${tmdir}/etc/logging.conf ${tmdir}/etc/transMapBuildConf.py) >&logs/2018-06-11.a.incr.log &

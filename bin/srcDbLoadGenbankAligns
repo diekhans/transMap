@@ -38,6 +38,7 @@ def srcDbLoadGenbankAligns(srcHgDb, annotationType, srcDb, testAccFile):
     finally:
         srcDbConn.close()
 
+
 # entry
 opts = parseArgs()
 srcDbLoadGenbankAligns(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testAccFile)
