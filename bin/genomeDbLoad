@@ -8,7 +8,7 @@ from pycbio.hgdata import hgDb
 from pycbio.db.sqliteOps import sqliteConnect
 from transMap import hgDbNameCheck
 from transMap.transMapConf import transMapConfLoad
-from transMap.genomeData import GenomesDbTables, ChainsDbTable, GenomeAsm, GenomeAsmsDbTable, AnnotationType, AnnotationTypeSet
+from transMap.genomeData import GenomesDbTables, ChainsSqliteTable, GenomeAsm, GenomeAsmsSqliteTable, AnnotationType, AnnotationTypeSet
 from transMap.ensembl import haveEnsemblFull, haveGencode
 from transMap.chainsFinder import ChainsFinder
 from transMap.genbankConf import GenbankConf
@@ -90,7 +90,7 @@ def mkGenomeAsm(hgDbConn, dbDb, genbankConf):
 
 def loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf):
     genomeAsms = [mkGenomeAsm(hgDbConn, dbDb, genbankConf) for dbDb in activeDbDbs]
-    asmsTbl = GenomeAsmsDbTable(genomeDbConn, GenomesDbTables.genomeAsmsTbl, create=True)
+    asmsTbl = GenomeAsmsSqliteTable(genomeDbConn, GenomesDbTables.genomeAsmsTbl, create=True)
     asmsTbl.loads(genomeAsms)
     asmsTbl.index()
 
@@ -98,7 +98,7 @@ def loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf):
 def loadGenomicChains(genomeDbConn, activeHgDbs):
     chainsFinder = ChainsFinder()
     chains = chainsFinder.findChains(activeHgDbs)
-    chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl, True)
+    chainsTbl = ChainsSqliteTable(genomeDbConn, GenomesDbTables.chainsTbl, True)
     chainsTbl.loads(chains)
     chainsTbl.index()
 

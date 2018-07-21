@@ -6,7 +6,7 @@ import argparse
 from pycbio.sys import fileOps
 from pycbio.hgdata import dnaOps
 from pycbio.db.sqliteOps import sqliteConnect
-from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable, MappingChainLoc
+from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexSqliteTable, MappingChainLoc
 
 
 def parseArgs():
@@ -58,7 +58,7 @@ def mappingChainIndex(mappingChainsIndexDb, chainFile):
         chainsLocs = generateChainIndex(chainFh)
     fileOps.ensureFileDir(mappingChainsIndexDb)
     indexDbConn = sqliteConnect(mappingChainsIndexDb, create=True)
-    indexDbTbl = MappingChainsIndexDbTable(indexDbConn, MappingChainsDbTables.mappingChainsTbl, create=True)
+    indexDbTbl = MappingChainsIndexSqliteTable(indexDbConn, MappingChainsDbTables.mappingChainsTbl, create=True)
     indexDbTbl.loads(chainsLocs)
     indexDbTbl.index()
 

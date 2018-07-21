@@ -3,7 +3,7 @@ Database with range index into temporary mapping chains.  Chains are
 not loaded into
 """
 from collections import namedtuple
-from pycbio.hgdata.hgLite import HgLiteTable
+from pycbio.hgdata.hgSqlite import HgSqliteTable
 from pycbio.hgdata.rangeFinder import Binner
 
 
@@ -25,7 +25,7 @@ class MappingChainLoc(namedtuple("MappingChainsIndex",
         return MappingChainLoc(bin, qName, qStart, qEnd, chainId, offset, length)
 
 
-class MappingChainsIndexDbTable(HgLiteTable):
+class MappingChainsIndexSqliteTable(HgSqliteTable):
     """
     Database table containing index into mapping chains.
     query confidantes are kept in terms of positive strand.
@@ -44,7 +44,7 @@ class MappingChainsIndexDbTable(HgLiteTable):
     columnNames = ("bin", "qName", "qStart", "qEnd", "chainId", "offset", "length")
 
     def __init__(self, conn, table, create=False):
-        super(MappingChainsIndexDbTable, self).__init__(conn, table)
+        super(MappingChainsIndexSqliteTable, self).__init__(conn, table)
         if create:
             self.create()
 

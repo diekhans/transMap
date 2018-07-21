@@ -6,7 +6,7 @@ import argparse
 from pycbio.sys import fileOps
 from pycbio.db.sqliteOps import sqliteConnect
 from transMap.genomeData import AnnotationType
-from transMap.srcData import SourceDbTables, SrcMetadataDbTable, SrcAlignDbTable
+from transMap.srcData import SourceDbTables, SrcMetadataSqliteTable, SrcAlignSqliteTable
 from transMap.ensembl import EnsemblHgData
 
 
@@ -29,7 +29,7 @@ def parseArgs():
 
 
 def getTestLimitAccv(srcDbConn):
-    return SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
+    return SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
 
 
 def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
@@ -39,7 +39,7 @@ def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
     try:
         testAccvSubset = getTestLimitAccv(srcDbConn) if testLimit else None
         metadataReader = ensemblHgData.metadataReader(testAccvSubset)
-        SrcMetadataDbTable.loadStep(srcDbConn, metadataReader)
+        SrcMetadataSqliteTable.loadStep(srcDbConn, metadataReader)
     finally:
         srcDbConn.close()
 

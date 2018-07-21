@@ -1,10 +1,12 @@
 """
-sqllite3 databases objects for transmap intermediate data.
+sqlite3 databases objects for transmap intermediate data.
 """
 
 from collections import namedtuple
 from transMap import alignIdToSrcId, srcIdToAccv, accvToAcc
-from pycbio.hgdata.hgLite import HgLiteTable, SequenceDbTable, PslDbTable
+from pycbio.hgdata.hgSqlite import HgSqliteTable
+from pycbio.hgdata.sequenceSqlite import SequenceSqliteTable
+from pycbio.hgdata.pslSqlite import PslSqliteTable
 
 
 # FIXME: just use standard table names here.
@@ -23,7 +25,7 @@ class SrcMetadata(namedtuple("SrcMetadata", ("srcId", "accv", "cds", "geneName",
     __slots__ = ()
 
 
-class SrcMetadataDbTable(HgLiteTable):
+class SrcMetadataSqliteTable(HgSqliteTable):
     """
     Source metadata database table
     """
@@ -42,7 +44,7 @@ class SrcMetadataDbTable(HgLiteTable):
                    "transcriptType")
 
     def __init__(self, conn, table, create=False):
-        super(SrcMetadataDbTable, self).__init__(conn, table)
+        super(SrcMetadataSqliteTable, self).__init__(conn, table)
         if create:
             self.create()
 
@@ -69,7 +71,7 @@ class SrcMetadataDbTable(HgLiteTable):
     @staticmethod
     def loadStep(srcDbConn, metadataReader):
         "function to load and index"
-        srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl, True)
+        srcMetadataTbl = SrcMetadataSqliteTable(srcDbConn, SourceDbTables.srcMetadataTbl, True)
         srcMetadataTbl.loads(list(metadataReader))
         srcMetadataTbl.index()
 
@@ -85,7 +87,7 @@ class SrcXRef(namedtuple("SrcXRef", ("srcAlignId", "srcId", "accv"))):
         return SrcXRef(srcAlignId, srcId, srcIdToAccv(srcId))
 
 
-class SrcXRefDbTable(HgLiteTable):
+class SrcXRefSqliteTable(HgSqliteTable):
     """
     transmap source id and accession
     """
@@ -99,7 +101,7 @@ class SrcXRefDbTable(HgLiteTable):
     columnNames = ("srcAlignId", "srcId", "accv")
 
     def __init__(self, conn, table, create=False):
-        super(SrcXRefDbTable, self).__init__(conn, table)
+        super(SrcXRefSqliteTable, self).__init__(conn, table)
         if create:
             self.create()
 
@@ -128,11 +130,11 @@ class SrcXRefDbTable(HgLiteTable):
             yield row[0]
 
 
-class SrcAlignDbTable(PslDbTable):
+class SrcAlignSqliteTable(PslSqliteTable):
     """Source alignments, in PSL format.  Normally sorted by target
     to speed up alignment pipeline"""
     def __init__(self, conn, table, create=False):
-        super(SrcAlignDbTable, self).__init__(conn, table, create)
+        super(SrcAlignSqliteTable, self).__init__(conn, table, create)
 
     def getAllAccv(self):
         """get set of accv for PSLs that were loaded; use to restrict set for testing"""
@@ -151,11 +153,11 @@ def srcAlignXRefLoad(srcDbConn, alignReader):
     srcXRefs = [SrcXRef.fromSrcAlignId(psl[9]) for psl in psls]
 
     with srcDbConn:
-        srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl, True)
+        srcAlignTbl = SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl, True)
         srcAlignTbl.loads(psls)
         srcAlignTbl.index()
 
-        srcXRefTbl = SrcXRefDbTable(srcDbConn, SourceDbTables.srcXRefTbl, True)
+        srcXRefTbl = SrcXRefSqliteTable(srcDbConn, SourceDbTables.srcXRefTbl, True)
         srcXRefTbl.loads(srcXRefs)
         srcXRefTbl.index()
 
@@ -165,11 +167,11 @@ def getAccvSubselectClause(field, accvSet):
 
 
 def loadSeqFa(tmpSeqFa, srcDbConn):
-    seqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl, True)
+    seqTbl = SequenceSqliteTable(srcDbConn, SourceDbTables.srcSeqTbl, True)
     seqTbl.loadFastaFile(tmpSeqFa)
     seqTbl.index()
 
 
 def querySrcPsls(srcDbConn):
-    srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
-    return srcAlignTbl.query("SELECT {columns} FROM {table};", SrcAlignDbTable.columnNames)
+    srcAlignTbl = SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl)
+    return srcAlignTbl.query("SELECT {columns} FROM {table};", SrcAlignSqliteTable.columnNames)

@@ -6,7 +6,7 @@ import argparse
 from pycbio.db.sqliteOps import sqliteConnect
 import pipettor
 from pycbio.sys import fileOps
-from transMap.genomeData import GenomesDbTables, ChainsDbTable, ChainType
+from transMap.genomeData import GenomesDbTables, ChainsSqliteTable, ChainType
 
 
 def parseArgs():
@@ -33,7 +33,7 @@ def parseArgs():
 def getChains(genomeDbConn, srcHgDb, destHgDb, chainType):
     # all except rbest are derived from all chains
     inChainType = ChainType.rbest if chainType == ChainType.rbest else ChainType.all
-    chainsTbl = ChainsDbTable(genomeDbConn, GenomesDbTables.chainsTbl)
+    chainsTbl = ChainsSqliteTable(genomeDbConn, GenomesDbTables.chainsTbl)
     chains = chainsTbl.queryByDbsType(srcHgDb, destHgDb, inChainType)
     if chains is None:
         raise Exception("chains in database not found for {} {} {}".format(srcHgDb, destHgDb, chainType))

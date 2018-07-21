@@ -2,7 +2,7 @@
 from collections import namedtuple, defaultdict
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import fileOps
-from pycbio.hgdata.hgLite import HgLiteTable
+from pycbio.hgdata.hgSqlite import HgSqliteTable
 from pycbio.db.sqliteOps import sqliteConnect
 from transMap import hgDbNameParse
 
@@ -60,7 +60,7 @@ class Chains(namedtuple("Chains",
         return (self.srcHgDb, self.destHgDb, str(self.chainType), self.chainFile, self.netFile)
 
 
-class ChainsDbTable(HgLiteTable):
+class ChainsSqliteTable(HgSqliteTable):
     """Interface todata on chains stored in the database"""
     __createSql = """CREATE TABLE {table} (
             srcHgDb text not null,
@@ -75,7 +75,7 @@ class ChainsDbTable(HgLiteTable):
     columnNames = ("srcHgDb", "destHgDb", "chainType", "chainFile", "netFile")
 
     def __init__(self, conn, table, create=False):
-        super(ChainsDbTable, self).__init__(conn, table)
+        super(ChainsSqliteTable, self).__init__(conn, table)
         if create:
             self._create(self.__createSql)
 
@@ -132,7 +132,7 @@ class GenomeAsm(namedtuple("GenomeAsm",
         return (self.hgDb, self.clade, self.commonName, self.scientificName, self.orgAbbrev, str(self.annotationTypeSet))
 
 
-class GenomeAsmsDbTable(HgLiteTable):
+class GenomeAsmsSqliteTable(HgSqliteTable):
     """Interface todata on chains stored in the database"""
     __createSql = """CREATE TABLE {table} (
             hgDb text not null,
@@ -149,7 +149,7 @@ class GenomeAsmsDbTable(HgLiteTable):
                    "orgAbbrev", "annotationTypeSet",)
 
     def __init__(self, conn, table, create=False):
-        super(GenomeAsmsDbTable, self).__init__(conn, table)
+        super(GenomeAsmsSqliteTable, self).__init__(conn, table)
         if create:
             self._create(self.__createSql)
 
@@ -221,10 +221,10 @@ class Genomes(object):
         self.genomeDbConn = sqliteConnect(conf.genomeDb)
         self.__loadGenomes()
         self.__finish()
-        self.chainsTbl = ChainsDbTable(self.genomeDbConn, GenomesDbTables.chainsTbl)
+        self.chainsTbl = ChainsSqliteTable(self.genomeDbConn, GenomesDbTables.chainsTbl)
 
     def __loadGenomes(self):
-        genomeAsmsTbl = GenomeAsmsDbTable(self.genomeDbConn, GenomesDbTables.genomeAsmsTbl)
+        genomeAsmsTbl = GenomeAsmsSqliteTable(self.genomeDbConn, GenomesDbTables.genomeAsmsTbl)
         for genomeAsm in genomeAsmsTbl.queryByClades(self.conf.clades):
             self.__addGenomeAsm(genomeAsm)
 

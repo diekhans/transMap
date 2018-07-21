@@ -6,7 +6,8 @@ from transMap import getChromSizes
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables
 from pycbio.sys import fileOps
-from pycbio.hgdata.hgLite import SequenceDbTable, PslDbTable
+from pycbio.hgdata.sequenceSqlite import SequenceSqliteTable
+from pycbio.hgdata.pslSqlite import PslSqliteTable
 from pycbio.db.sqliteOps import sqliteConnect
 import pipettor
 
@@ -27,7 +28,7 @@ def parseArgs():
 
 
 def getSeqSizes(srcDbConn, seqSizesFh):
-    srcSeqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl)
+    srcSeqTbl = SequenceSqliteTable(srcDbConn, SourceDbTables.srcSeqTbl)
     sql = "SELECT name, length(seq) FROM {table}"
     for row in srcSeqTbl.query(sql, []):
         fileOps.prRow(seqSizesFh, row)
@@ -41,8 +42,8 @@ def getSeqSizesFile(srcHgDb, annotationType, srcDbConn):
 
 
 def writeSrcPsls(srcDbConn, pslFh):
-    srcAlignTbl = PslDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
-    for row in srcAlignTbl.query("SELECT {columns} FROM {table};", PslDbTable.columnNames):
+    srcAlignTbl = PslSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl)
+    for row in srcAlignTbl.query("SELECT {columns} FROM {table};", PslSqliteTable.columnNames):
         fileOps.prRow(pslFh, row)
 
 

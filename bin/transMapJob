@@ -13,11 +13,11 @@ from pycbio.hgdata.psl import PslTbl
 from pycbio.db.sqliteOps import sqliteConnect, sqliteHaveTable
 from transMap import setSortLocale
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
-from transMap.genomeData import AnnotationType, ChainType, GenomesDbTables, GenomeAsmsDbTable
-from transMap.srcData import SourceDbTables, SrcAlignDbTable, SrcMetadataDbTable
+from transMap.genomeData import AnnotationType, ChainType, GenomesDbTables, GenomeAsmsSqliteTable
+from transMap.srcData import SourceDbTables, SrcAlignSqliteTable, SrcMetadataSqliteTable
 from transMap.bigTransMap import bigTransMapMakeRec
-from pycbio.hgdata.hgLite import SequenceDbTable
-from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexDbTable
+from pycbio.hgdata.sequenceSqlite import SequenceSqliteTable
+from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexSqliteTable
 from transMap.transMapConf import transMapConfLoad
 
 
@@ -53,7 +53,7 @@ def parseArgs():
 def getSrcGenomeAsm(conf):
     """get GenomeAsm record for srcDb"""
     conn = sqliteConnect(conf.genomeDb)
-    genomeAsmTbl = GenomeAsmsDbTable(conn, GenomesDbTables.genomeAsmsTbl)
+    genomeAsmTbl = GenomeAsmsSqliteTable(conn, GenomesDbTables.genomeAsmsTbl)
     recs = list(genomeAsmTbl.queryByHdDb(conf.srcHgDb))
     if len(recs) != 1:
         raise Exception("expected 1 record for {} {} got {} record".format(conf.genomeDb, conf.srcHgDb, len(recs)))
@@ -66,7 +66,7 @@ class SrcPslGroups(dict):
     Object is index by Coords. This prevents reading unnecessary chains.  Doing
     this is the cluster jobs simplifies batch setup."""
     def __init__(self, srcDbConn, startOid, endOid):
-        pslq = deque(SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl).getByOid(startOid, endOid))
+        pslq = deque(SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl).getByOid(startOid, endOid))
         self.__groupAligns(pslq)
 
     def __groupAligns(self, pslq):
@@ -115,7 +115,7 @@ class MappingChains(object):
     def __init__(self, mappingChainsFile, chainType):
         self.conn = sqliteConnect("{}.db".format(mappingChainsFile))
         self.chainType = chainType
-        self.indexTbl = MappingChainsIndexDbTable(self.conn, MappingChainsDbTables.mappingChainsTbl)
+        self.indexTbl = MappingChainsIndexSqliteTable(self.conn, MappingChainsDbTables.mappingChainsTbl)
         self.fh = open(mappingChainsFile)
 
     def dumpToTmpFile(self, coords, tmpFile):
@@ -235,10 +235,10 @@ def transMapJob(opts):
                             chainType=opts.chainType)
     srcDbConn = sqliteConnect(conf.srcDb)
     if sqliteHaveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
-        srcMetadataTbl = SrcMetadataDbTable(srcDbConn, SourceDbTables.srcMetadataTbl)
+        srcMetadataTbl = SrcMetadataSqliteTable(srcDbConn, SourceDbTables.srcMetadataTbl)
     else:
         srcMetadataTbl = None  # ESTs
-    srcSeqTbl = SequenceDbTable(srcDbConn, SourceDbTables.srcSeqTbl)
+    srcSeqTbl = SequenceSqliteTable(srcDbConn, SourceDbTables.srcSeqTbl)
     mappingChains = MappingChains(conf.mappingChains, conf.chainType)
     srcPslGroups = SrcPslGroups(srcDbConn, opts.startOid, opts.endOid)
 

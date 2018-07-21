@@ -11,7 +11,7 @@ from pycbio.db.sqliteOps import sqliteConnect
 from transMap import setSortLocale
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import AnnotationType, ChainType
-from transMap.srcData import SourceDbTables, SrcAlignDbTable
+from transMap.srcData import SourceDbTables, SrcAlignSqliteTable
 from transMap.bigTransMap import bigTransMapSortMerge
 
 
@@ -41,7 +41,7 @@ def parseArgs():
 def getSrcAlignOidRange(conf):
     srcDbConn = sqliteConnect(conf.srcDb)
     try:
-        srcAlignTbl = SrcAlignDbTable(srcDbConn, SourceDbTables.srcAlignTbl)
+        srcAlignTbl = SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl)
         return srcAlignTbl.getOidRange()
     finally:
         srcDbConn.close()
