@@ -56,7 +56,7 @@ srcDbLoadGenbankAlignsTests: ${genbankTypes:%=%_srcDbLoadGenbankAlignsTest}
 	rm -f output/$@.db
 	${srcDbLoadGenbankAligns} --testAccFile=input/$*.acc $(call srcDbLoadTestDb,$*) $* output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
-	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
+	sqlite3 -batch output/$@.db '.header on' 'select * from srcXRef order by srcAlignId' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
 	${diff} expected/$@.xref output/$@.xref
 
@@ -81,7 +81,7 @@ srcDbLoadGenbankMetadataTests: ${genbankMetaTypes:%=%_srcDbLoadGenbankMetadataTe
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
 	${srcDbLoadGenbankMetadata} --testLimit $(call srcDbLoadTestDb,$*) $* output/$@.db
-	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
+	sqlite3 -batch output/$@.db '.header on' 'select * from srcMetadata order by srcId' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
 
 ##
@@ -93,7 +93,7 @@ srcDbLoadEnsemblAlignsTests: ${ensemblTypes:%=%_srcDbLoadEnsemblAlignsTest}
 	rm -f output/$@.db
 	${srcDbLoadEnsemblAligns} --testAccvFile=input/$*.accv $(call srcDbLoadTestDb,$*) ensembl output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
-	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
+	sqlite3 -batch output/$@.db '.header on' 'select * from srcXRef order by srcAlignId' >output/$@.xref
 	${diff} expected/$@.psl+bin output/$@.psl+bin
 	${diff} expected/$@.xref output/$@.xref
 
@@ -120,7 +120,7 @@ srcDbLoadEnsemblMetadataTests: ${ensemblTypes:%=%_srcDbLoadEnsemblMetadataTest}
 	rm -f output/$@.db
 	sqlite3 -batch output/$@.db < input/$*_align.sql
 	${srcDbLoadEnsemblMetadata} --testLimit $(call srcDbLoadTestDb,$*) ensembl output/$@.db
-	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
+	sqlite3 -batch output/$@.db '.header on'  'select * from srcMetadata order by srcId' >output/$@.meta
 	${diff} expected/$@.meta output/$@.meta
 
 ##
@@ -131,8 +131,8 @@ srcDbLoadEnsemblCompatTest: mkdirs
 	${srcDbLoadEnsemblSeqs} fr3 ensembl output/$@.db
 	${srcDbLoadEnsemblMetadata} --testLimit fr3 ensembl output/$@.db
 	sqlite3 -batch output/$@.db '.header off' 'select * from srcAlign' >output/$@.psl+bin
-	sqlite3 -batch output/$@.db 'select * from srcXRef' >output/$@.xref
-	sqlite3 -batch output/$@.db  'select * from srcMetadata' >output/$@.meta
+	sqlite3 -batch output/$@.db '.header on' 'select * from srcXRef order by srcAlignId' >output/$@.xref
+	sqlite3 -batch output/$@.db '.header on' 'select * from srcMetadata order by srcId' >output/$@.meta
 	sqlite3 -batch output/$@.db '.header on' 'select name, length(seq) as length from srcSeq order by name' >output/$@.fa.ids
 	${srcDbCheck} fr3 ensembl output/$@.db
 	${diff} expected/$@.fa.ids output/$@.fa.ids

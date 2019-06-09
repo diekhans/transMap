@@ -5,7 +5,7 @@ import transMapProgSetup  # noqa: F401
 import argparse
 from pycbio.sys import fileOps
 from pycbio.hgdata import dnaOps
-from pycbio.db.sqliteOps import sqliteConnect
+from pycbio.db import sqliteOps
 from transMap.mappingChainData import MappingChainsDbTables, MappingChainsIndexSqliteTable, MappingChainLoc
 
 
@@ -57,7 +57,7 @@ def mappingChainIndex(mappingChainsIndexDb, chainFile):
     with open(chainFile) as chainFh:
         chainsLocs = generateChainIndex(chainFh)
     fileOps.ensureFileDir(mappingChainsIndexDb)
-    indexDbConn = sqliteConnect(mappingChainsIndexDb, create=True)
+    indexDbConn = sqliteOps.connect(mappingChainsIndexDb, create=True)
     indexDbTbl = MappingChainsIndexSqliteTable(indexDbConn, MappingChainsDbTables.mappingChainsTbl, create=True)
     indexDbTbl.loads(chainsLocs)
     indexDbTbl.index()

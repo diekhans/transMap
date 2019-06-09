@@ -38,8 +38,8 @@ class GenbankConf(dict):
         self.defaultConf = GenbankDbConf("default", None)
         self.__load(confRaFile)
 
-    # parse clusterGenome line, used so we find entries that are all defaults
-    parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.clusterGenome\s*=")
+    # parse serverGenome line, used so we find entries that are all defaults
+    parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.serverGenome\s*=")
 
     # parse a cDNA line        1                2                  3                     4                  5
     parseAnnSetRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")

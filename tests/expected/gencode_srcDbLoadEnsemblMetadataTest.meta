@@ -1,3 +1,4 @@
+srcId	accv	cds	geneName	geneId	geneType	transcriptType
 hg19:ENST00000254770.2	ENST00000254770.2	579..1931	LANCL2	ENSG00000132434.5	protein_coding	protein_coding
 hg19:ENST00000285279.5	ENST00000285279.5	202..720	VOPP1	ENSG00000154978.8	protein_coding	protein_coding
 hg19:ENST00000414113.1	ENST00000414113.1	284..539	VOPP1	ENSG00000154978.8	protein_coding	protein_coding

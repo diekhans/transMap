@@ -8,7 +8,7 @@ from transMap.srcData import SourceDbTables
 from pycbio.sys import fileOps
 from pycbio.hgdata.sequenceSqlite import SequenceSqliteTable
 from pycbio.hgdata.pslSqlite import PslSqliteTable
-from pycbio.db.sqliteOps import sqliteConnect
+from pycbio.db import sqliteOps
 import pipettor
 
 
@@ -101,7 +101,7 @@ def checkMetadata(srcDbConn):
 
 
 def checkTransMapSrcDb(srcHgDb, annotationType, srcDb):
-    srcDbConn = sqliteConnect(srcDb)
+    srcDbConn = sqliteOps.connect(srcDb)
     checkAlignments(srcHgDb, annotationType, srcDbConn)
     checkXRef(srcDbConn)
     if annotationType != AnnotationType.est:

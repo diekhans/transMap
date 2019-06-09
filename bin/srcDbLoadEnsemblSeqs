@@ -6,7 +6,7 @@ import argparse
 from transMap.genomeData import AnnotationType
 from transMap import alignIdToSrcId
 from transMap.srcData import querySrcPsls, loadSeqFa
-from pycbio.db.sqliteOps import sqliteConnect
+from pycbio.db import sqliteOps
 from pycbio.sys import fileOps
 import pipettor
 
@@ -56,7 +56,7 @@ def getSeqFasta(srcHgDb, annotationType, srcGp):
 
 def getEnsemblSeqs(srcHgDb, annotationType, srcDb):
     fileOps.ensureFileDir(srcDb)
-    srcDbConn = sqliteConnect(srcDb, create=True)
+    srcDbConn = sqliteOps.connect(srcDb, create=True)
     tmpSrcGp = getSrcGenePred(srcHgDb, annotationType, srcDbConn)
     tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpSrcGp)
     loadSeqFa(tmpSeqFa, srcDbConn)

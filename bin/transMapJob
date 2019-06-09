@@ -10,7 +10,7 @@ from collections import deque
 from pycbio.hgdata.coords import Coords
 from pycbio.sys import fileOps
 from pycbio.hgdata.psl import PslTbl
-from pycbio.db.sqliteOps import sqliteConnect, sqliteHaveTable
+from pycbio.db import sqliteOps
 from transMap import setSortLocale
 from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
 from transMap.genomeData import AnnotationType, ChainType, GenomesDbTables, GenomeAsmsSqliteTable
@@ -52,7 +52,7 @@ def parseArgs():
 
 def getSrcGenomeAsm(conf):
     """get GenomeAsm record for srcDb"""
-    conn = sqliteConnect(conf.genomeDb)
+    conn = sqliteOps.connect(conf.genomeDb)
     genomeAsmTbl = GenomeAsmsSqliteTable(conn, GenomesDbTables.genomeAsmsTbl)
     recs = list(genomeAsmTbl.queryByHdDb(conf.srcHgDb))
     if len(recs) != 1:
@@ -113,7 +113,7 @@ class SrcPslGroups(dict):
 
 class MappingChains(object):
     def __init__(self, mappingChainsFile, chainType):
-        self.conn = sqliteConnect("{}.db".format(mappingChainsFile))
+        self.conn = sqliteOps.connect("{}.db".format(mappingChainsFile))
         self.chainType = chainType
         self.indexTbl = MappingChainsIndexSqliteTable(self.conn, MappingChainsDbTables.mappingChainsTbl)
         self.fh = open(mappingChainsFile)
@@ -233,8 +233,8 @@ def transMapJob(opts):
                             destHgDb=opts.destHgDb,
                             annotationType=opts.annotationType,
                             chainType=opts.chainType)
-    srcDbConn = sqliteConnect(conf.srcDb)
-    if sqliteHaveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
+    srcDbConn = sqliteOps.connect(conf.srcDb)
+    if sqliteOps.haveTable(srcDbConn, SourceDbTables.srcMetadataTbl):
         srcMetadataTbl = SrcMetadataSqliteTable(srcDbConn, SourceDbTables.srcMetadataTbl)
     else:
         srcMetadataTbl = None  # ESTs

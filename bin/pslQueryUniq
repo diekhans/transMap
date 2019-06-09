@@ -1,22 +1,22 @@
 #!/usr/bin/awk -f
 #
-#  pslQueryUniq [-p prefix] [psl1 ...]
+#  pslQueryUniq [--prefix prefix] [psl1 ...]
 #
 # make PSL qNames unique.  This always adds something to the qName, so it's is
 # consistent if run multiple times on the same data.  First time it's run, it
 # adds a -n (acc-1, acc-2), subsequent runs add another period and number.
-# (acc-1.1, acc-1.2, acc-2.1) If -p is specified, the prefixed is added to the accession.
+# (acc-1.1, acc-1.2, acc-2.1) If -p is specified, the prefix is added to the accession.
 BEGIN {
     FS = "\t";
     OFS = "\t";
     iarg = 1;
-    while (ARGV[iarg] ~ "^-") {
-        if (ARGV[iarg] == "-p") {
+    while (ARGV[iarg] ~ "^--") {
+        if (ARGV[iarg] == "--prefix") {
             prefix = ARGV[iarg+1];
             ARGV[iarg] = ARGV[iarg+1] = "";
             iarg += 2;
         } else {
-            print "Invalid option" >stderr
+            print "Invalid option" >"/dev/stderr"
             exit(1)
         }
     }

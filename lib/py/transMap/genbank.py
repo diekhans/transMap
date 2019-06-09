@@ -88,7 +88,7 @@ class GenbankHgData(object):
         else:
             getAlignCmd, tmpPslFile = self.__getPslCmdSplit(pslTables, testAccSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
-        uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
+        uniqCmd = ("pslQueryUniq", "--prefix", "{}:".format(self.srcHgDb))
         with pipettor.Popen([getAlignCmd, sortCmd, uniqCmd]) as fh:
             for line in fh:
                 yield line.rstrip().split("\t")

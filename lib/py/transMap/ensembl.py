@@ -81,6 +81,8 @@ class EnsemblHgData(object):
               "exonCount, exonStarts, exonEnds, score, name2, cdsStartStat, cdsEndStat, exonFrames " \
               "FROM {}".format(self.__getGenePredTbl())
         if testAccvSubset is not None:
+            if len(testAccvSubset) == 0:
+                raise Exception("empty testAccvSubset provided for {}".format(self.srcHgDb))
             sql += " WHERE {}".format(getAccvSubselectClause("name", testAccvSubset))
         return sql
 
@@ -95,7 +97,7 @@ class EnsemblHgData(object):
         setSortLocale()
         getGenePredCmd, toPslCmd = self.__getGenePredToPslCmds("/dev/stdout", "/dev/null", testAccvSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
-        uniqCmd = ("pslQueryUniq", "-p", "{}:".format(self.srcHgDb))
+        uniqCmd = ("pslQueryUniq", "--prefix", "{}:".format(self.srcHgDb))
         with pipettor.Popen([getGenePredCmd, toPslCmd, sortCmd, uniqCmd], "r") as fh:
             for line in fh:
                 yield line.rstrip().split("\t")

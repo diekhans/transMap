@@ -240,8 +240,10 @@ def splitMappingsByAnnotType(mappings):
         mappingsByAnnotType[mapping.annotationType].append(mapping)
     return mappingsByAnnotType
 
+
 def getMappingsSrcHgDbs(mappings):
     return frozenset([m.srcHgDb for m in mappings])
+
 
 def genomeDbBuild(conf):
     cmd = [os.path.join(conf.binDir, "genomeDbLoad"), conf.configPyFile]

@@ -3,7 +3,7 @@ from collections import namedtuple, defaultdict
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import fileOps
 from pycbio.hgdata.hgSqlite import HgSqliteTable
-from pycbio.db.sqliteOps import sqliteConnect
+from pycbio.db import sqliteOps
 from transMap import hgDbNameParse
 
 
@@ -218,7 +218,7 @@ class Genomes(object):
         self.orgs = dict()         # commmonName to Organism (-> GenomeDb)
         self.hgDbToOrg = dict()
 
-        self.genomeDbConn = sqliteConnect(conf.genomeDb)
+        self.genomeDbConn = sqliteOps.connect(conf.genomeDb)
         self.__loadGenomes()
         self.__finish()
         self.chainsTbl = ChainsSqliteTable(self.genomeDbConn, GenomesDbTables.chainsTbl)

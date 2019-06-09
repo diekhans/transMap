@@ -4,7 +4,7 @@ from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import argparse
 from pycbio.sys import fileOps
-from pycbio.db.sqliteOps import sqliteConnect
+from pycbio.db import sqliteOps
 from transMap.genomeData import AnnotationType
 from transMap.srcData import SourceDbTables, SrcMetadataSqliteTable, SrcAlignSqliteTable
 from transMap.ensembl import EnsemblHgData
@@ -35,7 +35,7 @@ def getTestLimitAccv(srcDbConn):
 def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
     ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
     fileOps.ensureFileDir(srcDb)
-    srcDbConn = sqliteConnect(srcDb, create=True)
+    srcDbConn = sqliteOps.connect(srcDb, create=True)
     try:
         testAccvSubset = getTestLimitAccv(srcDbConn) if testLimit else None
         metadataReader = ensemblHgData.metadataReader(testAccvSubset)

@@ -4,7 +4,7 @@ from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import argparse
 from pycbio.sys import fileOps
-from pycbio.db.sqliteOps import sqliteConnect
+from pycbio.db import sqliteOps
 from transMap.genomeData import AnnotationType
 from transMap.ensembl import EnsemblHgData
 from transMap.srcData import srcAlignXRefLoad
@@ -32,7 +32,7 @@ def srcDbLoadEnsemblAligns(srcHgDb, annotationType, srcDb, testAccvFile):
     testAccvSubset = fileOps.readFileLines(testAccvFile) if testAccvFile is not None else None
     ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
     fileOps.ensureFileDir(srcDb)
-    srcDbConn = sqliteConnect(srcDb, create=True)
+    srcDbConn = sqliteOps.connect(srcDb, create=True)
     try:
         alignReader = ensemblHgData.alignReader(testAccvSubset=testAccvSubset)
         srcAlignXRefLoad(srcDbConn, alignReader)

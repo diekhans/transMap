@@ -3,7 +3,7 @@
 import re
 from pycbio.exrun import *
 from transMap.genomeDefs import AnnSetType
-from transMap.genbamk import 
+from transMap.genbamk import
 from transMap import transMap
 from pycbio.sys import fileOps, procOps
 
@@ -18,7 +18,7 @@ class CDnaAligns(CmdRule):
         psl = tm.getSrcPsl(srcDb, annSetType)
         cmd1 = mkGbGetSeqsCmd(tm, srcDb, annSetType,
                               ("intronPsl" if (annSetType == AnnSetType.splicedEst) else "psl"))
-        cmd2 = ("pslQueryUniq", "-p", srcDb.name+":")
+        cmd2 = ("pslQueryUniq", "--prefix", srcDb.name+":")
         CmdRule.__init__(self, Cmd((cmd1, cmd2), stdout=psl))
 
 class CDnaAlignStats(CmdRule):
@@ -84,17 +84,17 @@ class UcscGenesAligns(CmdRule):
         cmd2 = ("genePredToFakePsl", srcDb.name, "/dev/stdin", "/dev/stdout", FileOut(cds))
         cmd3 = ("pslQueryUniq",)
         CmdRule.__init__(self, Cmd((cmd1, cmd2, cmd3), stdout=psl))
-    
+
 class UcscGenesMeta(CmdRule):
     "obtain meta files for UCSC genes, joining with CDS"
     def __init__(self, tm, srcDb):
         self.tm = tm
         cds = tm.getSrcCds(srcDb, AnnSetType.ucscGenes)
         meta = tm.getSrcMeta(srcDb, AnnSetType.ucscGenes)
-        
+
         cmd1 = ("getUcscGenesMeta", srcDb.name, FileIn(cds), FileOut(meta))
         CmdRule.__init__(self, Cmd((cmd1,)))
-    
+
 class UcscGenesSeqs(CmdRule):
     def __init__(self, tm, srcDb):
         # warning: must get sequences from genePred, or it will not
@@ -153,7 +153,7 @@ class EnsemblAligns(CmdRule):
         self.tm = tm
         psl = tm.getSrcPsl(srcDb, AnnSetType.ensembl)
         cds = tm.getSrcCds(srcDb, AnnSetType.ensembl)
-        
+
         tbls = getGencodeEnsemblTables(srcDb.name)
 
         cols =  makeColumnWithSrcDbConcat(srcDb.name, "name") + ', chrom, strand, txStart, txEnd, cdsStart, cdsEnd, exonCount, exonStarts, exonEnds'
@@ -163,28 +163,28 @@ class EnsemblAligns(CmdRule):
         cmd2 = ("genePredToFakePsl", srcDb.name, "/dev/stdin", "/dev/stdout", FileOut(cds))
         cmd3 = ("pslQueryUniq",)
         CmdRule.__init__(self, Cmd((cmd1, cmd2, cmd3), stdout=psl))
-    
+
 class EnsemblMeta(CmdRule):
     "obtain meta files for Ensembl or GENCODE genes, joining with CDS"
     def __init__(self, tm, srcDb):
         self.tm = tm
         cds = tm.getSrcCds(srcDb, AnnSetType.ensembl)
         meta = tm.getSrcMeta(srcDb, AnnSetType.ensembl)
-        
+
         gencodeTbls = getGencodeTables(srcDb.name)
         if gencodeTbls != None:
             cmd1 = ("getGencodeMeta", srcDb.name, gencodeTbls[1], FileIn(cds), FileOut(meta))
         else:
             cmd1 = ("getEnsemblMeta", srcDb.name, FileIn(cds), FileOut(meta))
         CmdRule.__init__(self, Cmd((cmd1,)))
-    
+
 class EnsemblSeqs(CmdRule):
     def __init__(self, tm, srcDb):
         # warning: must get sequences from genePred, or it will not
         # match sizes in generated PSL.
         self.tm = tm
         fa = tm.getSrcFa(srcDb, AnnSetType.ensembl)
-        
+
         geneTbl, ignore = getGencodeEnsemblTables(srcDb.name)
         cmd1 = ("getGenePredFa", srcDb.name, geneTbl, FileOut(fa))
         CmdRule.__init__(self, Cmd((cmd1,)))
