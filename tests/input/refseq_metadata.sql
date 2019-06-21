@@ -21,6 +21,6 @@ INSERT INTO srcMetadata VALUES('hg19:NM_001321249.1','NM_001321249.1','198..704'
 INSERT INTO srcMetadata VALUES('hg19:NM_001321250.1','NM_001321250.1','220..726','VOPP1','81552','protein_coding','protein_coding');
 INSERT INTO srcMetadata VALUES('hg19:NM_001321251.1','NM_001321251.1','206..712','VOPP1','81552','protein_coding','protein_coding');
 INSERT INTO srcMetadata VALUES('hg19:NM_018697.3','NM_018697.3','579..1931','LANCL2','55915','protein_coding','protein_coding');
-INSERT INTO srcMetadata VALUES('hg19:NM_030796.5','NM_030796.5','179..697','VOPP1','81552','protein_coding','protein_coding');
+INSERT INTO srcMetadata VALUES('hg19:NM_030796.4','NM_030796.4','197..715','VOPP1','81552','protein_coding','protein_coding');
 CREATE UNIQUE INDEX srcMetadata_srcId on srcMetadata (srcId);
 COMMIT;

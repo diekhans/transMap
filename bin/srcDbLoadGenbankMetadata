@@ -28,8 +28,12 @@ def parseArgs():
     return opts
 
 
-def getTestLimitAcc(srcDbConn):
-    return SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl).getAllAcc()
+def getTestLimitAcc(srcDbConn, annotationType):
+    srcAlignTbl = SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl)
+    if annotationType == AnnotationType.refseq:
+        return srcAlignTbl.getAllAccv()
+    else:
+        return srcAlignTbl.getAllAcc()
 
 
 def getGenbankMetadata(srcHgDb, annotationType, srcDb, testLimit):
@@ -37,7 +41,7 @@ def getGenbankMetadata(srcHgDb, annotationType, srcDb, testLimit):
     fileOps.ensureFileDir(srcDb)
     srcDbConn = sqliteOps.connect(srcDb, create=True)
     try:
-        testAccvSubset = getTestLimitAcc(srcDbConn) if testLimit else None
+        testAccvSubset = getTestLimitAcc(srcDbConn, annotationType) if testLimit else None
         metadataReader = genbankHgData.metadataReader(testAccvSubset)
         SrcMetadataSqliteTable.loadStep(srcDbConn, metadataReader)
     finally:

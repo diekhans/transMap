@@ -29,16 +29,21 @@ def haveEstTrack(hgDbConn, hgDb):
 
 def haveRefseqTrack(hgDbConn, hgDb):
     "check if refSeqAli exists"
-    return mysqlOps.haveTablesLike(hgDbConn, "refSeqAli", hgDb)
+    return mysqlOps.haveTablesLike(hgDbConn, "ncbiRefSeqPsl", hgDb)
 
 
 class GenbankHgData(object):
     "obtain data UCSC browser data from various GenBank or RefSeq tables"
 
-    pslSelectTmpl = """SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
-                    """tBaseInsert, strand, concat(qName, ".", version), qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
-                    """blockCount, blockSizes, qStarts, tStarts from {}, hgFixed.gbCdnaInfo """ \
-                    """WHERE (qName = acc)"""
+    gbPslSelectTmpl = """SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
+        """tBaseInsert, strand, concat(qName, ".", version), qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
+        """blockCount, blockSizes, qStarts, tStarts from {}, hgFixed.gbCdnaInfo """ \
+        """WHERE (qName = acc)"""
+
+    # need WHERE to make consistent with gbPslSelectTmpl when appending clause
+    rsPslSelectTmpl = """SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
+        """tBaseInsert, strand, qName, qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
+        """blockCount, blockSizes, qStarts, tStarts from {} WHERE TRUE"""
 
     def __init__(self, srcHgDb, annotationType):
         self.srcHgDb = srcHgDb
@@ -58,10 +63,13 @@ class GenbankHgData(object):
         elif self.annotationType == AnnotationType.est:
             return self.__getIntronEstTables()
         elif self.annotationType == AnnotationType.refseq:
-            return ["refSeqAli"]
+            return ["ncbiRefSeqPsl"]
 
     def __buildPslSelect(self, table, testAccSubset=None):
-        sql = self.pslSelectTmpl.format(table)
+        if self.annotationType == AnnotationType.refseq:
+            sql = self.rsPslSelectTmpl.format(table)
+        else:
+            sql = self.gbPslSelectTmpl.format(table)
         if testAccSubset is not None:
             sql += " AND (qName in ({}))".format(",".join(['"{}"'.format(name) for name in testAccSubset]))
         return sql
@@ -99,6 +107,8 @@ class GenbankHgData(object):
     def __getTestSubsetClause(alignField, testAccvSubset):
         if testAccvSubset is None:
             return ""
+        elif len(testAccvSubset) == 0:
+            raise Exception("testAccvSubset is empty")
         else:
             return "AND {}".format(getAccvSubselectClause(alignField, testAccvSubset))
 
@@ -124,13 +134,12 @@ class GenbankHgData(object):
 
     def __refseqMetadataReader(self, testAccvSubset):
         # using sub-select to get aligned sequence took forever, hence join and distinct
-        sql = """SELECT DISTINCT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, """ \
+        sql = """SELECT DISTINCT psl.qName as accv, cds.cds as cds_name, """ \
               """        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId """ \
-              """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.refLink rl, {srcHgDb}.refSeqAli ali """ \
-              """WHERE (gb.acc = rl.mrnaAcc) AND (cds.id = gb.cds) AND (ali.qName = gb.acc) """ \
+              """FROM {srcHgDb}.ncbiRefSeqPsl psl, {srcHgDb}.ncbiRefSeqCds cds, {srcHgDb}.ncbiRefSeqLink rl  """ \
+              """WHERE (rl.mrnaAcc = psl.qName) AND (cds.id = psl.qName) """ \
               """{testAccvSubsetClause};""".format(srcHgDb=self.srcHgDb,
-                                                   testAccvSubsetClause=self.__getTestSubsetClause("ali.qName",
-                                                                                                   testAccvSubset))
+                                                   testAccvSubsetClause=self.__getTestSubsetClause("psl.qName", testAccvSubset))
         return self.__metadataRowGen(sql, self.__refseqToMetadata)
 
     def __rnaToSrcMetadata(self, row):
@@ -149,8 +158,7 @@ class GenbankHgData(object):
               """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.geneName gn, {srcHgDb}.all_mrna rna """ \
               """WHERE (cds.id = gb.cds) AND (gn.id = gb.geneName) AND (rna.qName =.gb.acc)""" \
               """{testAccvSubsetClause};""".format(srcHgDb=self.srcHgDb,
-                                                   testAccvSubsetClause=self.__getTestSubsetClause("rna.qName",
-                                                                                                   testAccvSubset))
+                                                   testAccvSubsetClause=self.__getTestSubsetClause("rna.qName", testAccvSubset))
         return self.__metadataRowGen(sql, self.__rnaToSrcMetadata)
 
     def metadataReader(self, testAccvSubset=None):

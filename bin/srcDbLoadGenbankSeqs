@@ -11,7 +11,7 @@ import pipettor
 
 
 def parseArgs():
-    desc = """Obtain RNA sequence file for the GenBank and RefSeq alignments.
+    desc = """Obtain RNA sequence file for the UCSC GenBank or NCBI RefSeq alignments.
     """
     parser = argparse.ArgumentParser(description=desc)
     transMapProgSetup.addCmdOptions(parser)
@@ -33,22 +33,25 @@ def getSrcAccsFile(annotationType, srcDbConn):
     return tmpAccvFile
 
 
-def getSeqFasta(srcHgDb, annotationType, tmpAccFile):
+def getGbSeqFasta(srcHgDb, annotationType, tmpAccFile, tmpSeqFa):
     "get fasta file"
-    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".fa")
-    getRnaCmd = ("getRna", "-inclVer", "hgFixed", tmpAccFile, "/dev/stdout")
+
+    if annotationType == AnnotationType.refseq:
+        getRnaCmd = ("getRna", "-seqTbl=seqNcbiRefSeq", "-extFileTbl=extNcbiRefSeq", srcHgDb, tmpAccFile, "/dev/stdout")
+    else:
+        getRnaCmd = ("getRna", "-inclVer", "hgFixed", tmpAccFile, "/dev/stdout")
     srcDbCmd = ("awk", "-v", "srcDb={}".format(srcHgDb),
                 '''/^>/{$0 = ">" srcDb ":" substr($0, 2)} {print $0}''')
     cmds = [getRnaCmd, srcDbCmd]
     pipettor.run(cmds, stdout=tmpSeqFa)
-    return tmpSeqFa
 
 
 def getGenbankSeqs(srcHgDb, annotationType, srcDb):
     fileOps.ensureFileDir(srcDb)
     srcDbConn = sqliteOps.connect(srcDb, create=True)
     tmpAccFile = getSrcAccsFile(annotationType, srcDbConn)
-    tmpSeqFa = getSeqFasta(srcHgDb, annotationType, tmpAccFile)
+    tmpSeqFa = fileOps.tmpFileGet("transMap.{}.{}.".format(srcHgDb, annotationType), ".fa")
+    getGbSeqFasta(srcHgDb, annotationType, tmpAccFile, tmpSeqFa)
     loadSeqFa(tmpSeqFa, srcDbConn)
     srcDbConn.close()
     fileOps.rmFiles(tmpAccFile, tmpSeqFa)

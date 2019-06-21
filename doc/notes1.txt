@@ -172,3 +172,11 @@
 
 2015-05-14
     http://hgwdev-hiram.cse.ucsc.edu/cgi-bin/100way/lastz.pl
+
+2019-06-11:
+   NCBI refseq mappings tables:
+    ncbiRefSeqCds
+    ncbiRefSeqPsl  - includes XMs
+    ncbiRefSeqLink
+    extNcbiRefSeq
+    seqNcbiRefSeq
