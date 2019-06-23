@@ -35,15 +35,15 @@ def haveRefseqTrack(hgDbConn, hgDb):
 class GenbankHgData(object):
     "obtain data UCSC browser data from various GenBank or RefSeq tables"
 
-    gbPslSelectTmpl = """SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
-        """tBaseInsert, strand, concat(qName, ".", version), qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
-        """blockCount, blockSizes, qStarts, tStarts from {}, hgFixed.gbCdnaInfo """ \
-        """WHERE (qName = acc)"""
+    gbPslSelectTmpl = "SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, " \
+        "tBaseInsert, strand, concat(qName, '.', version), qSize, qStart, qEnd, tName, tSize, tStart, tEnd, " \
+        "blockCount, blockSizes, qStarts, tStarts FROM {}, hgFixed.gbCdnaInfo " \
+        "WHERE (qName = acc)"
 
     # need WHERE to make consistent with gbPslSelectTmpl when appending clause
-    rsPslSelectTmpl = """SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, """ \
-        """tBaseInsert, strand, qName, qSize, qStart, qEnd, tName, tSize, tStart, tEnd, """ \
-        """blockCount, blockSizes, qStarts, tStarts from {} WHERE TRUE"""
+    rsPslSelectTmpl = "SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, " \
+        "tBaseInsert, strand, qName, qSize, qStart, qEnd, tName, tSize, tStart, tEnd, " \
+        "blockCount, blockSizes, qStarts, tStarts FROM {} WHERE TRUE"
 
     def __init__(self, srcHgDb, annotationType):
         self.srcHgDb = srcHgDb
@@ -134,12 +134,14 @@ class GenbankHgData(object):
 
     def __refseqMetadataReader(self, testAccvSubset):
         # using sub-select to get aligned sequence took forever, hence join and distinct
-        sql = """SELECT DISTINCT psl.qName as accv, cds.cds as cds_name, """ \
-              """        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId """ \
-              """FROM {srcHgDb}.ncbiRefSeqPsl psl, {srcHgDb}.ncbiRefSeqCds cds, {srcHgDb}.ncbiRefSeqLink rl  """ \
-              """WHERE (rl.mrnaAcc = psl.qName) AND (cds.id = psl.qName) """ \
-              """{testAccvSubsetClause};""".format(srcHgDb=self.srcHgDb,
-                                                   testAccvSubsetClause=self.__getTestSubsetClause("psl.qName", testAccvSubset))
+        sql = "SELECT DISTINCT psl.qName as accv, cds.cds as cds_name, " \
+              "        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId " \
+              "FROM {srcHgDb}.ncbiRefSeqPsl psl " \
+              "LEFT JOIN {srcHgDb}.ncbiRefSeqCds cds ON (cds.id = psl.qName) " \
+              "LEFT JOIN {srcHgDb}.ncbiRefSeqLink rl ON (rl.mrnaAcc = psl.qName)  " \
+              "WHERE TRUE {testAccvSubsetClause};" \
+              .format(srcHgDb=self.srcHgDb,
+                      testAccvSubsetClause=self.__getTestSubsetClause("psl.qName", testAccvSubset))
         return self.__metadataRowGen(sql, self.__refseqToMetadata)
 
     def __rnaToSrcMetadata(self, row):
