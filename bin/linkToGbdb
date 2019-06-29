@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import sys
 import os
@@ -59,5 +58,6 @@ def linkToGbdb(opts):
             missingFileCount += 1
     if missingFileCount > 0:
         raise Exception("{} bigPsl files were not found".format(missingFileCount))
+
 
 linkToGbdb(parseArgs())

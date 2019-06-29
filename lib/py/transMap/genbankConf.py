@@ -1,4 +1,3 @@
-from builtins import object
 import re
 from pycbio.sys import fileOps, setOps
 from .genomeData import AnnotationType
@@ -40,10 +39,10 @@ class GenbankConf(dict):
         self.__load(confRaFile)
 
     # parse serverGenome line, used so we find entries that are all defaults
-    parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.serverGenome\s*=")
+    parseGenomeRe = re.compile("^([A-Za-z0-9]+)\\.serverGenome\\s*=")
 
     # parse a cDNA line        1                2                  3                     4                  5
-    parseAnnSetRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\s*=\s*(yes|no)")
+    parseAnnSetRe = re.compile("^([A-Za-z0-9]+)\\.(genbank|refseq)\\.(mrna|est)\\.native\\.(load|align)\\s*=\\s*(yes|no)")
 
     def __load(self, confRaFile):
         "build dict of Conf objects"

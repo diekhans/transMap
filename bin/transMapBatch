@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
-from builtins import str
 import transMapProgSetup  # noqa: F401
 import os
 import argparse
@@ -110,6 +108,7 @@ def transMapBatch(opts):
     else:
         paraRunBatch(conf, batchFile)
     finishBatch(conf)
+
 
 setSortLocale()
 transMapBatch(parseArgs())

@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
-from builtins import map
 import transMapProgSetup  # noqa: F401
 import os
 import pickle
@@ -318,6 +316,7 @@ def luigiTransMap(opts):
                            srcHgDbSubset=emptyListIfNone(opts.srcHgDbSubset),
                            destHgDbSubset=emptyListIfNone(opts.destHgDbSubset))],
                 local_scheduler=True, workers=opts.workers, **loggingKwargs)
+
 
 # entry
 opts = parseArgs()

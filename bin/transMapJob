@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
-from builtins import object
 import transMapProgSetup  # noqa: F401
 import sys
 import argparse
@@ -255,6 +253,7 @@ def transMapJob(opts):
         for srcPslsCoords in srcPslGroups.keys():
             pslMapper.mapPslGroup(srcPslsCoords, srcPslGroups[srcPslsCoords], mappedPreBigPslFh)
     fileOps.atomicInstall(tmpMappedPreBigPsl, opts.mappedPreBigPsl)
+
 
 setSortLocale()
 transMapJob(parseArgs())

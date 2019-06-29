@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import argparse
 from pycbio.sys import fileOps
@@ -61,6 +60,7 @@ def mappingChainIndex(mappingChainsIndexDb, chainFile):
     indexDbTbl = MappingChainsIndexSqliteTable(indexDbConn, MappingChainsDbTables.mappingChainsTbl, create=True)
     indexDbTbl.loads(chainsLocs)
     indexDbTbl.index()
+
 
 # entry
 opts = parseArgs()

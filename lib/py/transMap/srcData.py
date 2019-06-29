@@ -2,7 +2,6 @@
 sqlite3 databases objects for transmap intermediate data.
 """
 
-from builtins import object
 from collections import namedtuple
 from transMap import alignIdToSrcId, srcIdToAccv, accvToAcc
 from pycbio.hgdata.hgSqlite import HgSqliteTable

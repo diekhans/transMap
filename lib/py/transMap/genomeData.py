@@ -1,6 +1,4 @@
 """"Database with genomes and chains."""
-from builtins import str
-from builtins import object
 from collections import namedtuple, defaultdict
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import fileOps
@@ -77,7 +75,7 @@ class ChainsSqliteTable(HgSqliteTable):
     columnNames = ("srcHgDb", "destHgDb", "chainType", "chainFile", "netFile")
 
     def __init__(self, conn, table, create=False):
-        super(ChainsSqliteTable, self).__init__(conn, table)
+        super().__init__(conn, table)
         if create:
             self._create(self.__createSql)
 
@@ -113,9 +111,10 @@ class GenomeAsm(namedtuple("GenomeAsm",
                            ("hgDb", "clade", "commonName", "scientificName", "orgAbbrev", "annotationTypeSet"))):
     "Information about a genome assembly, stored in genome database "
 
-    def __init__(self, hgDb, clade, commonName, scientificName, orgAbbrev, annotationTypeSet):
-        super(GenomeAsm, self).__init__(hgDb, clade, commonName, scientificName, orgAbbrev, annotationTypeSet)
+    def __new__(cls, hgDb, clade, commonName, scientificName, orgAbbrev, annotationTypeSet):
+        self = super().__new__(cls, hgDb, clade, commonName, scientificName, orgAbbrev, annotationTypeSet)
         self.dbNum = hgDbNameParse(hgDb)[1]
+        return self
 
     def __str__(self):
         return "{}\t{}\t{}\t{}\t".format(self.hgDb, self.clade, self.commonName, self.scientificName, str(self.annotationTypeSet))
@@ -151,7 +150,7 @@ class GenomeAsmsSqliteTable(HgSqliteTable):
                    "orgAbbrev", "annotationTypeSet",)
 
     def __init__(self, conn, table, create=False):
-        super(GenomeAsmsSqliteTable, self).__init__(conn, table)
+        super().__init__(conn, table)
         if create:
             self._create(self.__createSql)
 

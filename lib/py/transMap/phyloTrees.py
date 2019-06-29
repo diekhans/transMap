@@ -1,5 +1,4 @@
 
-from builtins import object
 from Bio.Nexus import Trees
 from pycbio.sys import fileOps
 from transMap import hgDbNameParse

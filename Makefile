@@ -16,7 +16,7 @@ test:
 	(cd tests && ${MAKE} test)
 
 lint:
-	flake8 ${libs:%=lib/py/transMap/%} ${progs:%=bin/%}
+	python3 -m flake8 ${libs:%=lib/py/transMap/%} ${progs:%=bin/%}
 
 clean:
 	(cd tests && ${MAKE} clean)

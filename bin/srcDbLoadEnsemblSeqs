@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import argparse
 from transMap.genomeData import AnnotationType
@@ -62,6 +61,7 @@ def getEnsemblSeqs(srcHgDb, annotationType, srcDb):
     loadSeqFa(tmpSeqFa, srcDbConn)
     srcDbConn.close()
     fileOps.rmFiles(tmpSrcGp, tmpSeqFa)
+
 
 # entry
 opts = parseArgs()

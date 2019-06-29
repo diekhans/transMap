@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import argparse
 from pycbio.sys import fileOps
@@ -117,6 +116,7 @@ def genomeDbLoad(opts):
     genomeDbConn.close()
     fileOps.atomicInstall(genomeDbTmp, conf.genomeDb)
     hgDbConn.close()
+
 
 # entry
 genomeDbLoad(parseArgs())

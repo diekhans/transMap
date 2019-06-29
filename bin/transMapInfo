@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import os
 import argparse
@@ -22,6 +21,7 @@ def parseArgs():
     opts = parser.parse_args()
     transMapProgSetup.setupFromCmd(opts)
     return opts
+
 
 header = ("srcHgDb", "srcCommonName", "srcScientificName",
           "destHgDb", "destCommonName", "destScientificName",
