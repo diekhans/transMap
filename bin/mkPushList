@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
@@ -72,7 +72,7 @@ def mkPushList(opts):
     genomes = Genomes(conf)
     pushDestDbMappings = getPushDestDbMappings(conf, conn, genomes, opts.forcePush)
     with open(opts.pushDbList, "w") as pushDbFh, open(opts.pushGbdbList, "w") as pushGbdbFh:
-        for destDb in pushDestDbMappings.keys():
+        for destDb in list(pushDestDbMappings.keys()):
             writeDestDbPushInfo(conf, destDb, pushDestDbMappings[destDb], pushDbFh, pushGbdbFh)
 
 mkPushList(parseArgs())

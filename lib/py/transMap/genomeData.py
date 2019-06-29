@@ -1,4 +1,6 @@
 """"Database with genomes and chains."""
+from builtins import str
+from builtins import object
 from collections import namedtuple, defaultdict
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import fileOps
@@ -243,7 +245,7 @@ class Genomes(object):
 
     def __finish(self):
         """Finish up, making all links"""
-        for org in self.orgs.itervalues():
+        for org in self.orgs.values():
             org.sort()
 
     def getAsmByName(self, hgDb):
@@ -256,7 +258,7 @@ class Genomes(object):
         if their are no chains.
         """
         candidateDestHgDbs = set()
-        for org in self.orgs.itervalues():
+        for org in self.orgs.values():
             candidateDestHgDbs.add(org.genomeAsms[0].hgDb)
         for hgDb in self.conf.requiredPreviousDestHgDbs:
             if self.getAsmByName(hgDb) is None:
@@ -317,7 +319,7 @@ class Genomes(object):
         "get mappings to this destHgDb"
         destHgDbMappings = []
         chainsBySrcOrg = self._getChainsBySrcOrg(destHgDb)
-        for srcOrg in chainsBySrcOrg.iterkeys():
+        for srcOrg in chainsBySrcOrg.keys():
             destHgDbMappings.extend(self._getDestHgDbSrcOrgMappings(destHgDb, srcOrg, chainsBySrcOrg[srcOrg]))
         return destHgDbMappings
 
@@ -349,7 +351,7 @@ class Genomes(object):
     def dump(self, fh):
         "print for debugging purposes"
         fileOps.prRowv(fh, "GenomeDefs: genomes:")
-        for org in self.orgs.itervalues():
+        for org in self.orgs.values():
             fileOps.prRowv(fh, "", org.commonName)
             for db in org.dbs:
                 fileOps.prRowv(fh, "", "", db)

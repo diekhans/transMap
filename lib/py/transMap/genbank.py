@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import os
 import pipettor
 from pycbio.hgdata import hgDb

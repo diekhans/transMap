@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from __future__ import print_function
+from builtins import map
 import transMapProgSetup  # noqa: F401
 import os
 import pickle
@@ -49,7 +50,7 @@ class AnnotationTypeParameter(luigi.Parameter):
 
 class AnnotationTypeListParameter(luigi.Parameter):
     def parse(self, s):
-        return map(AnnotationType, s)
+        return list(map(AnnotationType, s))
 
 
 class MappingParameter(luigi.Parameter):
@@ -215,7 +216,7 @@ class TransMapDetailedStatsTask(luigi.Task):
 
     def requires(self):
         mappingsByAnnotType = splitMappingsByAnnotType(self.mappings)
-        for annotationType in mappingsByAnnotType.keys():
+        for annotationType in list(mappingsByAnnotType.keys()):
             yield TransMapBuildBigPslTask(configPyFile=self.conf.configPyFile,
                                           destHgDb=self.destHgDb,
                                           annotationType=annotationType,
@@ -268,7 +269,7 @@ def getDestHgDbMappingTasks(conf, destHgDb, mappings):
 
     # combine into big psls
     mappingsByAnnotType = splitMappingsByAnnotType(mappings)
-    for annotationType in mappingsByAnnotType.keys():
+    for annotationType in list(mappingsByAnnotType.keys()):
         yield TransMapBuildBigPslTask(configPyFile=conf.configPyFile,
                                       destHgDb=destHgDb,
                                       annotationType=annotationType,
@@ -280,7 +281,7 @@ def getDestHgDbMappingTasks(conf, destHgDb, mappings):
 
 
 def getMappingTasks(conf, mappingsByDestDb):
-    for destHgDb in mappingsByDestDb.iterkeys():
+    for destHgDb in mappingsByDestDb.keys():
         for task in getDestHgDbMappingTasks(conf, destHgDb, mappingsByDestDb[destHgDb]):
             yield task
 

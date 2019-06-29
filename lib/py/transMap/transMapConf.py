@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import os
 import sys
 from transMap.genomeData import AnnotationType

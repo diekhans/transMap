@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from __future__ import print_function
 import transMapProgSetup  # noqa: F401
 import os
@@ -60,7 +60,7 @@ def getAllSrcHgDb(counts):
     srcHgDbs = set()
     for annotationType in AnnotationType:
         if annotationType in counts:
-            for srcHgDb in counts[annotationType].keys():
+            for srcHgDb in list(counts[annotationType].keys()):
                 srcHgDbs.add(srcHgDb)
     return sorted(srcHgDbs)
 

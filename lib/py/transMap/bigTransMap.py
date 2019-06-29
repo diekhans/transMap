@@ -1,6 +1,7 @@
 """
 support for build bigTransMap files
 """
+from builtins import str
 import os
 from pycbio.sys import fileOps
 from transMap import getSortProg, alignIdToSrcId, srcIdToAccv

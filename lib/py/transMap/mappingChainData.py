@@ -2,6 +2,7 @@
 Database with range index into temporary mapping chains.  Chains are
 not loaded into
 """
+from builtins import object
 from collections import namedtuple
 from pycbio.hgdata.hgSqlite import HgSqliteTable
 from pycbio.hgdata.rangeFinder import Binner

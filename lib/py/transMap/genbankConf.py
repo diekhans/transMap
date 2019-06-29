@@ -1,3 +1,4 @@
+from builtins import object
 import re
 from pycbio.sys import fileOps, setOps
 from .genomeData import AnnotationType

@@ -1,3 +1,4 @@
+from builtins import object
 import re
 from pycbio.hgdata import hgDb
 from pycbio.sys import fileOps
