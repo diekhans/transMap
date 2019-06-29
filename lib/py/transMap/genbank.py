@@ -42,10 +42,10 @@ class GenbankHgData(object):
         "blockCount, blockSizes, qStarts, tStarts FROM {}, hgFixed.gbCdnaInfo " \
         "WHERE (qName = acc)"
 
-    # need WHERE to make consistent with gbPslSelectTmpl when appending clause
+    # some refseq tables has non-accession entries (e.g. rna7), so just ignore those.
     rsPslSelectTmpl = "SELECT matches, misMatches, repMatches, nCount, qNumInsert, qBaseInsert, tNumInsert, " \
         "tBaseInsert, strand, qName, qSize, qStart, qEnd, tName, tSize, tStart, tEnd, " \
-        "blockCount, blockSizes, qStarts, tStarts FROM {} WHERE TRUE"
+        "blockCount, blockSizes, qStarts, tStarts FROM {} WHERE qName REGEXP '^[A-Z0-9_]+\\\\.[0-9]+$'"
 
     def __init__(self, srcHgDb, annotationType):
         self.srcHgDb = srcHgDb

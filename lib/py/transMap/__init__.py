@@ -35,7 +35,7 @@ def parseAlignId(alignId):
     # older versions of ensembl tracks didn't have versions
     m = re.match("^([a-zA-Z0-9]+):([A-Z0-9_]+(\\.[0-9]+)?)-([0-9.]+)$", alignId)
     if m is None:
-        raise Exception("can not parse transmap alignment id \"{}\"".format(alignId))
+        raise ValueError("can not parse transmap alignment id \"{}\"".format(alignId))
     return (m.group(1), m.group(2), m.group(4))
 
 
@@ -54,7 +54,7 @@ def alignIdToSrcId(alignId):
     # older versions of ensembl tracks didn't have versions
     m = re.match("^([a-zA-Z0-9]+:[A-Z0-9_]+(\\.[0-9]+)?)-([0-9.]+)$", alignId)
     if m is None:
-        raise Exception("can not parse alignment id \"{}\"".format(alignId))
+        raise ValueError("can not parse alignment id \"{}\"".format(alignId))
     return m.group(1)
 
 
@@ -63,13 +63,16 @@ def srcIdToAccv(srcId):
     # older versions of ensembl tracks didn't have versions
     m = re.match("^([a-zA-Z0-9]+):([A-Z0-9_]+(\\.[0-9]+)?)$", srcId)
     if m is None:
-        raise Exception("can not parse source id \"{}\"".format(srcId))
+        raise ValueError("can not parse source id \"{}\"".format(srcId))
     return m.group(2)
 
 
 def parseAccVer(accver):
     """parse acc.ver into (acc, ver)"""
-    return accver.split(".")
+    m = re.match("^([A-Z0-9_]+)\\.([0-9]+)$", accver)
+    if m is None:
+        raise ValueError("can not parse accession.version id \"{}\"".format(accver))
+    return (m.group(1), m.group(2))
 
 
 def accvToAcc(accver):
