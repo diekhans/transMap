@@ -17,5 +17,4 @@ def getConfig(configPyFile, dataRootDir=None, srcHgDb=None, destHgDb=None,
                         chainType=chainType,
                         version="V7",
                         batchGen=1)
-    conf.requiredPreviousDestHgDbs = frozenset()
     return conf

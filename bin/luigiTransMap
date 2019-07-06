@@ -2,14 +2,17 @@
 
 import transMapProgSetup  # noqa: F401
 import os
+import sys
 import pickle
 import argparse
+import base64
 from collections import defaultdict
 from pycbio.sys import fileOps
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import Genomes, AnnotationType, mappingsFilter
 import pipettor
 import luigi
+from luigi.execution_summary import LuigiStatusCode
 
 
 def parseArgs():
@@ -52,19 +55,20 @@ class AnnotationTypeListParameter(luigi.Parameter):
 
 
 class MappingParameter(luigi.Parameter):
+    # FIXME; dumps creates a byte array, which can't be json serialized, so convert to base64.
     def serialize(self, mapping):
-        return pickle.dumps(mapping, 0)
+        return base64.standard_b64encode(pickle.dumps(mapping, 0)).decode("utf-8")
 
     def parse(self, s):
-        return pickle.loads(s)
+        return pickle.loads(base64.standard_b64decode(s).encode('utf-8'))
 
 
 class MappingListParameter(luigi.Parameter):
-    def serialize(self, mapping):
-        return pickle.dumps(mapping, 0)
+    def serialize(self, mappings):
+        return base64.standard_b64encode(pickle.dumps(mappings, 0)).decode("utf-8")
 
     def parse(self, s):
-        return pickle.loads(s)
+        return pickle.loads(base64.standard_b64decode(s).encode('utf-8'))
 
 
 class SrcDataTask(luigi.Task):
@@ -303,6 +307,12 @@ class StartTask(luigi.WrapperTask):
             yield task
 
 
+def checkResults(results):
+    if results.status not in (LuigiStatusCode.SUCCESS, LuigiStatusCode.SUCCESS_WITH_RETRY):
+        print("Error: some tasks not successful: " + results.summary_text, file=sys.stderr)
+        exit(1)
+
+
 def luigiTransMap(opts):
     conf = transMapConfLoad(opts.configPyFile)
     genomeDbSetup(conf, opts)
@@ -312,10 +322,11 @@ def luigiTransMap(opts):
         loggingKwargs["logging_conf_file"] = opts.logConfFile
 
     # can't pass None for ListParameter, so pass empty list (FIXME)
-    luigi.build([StartTask(configPyFile=opts.configPyFile,
-                           srcHgDbSubset=emptyListIfNone(opts.srcHgDbSubset),
-                           destHgDbSubset=emptyListIfNone(opts.destHgDbSubset))],
-                local_scheduler=True, workers=opts.workers, **loggingKwargs)
+    results = luigi.build([StartTask(configPyFile=opts.configPyFile,
+                                     srcHgDbSubset=emptyListIfNone(opts.srcHgDbSubset),
+                                     destHgDbSubset=emptyListIfNone(opts.destHgDbSubset))],
+                          local_scheduler=True, workers=opts.workers, detailed_summary=True, **loggingKwargs)
+    checkResults(results)
 
 
 # entry

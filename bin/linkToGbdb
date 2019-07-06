@@ -26,7 +26,7 @@ def symlinkIsSame(bigPslFile, gbdbFile):
         return False
     if not os.path.islink(gbdbFile):
         raise Exception("/gbdb bigPslFile exists but is not a synlink".format(gbdbFile))
-    curLink = os.path.readlink(gbdbFile)
+    curLink = os.readlink(gbdbFile)
     return curLink == bigPslFile
 
 

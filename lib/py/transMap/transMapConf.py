@@ -19,7 +19,8 @@ class TransMapConf(object):
     takes set values explicitly and from the command line.
     """
     def __init__(self, configPyFile, dataRootDir=None, srcHgDb=None, destHgDb=None,
-                 annotationType=None, chainType=None, version=None, batchGen=None):
+                 annotationType=None, chainType=None, version=None, batchGen=None,
+                 prevVersion=None, prevDataRootDir=None):
         self.configPyFile = configPyFile
         self.dataRootDir = dataRootDir
         self.srcHgDb = srcHgDb
@@ -28,6 +29,8 @@ class TransMapConf(object):
         self.chainType = chainType
         self.version = version
         self.batchGen = batchGen
+        self.prevVersion = prevVersion
+        self.prevDataRootDir = prevDataRootDir
 
         # ucsc browser data
         self.hgCentralDb = "hgcentraltest"
@@ -41,9 +44,9 @@ class TransMapConf(object):
         # selecting genomes
         self.clades = frozenset(["vertebrate", "mammal"])
 
-        # required older versions of some genomes
-        self.requiredPreviousDestHgDbs = frozenset([
-            "hg19"])
+        # required older versions of some genomes.  This is load in a lacy manned and obtained
+        # from prevDataRootDir
+        self.requiredPreviousDestHgDbsCache = None
 
         # types of chains for mappings between clades each entry is a set of
         # clades and an ordered tuple of preferred chain types
@@ -217,6 +220,18 @@ class TransMapConf(object):
     def detailedStatsTsv(self):
         self.__needOptions("destHgDb")
         return self.getDetailedStatsTsv(self.destHgDb)
+
+    def _loadRequiredPreviousDestHgDbs(self):
+        if self.prevDataRootDir is None:
+            return frozenset()
+        else:
+            return frozenset(os.listdir(os.path.join(self.prevDataRootDir, "results/mapped")))
+
+    @property
+    def requiredPreviousDestHgDbs(self):
+        if self.requiredPreviousDestHgDbsCache is None:
+            self.requiredPreviousDestHgDbsCache = self._loadRequiredPreviousDestHgDbs()
+        return self.requiredPreviousDestHgDbsCache
 
 
 def transMapConfLoad(configPyFile, dataRootDir=None, srcHgDb=None, destHgDb=None,

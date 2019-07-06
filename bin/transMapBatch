@@ -49,8 +49,8 @@ def getSrcAlignOidRange(conf):
 def srcAlignPartitionGen(conf):
     startOid, endOid = getSrcAlignOidRange(conf)
     seqsPerJob = conf.numSeqsPerJob
-    nextOid = startOid
-    while nextOid < endOid:
+    nextOid = startOid  # None if table is empty
+    while (nextOid is not None) and (nextOid < endOid):
         stopOid = min(nextOid + seqsPerJob, endOid)
         yield nextOid, stopOid
         nextOid = stopOid
