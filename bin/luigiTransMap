@@ -33,6 +33,8 @@ def parseArgs():
                         help="""configuration python file""")
     opts = parser.parse_args()
     transMapProgSetup.setupFromCmd(opts)
+    if (opts.destHgDbSubset is None) ^ (opts.srcHgDbSubset is None):
+        parser.error("must specify either both or neither of --destHgDb and --srcHgDb")
     return opts
 
 
@@ -248,8 +250,11 @@ def getMappingsSrcHgDbs(mappings):
     return frozenset([m.srcHgDb for m in mappings])
 
 
-def genomeDbBuild(conf):
+def genomeDbBuild(conf, opts):
     cmd = [os.path.join(conf.binDir, "genomeDbLoad"), conf.configPyFile]
+    if opts.destHgDbSubset is not None:
+        # restrict to test database to speed up
+        cmd += ["--hgDb={}".format(db) for db in opts.destHgDbSubset + opts.srcHgDbSubset]
     pipettor.run(cmd)
 
 
@@ -258,7 +263,7 @@ def genomeDbSetup(conf, opts):
     if opts.rebuildGenomeDb and os.path.exists(conf.genomeDb):
         os.unlink(conf.genomeDb)
     if not os.path.exists(conf.genomeDb):
-        genomeDbBuild(conf)
+        genomeDbBuild(conf, opts)
 
 
 def getDestHgDbMappingTasks(conf, destHgDb, mappings):
