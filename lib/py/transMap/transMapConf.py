@@ -64,7 +64,7 @@ class TransMapConf(object):
 
         self.paraHost = "ku"
 
-    def __needOptions(self, *fields):
+    def _needOptions(self, *fields):
         for field in fields:
             if getattr(self, field) is None:
                 raise Exception("TransMapConf needs {} for this method and it was not specified".format(field))
@@ -79,12 +79,12 @@ class TransMapConf(object):
 
     @property
     def dataDir(self):
-        self.__needOptions("dataRootDir")
+        self._needOptions("dataRootDir")
         return os.path.normpath(os.path.join(self.dataRootDir, "data"))
 
     @property
     def buildDir(self):
-        self.__needOptions("dataRootDir")
+        self._needOptions("dataRootDir")
         return os.path.join(self.dataRootDir, "build")
 
     @property
@@ -96,7 +96,7 @@ class TransMapConf(object):
 
     @property
     def srcDataDir(self):
-        self.__needOptions("srcHgDb")
+        self._needOptions("srcHgDb")
         return self.getSrcDataDir(self.srcHgDb)
 
     def getSrcDb(self, srcHgDb, annotationType):
@@ -104,12 +104,12 @@ class TransMapConf(object):
 
     @property
     def srcDb(self):
-        self.__needOptions("srcHgDb", "annotationType")
+        self._needOptions("srcHgDb", "annotationType")
         return self.getSrcDb(self.srcHgDb, self.annotationType)
 
     @property
     def resultsDir(self):
-        self.__needOptions("dataRootDir")
+        self._needOptions("dataRootDir")
         return os.path.normpath(os.path.join(self.dataRootDir, "results"))
 
     def getMappedResultsForDestHgDb(self, destHgDb):
@@ -117,38 +117,38 @@ class TransMapConf(object):
 
     @property
     def mappedResultsDir(self):
-        self.__needOptions("destHgDb")
+        self._needOptions("destHgDb")
         return self.getMappedResultsForDestHgDb(self.destHgDb)
 
-    def __bigPslFileBasename(self, destHgDb, annotationType):
-        self.__needOptions("version")
+    def _bigPslFileBasename(self, destHgDb, annotationType):
+        self._needOptions("version")
         return "{}.{}.transMap{}.bigPsl".format(destHgDb, annotationType, self.version)
 
     def getMappedBigPslFileForDestHgDb(self, destHgDb, annotationType):
         return os.path.join(self.getMappedResultsForDestHgDb(destHgDb),
-                            self.__bigPslFileBasename(destHgDb, annotationType))
+                            self._bigPslFileBasename(destHgDb, annotationType))
 
     def getMappedGbdbDir(self, destHgDb):
-        self.__needOptions("version")
+        self._needOptions("version")
         return os.path.join(self.gbdbDir, destHgDb, "transMap", self.version)
 
     def getMappedGbdbBigPslFile(self, destHgDb, annotationType):
         return os.path.join(self.getMappedGbdbDir(destHgDb),
-                            self.__bigPslFileBasename(destHgDb, annotationType))
+                            self._bigPslFileBasename(destHgDb, annotationType))
 
     @property
     def mappedBigPslFile(self):
-        self.__needOptions("destHgDb", "annotationType")
+        self._needOptions("destHgDb", "annotationType")
         return self.getMappedBigPslFileForDestHgDb(self.destHgDb, self.annotationType)
 
     @property
     def mappingChainsDir(self):
-        self.__needOptions("srcHgDb", "destHgDb")
+        self._needOptions("srcHgDb", "destHgDb")
         return os.path.join(self.buildDir, "chains", self.destHgDb, self.srcHgDb)
 
     @property
     def mappingChains(self):
-        self.__needOptions("srcHgDb", "destHgDb", "chainType")
+        self._needOptions("srcHgDb", "destHgDb", "chainType")
         chainFile = "{}.{}.{}.chain".format(self.srcHgDb, self.destHgDb, self.chainType)
         return os.path.join(self.mappingChainsDir, chainFile)
 
@@ -158,12 +158,12 @@ class TransMapConf(object):
 
     @property
     def batchDir(self):
-        self.__needOptions("buildDir", "destHgDb", "srcHgDb", "annotationType")
+        self._needOptions("buildDir", "destHgDb", "srcHgDb", "annotationType")
         return os.path.join(self.buildDir, "batches", self.destHgDb, self.srcHgDb, str(self.annotationType))
 
     @property
     def batchParaDir(self):
-        self.__needOptions("batchGen")
+        self._needOptions("batchGen")
         return os.path.join(self.batchDir, "para{}".format(self.batchGen))
 
     @property
@@ -177,7 +177,7 @@ class TransMapConf(object):
     @property
     def numSeqsPerJob(self):
         "get the number of sequence per batch mapping job for this conf"
-        self.__needOptions("srcHgDb", "annotationType")
+        self._needOptions("srcHgDb", "annotationType")
         if self.annotationType in (AnnotationType.rna, AnnotationType.est):
             return 2500
         else:
@@ -191,13 +191,13 @@ class TransMapConf(object):
         return os.path.join(self.jobPreBigPslDir, "{}.{}.preBigPsl".format(startOid, endOid))
 
     def getBatchSrcHgDbPreBigPsl(self, srcHgDb):
-        self.__needOptions("destHgDb", "annotationType")
+        self._needOptions("destHgDb", "annotationType")
         return os.path.join(self.buildDir, "results", self.destHgDb,
                             "{}.{}.{}.preBigPsl".format(self.destHgDb, srcHgDb, self.annotationType))
 
     @property
     def batchPreBigPsl(self):
-        self.__needOptions("srcHgDb")
+        self._needOptions("srcHgDb")
         return self.getBatchSrcHgDbPreBigPsl(self.srcHgDb)
 
     @property
@@ -206,7 +206,7 @@ class TransMapConf(object):
 
     @property
     def statsDir(self):
-        self.__needOptions("dataRootDir")
+        self._needOptions("dataRootDir")
         return os.path.normpath(os.path.join(self.dataRootDir, "stats"))
 
     @property
@@ -218,7 +218,7 @@ class TransMapConf(object):
 
     @property
     def detailedStatsTsv(self):
-        self.__needOptions("destHgDb")
+        self._needOptions("destHgDb")
         return self.getDetailedStatsTsv(self.destHgDb)
 
     def _loadRequiredPreviousDestHgDbs(self):

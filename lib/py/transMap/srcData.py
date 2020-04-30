@@ -29,7 +29,7 @@ class SrcMetadataSqliteTable(HgSqliteTable):
     """
     Source metadata database table
     """
-    __createSql = """CREATE TABLE {table} (
+    _createSql = """CREATE TABLE {table} (
             srcId text not null,
             accv text not null,
             cds text,
@@ -37,8 +37,8 @@ class SrcMetadataSqliteTable(HgSqliteTable):
             geneId text,
             geneType text,
             transcriptType text);"""
-    __insertSql = """INSERT INTO {table} ({columns}) VALUES ({values});"""
-    __indexSql = """CREATE UNIQUE INDEX {table}_srcId on {table} (srcId);"""
+    _insertSql = """INSERT INTO {table} ({columns}) VALUES ({values});"""
+    _indexSql = """CREATE UNIQUE INDEX {table}_srcId on {table} (srcId);"""
 
     columnNames = ("srcId", "accv", "cds", "geneName", "geneId", "geneType",
                    "transcriptType")
@@ -50,15 +50,15 @@ class SrcMetadataSqliteTable(HgSqliteTable):
 
     def create(self):
         """create table"""
-        self._create(self.__createSql)
+        self._create(self._createSql)
 
     def index(self):
         """create index after loading"""
-        self._index(self.__indexSql)
+        self._index(self._indexSql)
 
     def loads(self, rows):
         """load rows into table.  Each element of row is a list, tuple, or SrcMetadata objects"""
-        self._inserts(self.__insertSql, self.columnNames, rows)
+        self._inserts(self._insertSql, self.columnNames, rows)
 
     def getBySrcId(self, srcId):
         "return row or error if not found"
@@ -91,13 +91,13 @@ class SrcXRefSqliteTable(HgSqliteTable):
     """
     transmap source id and accession
     """
-    __createSql = """CREATE TABLE {table} (
+    _createSql = """CREATE TABLE {table} (
             srcAlignId text not null,
             srcId text not null,
             accv text);"""
-    __insertSql = """INSERT INTO {table} (srcAlignId, srcId, accv) VALUES (?, ?, ?);"""
-    __indexSql = ["""CREATE UNIQUE INDEX {table}_srcAlignId on {table} (srcAlignId);""",
-                  """CREATE INDEX {table}_accv on {table} (accv);"""]
+    _insertSql = """INSERT INTO {table} (srcAlignId, srcId, accv) VALUES (?, ?, ?);"""
+    _indexSql = ["""CREATE UNIQUE INDEX {table}_srcAlignId on {table} (srcAlignId);""",
+                 """CREATE INDEX {table}_accv on {table} (accv);"""]
     columnNames = ("srcAlignId", "srcId", "accv")
 
     def __init__(self, conn, table, create=False):
@@ -107,15 +107,15 @@ class SrcXRefSqliteTable(HgSqliteTable):
 
     def create(self):
         """create table"""
-        self._create(self.__createSql)
+        self._create(self._createSql)
 
     def index(self):
         """create index after loading"""
-        self._index(self.__indexSql)
+        self._index(self._indexSql)
 
     def loads(self, rows):
         """load rows into table.  Each element of row is a list, tuple, or SrcMetadata objects"""
-        self._inserts(self.__insertSql, self.columnNames, rows)
+        self._inserts(self._insertSql, self.columnNames, rows)
 
     def getSrcIds(self):
         "get generator over unique source ids"

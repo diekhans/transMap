@@ -66,20 +66,20 @@ class SrcPslGroups(dict):
     this is the cluster jobs simplifies batch setup."""
     def __init__(self, srcDbConn, startOid, endOid):
         pslq = deque(SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl).getByOid(startOid, endOid))
-        self.__groupAligns(pslq)
+        self._groupAligns(pslq)
 
-    def __groupAligns(self, pslq):
+    def _groupAligns(self, pslq):
         while len(pslq) > 0:
-            coords, pslGroup = self.__buildOneGroup(pslq)
+            coords, pslGroup = self._buildOneGroup(pslq)
             assert coords not in self
             self[coords] = pslGroup
 
     @staticmethod
-    def __pslRangeOverlaps(tName, tStart, tEnd, psl):
+    def _pslRangeOverlaps(tName, tStart, tEnd, psl):
         return (tName == psl.tName) and (tStart < psl.tEnd) and (tEnd > psl.tStart)
 
     @staticmethod
-    def __buildOneGroup(pslq):
+    def _buildOneGroup(pslq):
         "group psls, removing from queue"
 
         # seed with first psl, then iterate until we have all overlapping
@@ -91,8 +91,8 @@ class SrcPslGroups(dict):
             processedSome = False
             i = 0
             while i < len(pslq):
-                if SrcPslGroups.__pslRangeOverlaps(tName, tStart, tEnd, pslq[i]):
-                    psl = SrcPslGroups.__dequeue(pslq, i)
+                if SrcPslGroups._pslRangeOverlaps(tName, tStart, tEnd, pslq[i]):
+                    psl = SrcPslGroups._dequeue(pslq, i)
                     pslGroup.append(psl)
                     tStart = min(psl.tStart, tStart)
                     tEnd = max(psl.tEnd, tEnd)
@@ -101,7 +101,7 @@ class SrcPslGroups(dict):
         return Coords(tName, tStart, tEnd), pslGroup
 
     @staticmethod
-    def __dequeue(pslq, idx):
+    def _dequeue(pslq, idx):
         "remove one psl in an efficient way"
         psl = pslq[idx]
         if idx < len(pslq) - 1:
@@ -119,16 +119,16 @@ class MappingChains(object):
 
     def dumpToTmpFile(self, coords, tmpFile):
         with open(tmpFile, "w") as tmpFh:
-            self.__dumpToTmpFile(coords, tmpFh)
+            self._dumpToTmpFile(coords, tmpFh)
 
-    def __dumpToTmpFile(self, coords, tmpFh):
+    def _dumpToTmpFile(self, coords, tmpFh):
         cnt = 0
         for loc in self.indexTbl.getRangeOverlap(coords.name, coords.start, coords.end):
-            self.__dumpOneChain(loc, tmpFh)
+            self._dumpOneChain(loc, tmpFh)
             cnt += 1
         logging.debug("chains: {} chains for {}".format(cnt, coords))
 
-    def __dumpOneChain(self, loc, tmpFh):
+    def _dumpOneChain(self, loc, tmpFh):
         self.fh.seek(loc.offset)
         buf = self.fh.read(loc.length)
         if len(buf) != loc.length:
@@ -147,36 +147,36 @@ class PslMapper(object):
         self.mappingChains = mappingChains
         self.keep = keep
 
-    def __writeSrcPsls(self, srcPsls):
+    def _writeSrcPsls(self, srcPsls):
         srcPslTmpFile = fileOps.tmpFileGet("transMap.src.", ".psl")
         with open(srcPslTmpFile, "w") as pslFh:
             for psl in srcPsls:
                 psl.write(pslFh)
         return srcPslTmpFile
 
-    def __writeSrcSeq(self, srcId, faFh):
+    def _writeSrcSeq(self, srcId, faFh):
         srcSeq = self.srcSeqTbl.getByName(srcId)
         faFh.write(srcSeq.toFasta())
 
-    def __getUniqPslSrcId(self, srcPsls):
+    def _getUniqPslSrcId(self, srcPsls):
         return set([alignIdToSrcId(p.qName) for p in srcPsls])
 
-    def __writeSrcSeqs(self, srcPsls):
+    def _writeSrcSeqs(self, srcPsls):
         srcSeqsTmpFile = fileOps.tmpFileGet("transMap.src.", ".fa")
         with open(srcSeqsTmpFile, "w") as faFh:
-            for srcId in self.__getUniqPslSrcId(srcPsls):
-                self.__writeSrcSeq(srcId, faFh)
+            for srcId in self._getUniqPslSrcId(srcPsls):
+                self._writeSrcSeq(srcId, faFh)
         return srcSeqsTmpFile
 
-    def __writeMappingChains(self, srcPslsCoords):
+    def _writeMappingChains(self, srcPslsCoords):
         chainsTmpFile = fileOps.tmpFileGet("transMap.mapping.", ".chain")
         self.mappingChains.dumpToTmpFile(srcPslsCoords, chainsTmpFile)
         return chainsTmpFile
 
-    def __mapPslsToDest(self, srcPslsCoords, srcPsls):
-        srcPslTmpFile = self.__writeSrcPsls(srcPsls)
-        srcSeqsTmpFile = self.__writeSrcSeqs(srcPsls)
-        chainsTmpFile = self.__writeMappingChains(srcPslsCoords)
+    def _mapPslsToDest(self, srcPslsCoords, srcPsls):
+        srcPslTmpFile = self._writeSrcPsls(srcPsls)
+        srcSeqsTmpFile = self._writeSrcSeqs(srcPsls)
+        chainsTmpFile = self._writeMappingChains(srcPslsCoords)
         mappedPslTmpFile = fileOps.tmpFileGet("transMap.mapped.", ".psl")
         pslMapCmd = ["pslMap", "-chainMapFile",
                      srcPslTmpFile, chainsTmpFile, "stdout"]
@@ -202,17 +202,17 @@ class PslMapper(object):
         return mappedPsls
 
     @staticmethod
-    def __findSrcPsl(srcPsls, mappedPsl):
+    def _findSrcPsl(srcPsls, mappedPsl):
         srcQName = alignIdDropOneUniq(mappedPsl.qName)
         for srcPsl in srcPsls:
             if srcPsl.qName == srcQName:
                 return srcPsl
         raise Exception("BUG: __findSrcPsl: srcPsl not found for {}".format(srcQName))
 
-    def __writeBigPslRec(self, srcPsls, mappedPsl, mappedPreBigPslFh):
+    def _writeBigPslRec(self, srcPsls, mappedPsl, mappedPreBigPslFh):
         srcId = alignIdToSrcId(mappedPsl.qName)
         srcSeq = self.srcSeqTbl.getByName(srcId)
-        srcPsl = self.__findSrcPsl(srcPsls, mappedPsl)
+        srcPsl = self._findSrcPsl(srcPsls, mappedPsl)
         metaData = self.srcMetadataTbl.getBySrcId(srcId) if self.srcMetadataTbl is not None else None
         fileOps.prRow(mappedPreBigPslFh,
                       bigTransMapMakeRec(self.srcHgDb, srcPsl, mappedPsl, srcSeq,
@@ -222,9 +222,9 @@ class PslMapper(object):
                                          self.srcGenomeAsm.orgAbbrev))
 
     def mapPslGroup(self, srcPslsCoords, srcPsls, mappedPreBigPslFh):
-        mappedPsls = self.__mapPslsToDest(srcPslsCoords, srcPsls)
+        mappedPsls = self._mapPslsToDest(srcPslsCoords, srcPsls)
         for mappedPsl in mappedPsls:
-            self.__writeBigPslRec(srcPsls, mappedPsl, mappedPreBigPslFh)
+            self._writeBigPslRec(srcPsls, mappedPsl, mappedPreBigPslFh)
 
 
 def transMapJob(opts):

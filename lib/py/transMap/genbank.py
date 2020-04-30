@@ -28,7 +28,7 @@ def haveEstTrack(hgDbConn, hgDb):
 
 
 def haveRefseqTrack(hgDbConn, hgDb):
-    "check if refSeqAli exists"
+    "check if ncbiRefSeqPsl exists"
     return mysqlOps.haveTablesLike(hgDbConn, "ncbiRefSeqPsl", hgDb)
 
 
@@ -49,23 +49,23 @@ class GenbankHgData(object):
         self.srcHgDb = srcHgDb
         self.annotationType = annotationType
 
-    def __getIntronEstTables(self):
+    def _getIntronEstTables(self):
         hgDbConn = hgDb.connect(self.srcHgDb)
         try:
             return mysqlOps.getTablesLike(hgDbConn, "%intronEst", self.srcHgDb)
         finally:
             hgDbConn.close()
 
-    def __getPslTbls(self):
+    def _getPslTbls(self):
         """get the list of tables for a source; intronEst might be split"""
         if self.annotationType == AnnotationType.rna:
             return ["all_mrna"]
         elif self.annotationType == AnnotationType.est:
-            return self.__getIntronEstTables()
+            return self._getIntronEstTables()
         elif self.annotationType == AnnotationType.refseq:
             return ["ncbiRefSeqPsl"]
 
-    def __buildPslSelect(self, table, testAccSubset=None):
+    def _buildPslSelect(self, table, testAccSubset=None):
         if self.annotationType == AnnotationType.refseq:
             sql = self.rsPslSelectTmpl.format(table)
         else:
@@ -74,15 +74,15 @@ class GenbankHgData(object):
             sql += " AND (qName in ({}))".format(",".join(['"{}"'.format(name) for name in testAccSubset]))
         return sql
 
-    def __getPslCmdSingle(self, table, testAccSubset=None):
-        hgsqlCmd = ("hgsql", "-Ne", self.__buildPslSelect(table, testAccSubset), self.srcHgDb)
+    def _getPslCmdSingle(self, table, testAccSubset=None):
+        hgsqlCmd = ("hgsql", "-Ne", self._buildPslSelect(table, testAccSubset), self.srcHgDb)
         return hgsqlCmd, None
 
-    def __getPslCmdSplit(self, tables, testAccSubset=None):
+    def _getPslCmdSplit(self, tables, testAccSubset=None):
         tmpPslFile = fileOps.tmpFileGet("transMap.splittable.", "psl")
         with open(tmpPslFile, "w") as pslFh:
             for table in tables:
-                pipettor.run(("hgsql", "-Ne", self.__buildPslSelect(table, testAccSubset), self.srcHgDb),
+                pipettor.run(("hgsql", "-Ne", self._buildPslSelect(table, testAccSubset), self.srcHgDb),
                              stdout=pslFh)
         return ["cat", tmpPslFile], tmpPslFile
 
@@ -90,11 +90,11 @@ class GenbankHgData(object):
         """get generator to return alignments with updated qNames,
         these are raw rows."""
         setSortLocale()
-        pslTables = self.__getPslTbls()
+        pslTables = self._getPslTbls()
         if len(pslTables) == 1:
-            getAlignCmd, tmpPslFile = self.__getPslCmdSingle(pslTables[0], testAccSubset)
+            getAlignCmd, tmpPslFile = self._getPslCmdSingle(pslTables[0], testAccSubset)
         else:
-            getAlignCmd, tmpPslFile = self.__getPslCmdSplit(pslTables, testAccSubset)
+            getAlignCmd, tmpPslFile = self._getPslCmdSplit(pslTables, testAccSubset)
         sortCmd = ("sort", "-k", "14,14", "-k", "16,16n")
         uniqCmd = ("pslQueryUniq", "--prefix", "{}:".format(self.srcHgDb))
         with pipettor.Popen([getAlignCmd, sortCmd, uniqCmd]) as fh:
@@ -104,7 +104,7 @@ class GenbankHgData(object):
             os.unlink(tmpPslFile)
 
     @staticmethod
-    def __getTestSubsetClause(alignField, testAccvSubset):
+    def _getTestSubsetClause(alignField, testAccvSubset):
         if testAccvSubset is None:
             return ""
         elif len(testAccvSubset) == 0:
@@ -112,7 +112,7 @@ class GenbankHgData(object):
         else:
             return "AND {}".format(getAccvSubselectClause(alignField, testAccvSubset))
 
-    def __metadataRowGen(self, sql, rowFactory):
+    def _metadataRowGen(self, sql, rowFactory):
         conn = hgDb.connect(self.srcHgDb, dictCursor=True)
         try:
             cur = conn.cursor()
@@ -122,7 +122,7 @@ class GenbankHgData(object):
         finally:
             conn.close()
 
-    def __refseqToMetadata(self, row):
+    def _refseqToMetadata(self, row):
         geneType = "protein_coding" if row["accv"].startswith("NM_") else "non_coding"
         return SrcMetadata(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
                            accv=row["accv"],
@@ -132,7 +132,7 @@ class GenbankHgData(object):
                            geneType=geneType,
                            transcriptType=geneType)
 
-    def __refseqMetadataReader(self, testAccvSubset):
+    def _refseqMetadataReader(self, testAccvSubset):
         # using sub-select to get aligned sequence took forever, hence join and distinct
         sql = "SELECT DISTINCT psl.qName as accv, cds.cds as cds_name, " \
               "        rl.name as rl_name, rl.locusLinkId as rl_locusLinkId " \
@@ -141,10 +141,10 @@ class GenbankHgData(object):
               "LEFT JOIN {srcHgDb}.ncbiRefSeqLink rl ON (rl.mrnaAcc = psl.qName)  " \
               "WHERE TRUE {testAccvSubsetClause};" \
               .format(srcHgDb=self.srcHgDb,
-                      testAccvSubsetClause=self.__getTestSubsetClause("psl.qName", testAccvSubset))
-        return self.__metadataRowGen(sql, self.__refseqToMetadata)
+                      testAccvSubsetClause=self._getTestSubsetClause("psl.qName", testAccvSubset))
+        return self._metadataRowGen(sql, self._refseqToMetadata)
 
-    def __rnaToSrcMetadata(self, row):
+    def _rnaToSrcMetadata(self, row):
         geneType = "protein_coding" if row["cds_name"] != "n/a" else "unknown"
         return SrcMetadata(srcId="{}:{}".format(self.srcHgDb, row["accv"]),
                            accv=row["accv"],
@@ -154,20 +154,20 @@ class GenbankHgData(object):
                            geneType=geneType,
                            transcriptType=geneType)
 
-    def __refRnaMetadataReader(self, testAccvSubset):
+    def _refRnaMetadataReader(self, testAccvSubset):
         # using sub-select to get aligned sequence took forever, hence join and distinct
         sql = """SELECT DISTINCT concat(gb.acc, ".", gb.version) as accv, cds.name as cds_name, gn.name as gn_name """ \
               """FROM hgFixed.gbCdnaInfo gb, hgFixed.cds, hgFixed.geneName gn, {srcHgDb}.all_mrna rna """ \
               """WHERE (cds.id = gb.cds) AND (gn.id = gb.geneName) AND (rna.qName =.gb.acc)""" \
               """{testAccvSubsetClause};""".format(srcHgDb=self.srcHgDb,
-                                                   testAccvSubsetClause=self.__getTestSubsetClause("rna.qName", testAccvSubset))
-        return self.__metadataRowGen(sql, self.__rnaToSrcMetadata)
+                                                   testAccvSubsetClause=self._getTestSubsetClause("rna.qName", testAccvSubset))
+        return self._metadataRowGen(sql, self._rnaToSrcMetadata)
 
     def metadataReader(self, testAccvSubset=None):
         "reader for metadata for type; not valid for ESTs"
         if self.annotationType == AnnotationType.rna:
-            return self.__refRnaMetadataReader(testAccvSubset)
+            return self._refRnaMetadataReader(testAccvSubset)
         elif self.annotationType == AnnotationType.est:
             raise Exception("not for ESTs")
         elif self.annotationType == AnnotationType.refseq:
-            return self.__refseqMetadataReader(testAccvSubset)
+            return self._refseqMetadataReader(testAccvSubset)

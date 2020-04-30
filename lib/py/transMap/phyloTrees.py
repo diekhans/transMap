@@ -19,50 +19,50 @@ class PhyloDistances(object):
 
     def __init__(self, treeFiles):
         # indexed by (db1, db2), with the names sorted
-        self.__distances = {}
-        self.__buildDistanceTable(treeFiles)
+        self._distances = {}
+        self._buildDistanceTable(treeFiles)
 
     def get(self, hgDb1, hgDb2):
         "return distance or None is not defined"
         hgOrg1, hgVer1 = hgDbNameParse(hgDb1)
         hgOrg2, hgVer2 = hgDbNameParse(hgDb2)
         if hgOrg1 < hgOrg2:
-            entry = self.__distances.get((hgOrg1, hgOrg2))
+            entry = self._distances.get((hgOrg1, hgOrg2))
         else:
-            entry = self.__distances.get((hgOrg2, hgOrg1))
+            entry = self._distances.get((hgOrg2, hgOrg1))
         return entry.dist if entry is not None else None
 
-    def __buildDistanceTable(self, treeFiles):
+    def _buildDistanceTable(self, treeFiles):
         # indexed by (hgOrg1, hgOrg2) which are sorted
         for treeFile in treeFiles:
-            self.__processTree(PhyloDistances.__loadTree(treeFile))
+            self._processTree(PhyloDistances.__loadTree(treeFile))
 
-    def __processTree(self, tree):
+    def _processTree(self, tree):
         leafs = [tree.node(i) for i in tree.get_terminals()]
         for l1 in leafs:
             for l2 in leafs:
                 if l1 != l2:
-                    self.__processLeaves(l1.data.taxon, l2.data.taxon, tree.distance(l1.id, l2.id))
+                    self._processLeaves(l1.data.taxon, l2.data.taxon, tree.distance(l1.id, l2.id))
 
-    def __processLeaves(self, hgDb1, hgDb2, dist):
+    def _processLeaves(self, hgDb1, hgDb2, dist):
         hgOrg1, hgVer1 = hgDbNameParse(hgDb1)
         hgOrg2, hgVer2 = hgDbNameParse(hgDb2)
         if hgOrg1 < hgOrg2:
-            self.__processDbPair(hgOrg1, hgVer1, hgOrg2, hgVer2, dist)
+            self._processDbPair(hgOrg1, hgVer1, hgOrg2, hgVer2, dist)
         else:
-            self.__processDbPair(hgOrg2, hgVer2, hgOrg1, hgVer1, dist)
+            self._processDbPair(hgOrg2, hgVer2, hgOrg1, hgVer1, dist)
 
-    def __processDbPair(self, hgOrg1, hgVer1, hgOrg2, hgVer2, dist):
-        entry = self.__distances.get((hgOrg1, hgOrg2))
-        if (entry is None) or self.__isNewer(hgVer1, hgVer2, entry):
-            self.__distances[(hgOrg1, hgOrg2)] = self.__hgDbPhyloDistance(hgOrg1, hgVer1, hgOrg2, hgVer2, dist)
+    def _processDbPair(self, hgOrg1, hgVer1, hgOrg2, hgVer2, dist):
+        entry = self._distances.get((hgOrg1, hgOrg2))
+        if (entry is None) or self._isNewer(hgVer1, hgVer2, entry):
+            self._distances[(hgOrg1, hgOrg2)] = self._hgDbPhyloDistance(hgOrg1, hgVer1, hgOrg2, hgVer2, dist)
 
     @staticmethod
-    def __isNewer(hgVer1, hgVer2, entry):
+    def _isNewer(hgVer1, hgVer2, entry):
         return (hgVer1 > entry.hgVer1) or (hgVer2 > entry.hgVer2)
 
     @staticmethod
-    def __parsePhastConsMod(treeFile):
+    def _parsePhastConsMod(treeFile):
         strtree = None
         for line in fileOps.iterLines(treeFile):
             if line.startswith("TREE:"):
@@ -72,7 +72,7 @@ class PhyloDistances(object):
         return strtree
 
     @staticmethod
-    def __loadTree(treeFile):
+    def _loadTree(treeFile):
         """Load a tree file, can either be a phastCons model containing Newick
         (ends in .mod) or a file containing a Newick tree.
         """

@@ -83,16 +83,16 @@ class SrcDataTask(luigi.Task):
         super(SrcDataTask, self).__init__(*args, **kwargs)
         self.conf = transMapConfLoad(self.configPyFile, srcHgDb=self.srcHgDb, annotationType=self.annotationType)
 
-    def __runCmd(self, prog, srcDbTmp):
+    def _runCmd(self, prog, srcDbTmp):
         pipettor.run([os.path.join(self.conf.binDir, prog), self.srcHgDb, self.annotationType, srcDbTmp])
 
-    def __ensemblProgs(self):
+    def _ensemblProgs(self):
         return ["srcDbLoadEnsemblAligns",
                 "srcDbLoadEnsemblMetadata",
                 "srcDbLoadEnsemblSeqs",
                 "srcDbCheck"]
 
-    def __genbankProgs(self):
+    def _genbankProgs(self):
         cmds = ["srcDbLoadGenbankAligns"]
         if self.annotationType != AnnotationType.est:
             cmds.append("srcDbLoadGenbankMetadata")
@@ -102,9 +102,9 @@ class SrcDataTask(luigi.Task):
 
     def run(self):
         srcDbTmp = fileOps.atomicTmpFile(self.conf.srcDb)
-        progs = self.__ensemblProgs() if self.annotationType in (AnnotationType.ensembl,) else self.__genbankProgs()
+        progs = self._ensemblProgs() if self.annotationType in (AnnotationType.ensembl,) else self._genbankProgs()
         for prog in progs:
-            self.__runCmd(prog, srcDbTmp)
+            self._runCmd(prog, srcDbTmp)
         fileOps.atomicInstall(srcDbTmp, self.conf.srcDb)
 
     def output(self):
@@ -190,7 +190,7 @@ class TransMapBuildBigPslTask(luigi.Task):
     def requires(self):
         # chain type is not significant.  Ensembl and gencode
         # get combined at this point
-        if self.__mappingExists():
+        if self._mappingExists():
             return []   # mapping already exists
         else:
             return [TransMapBatchTask(configPyFile=self.configPyFile,

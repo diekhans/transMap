@@ -16,7 +16,6 @@ def _addExtern(module, relDir):
         raise Exception("can't find {} directory: {}".format(module, modDir))
     sys.path.insert(0, modDir)
 _addExtern("pycbio", "lib")
-_addExtern("pipettor", "build/lib")
 sys.path.insert(0, os.path.join(rootDir,  "lib/py"))
 
 # executable PATH, make sure we can override kent commands

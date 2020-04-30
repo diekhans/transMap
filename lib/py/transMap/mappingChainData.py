@@ -30,7 +30,7 @@ class MappingChainsIndexSqliteTable(HgSqliteTable):
     Database table containing index into mapping chains.
     query confidantes are kept in terms of positive strand.
     """
-    __createSql = """CREATE TABLE {table} (
+    _createSql = """CREATE TABLE {table} (
             bin int unsigned not null,
             qName text not null,
             qStart int unsigned not null,
@@ -38,8 +38,8 @@ class MappingChainsIndexSqliteTable(HgSqliteTable):
             chainId int unsigned not null,
             offset int unsigned not null,
             length int unsigned not null);"""
-    __insertSql = """INSERT INTO {table} ({columns}) VALUES ({values});"""
-    __indexSql = """CREATE INDEX {table}_chrom_bin on {table} (qName, bin)"""
+    _insertSql = """INSERT INTO {table} ({columns}) VALUES ({values});"""
+    _indexSql = """CREATE INDEX {table}_chrom_bin on {table} (qName, bin)"""
 
     columnNames = ("bin", "qName", "qStart", "qEnd", "chainId", "offset", "length")
 
@@ -49,15 +49,15 @@ class MappingChainsIndexSqliteTable(HgSqliteTable):
             self.create()
 
     def create(self):
-        self._create(self.__createSql)
+        self._create(self._createSql)
 
     def index(self):
         """create index after loading"""
-        self._index(self.__indexSql)
+        self._index(self._indexSql)
 
     def loads(self, rows):
         """load rows, which should already have bin"""
-        self._inserts(self.__insertSql, self.columnNames, rows)
+        self._inserts(self._insertSql, self.columnNames, rows)
 
     def getRangeOverlap(self, qName, qStart, qEnd):
         """Get index entries for overlapping range"""
