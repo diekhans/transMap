@@ -15,16 +15,9 @@ def getSortProg():
     return "gsort" if sys.platform == 'darwin' else "sort"
 
 
-def getTwoBit(db):
-    paths = ["/scratch/data/{db}/{db}.2bit".format(db=db),
-             "/hive/data/genomes/{db}/{db}.2bit".format(db=db)]
-    for twoBit in paths:
-        if os.path.exists(twoBit):
-            return twoBit
-    raise Exception("can't find 2bit for {db}".format(db=db))
-
-
 def getChromSizes(db):
+    # FIXME: this should go though conf, but one program uses it that
+    # doesn't use config
     return "/hive/data/genomes/{db}/chrom.sizes".format(db=db)
 
 

@@ -5,7 +5,7 @@ import os
 import argparse
 import pipettor
 from pycbio.sys import fileOps
-from transMap import setSortLocale, getChromSizes
+from transMap import setSortLocale
 from transMap.genomeData import AnnotationType
 from transMap.transMapConf import transMapConfLoad
 from transMap.bigTransMap import bigTransMapSortMerge
@@ -51,7 +51,7 @@ def transMapBuildBigPsl(opts):
     pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
                   "-as={}".format(conf.bigTransMapAsPath),
                   "-extraIndex={}".format(",".join(getIndexFields(conf))),
-                  mappedPreBigPsl, getChromSizes(conf.destHgDb),
+                  mappedPreBigPsl, conf.getDestChromSizes(),
                   mappedBigPslTmpFile])
     # validate
     pipettor.run([["bigPslToPsl", mappedBigPslTmpFile, "stdout"],

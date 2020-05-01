@@ -1,4 +1,4 @@
-"""test configuration that can be overridden from the environment"""
+"""configuration file for transMap batch run"""
 
 import os
 from transMap.transMapConf import TransMapConf

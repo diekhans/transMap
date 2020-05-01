@@ -11,7 +11,7 @@ from pycbio.sys import fileOps
 from pycbio.hgdata.psl import PslTbl
 from pycbio.db import sqliteOps
 from transMap import setSortLocale
-from transMap import alignIdToSrcId, alignIdDropOneUniq, getTwoBit
+from transMap import alignIdToSrcId, alignIdDropOneUniq
 from transMap.genomeData import AnnotationType, ChainType, GenomesDbTables, GenomeAsmsSqliteTable
 from transMap.srcData import SourceDbTables, SrcAlignSqliteTable, SrcMetadataSqliteTable
 from transMap.bigTransMap import bigTransMapMakeRec
@@ -189,7 +189,7 @@ class PslMapper(object):
                             "stdin", "stdout"]
         tsortCmd = ["sort", "-k", "14,14", "-k", "16,16n"]
         pslRecalcMatchCmd = ["pslRecalcMatch", "-ignoreQUniq", "stdin",
-                             getTwoBit(self.destHgDb), srcSeqsTmpFile, "stdout"]
+                             self.conf.getDestTwoBit(), srcSeqsTmpFile, "stdout"]
         cmds = [pslMapCmd, pslCDnaFilterCmd, tsortCmd, pslRecalcMatchCmd, pslQueryUniqCmd]
         p = pipettor.Pipeline(cmds, stdout=mappedPslTmpFile)
         p.wait()

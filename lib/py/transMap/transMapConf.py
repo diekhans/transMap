@@ -17,10 +17,21 @@ class TransMapConf(object):
 
     An instance of this class is create by the configuration file, which
     takes set values explicitly and from the command line.
+    - srcTwoBitPath - a list of path names to search to find srcDb twobit, with the
+      database formatted as {db}. A path allows for checking on cluster local
+      storage.
+    - srcChromSizes - location of srcDb chrom sizes file.
+    - destTwoBitPathPat - a list of path names to search to find destDb twobit, with the
+      database formatted as {db}. A path allows for checking on cluster local
+      storage.
+    - destChromSizesPat - location of destDb chrom sizes file.
+
     """
-    def __init__(self, configPyFile, dataRootDir=None, srcHgDb=None, destHgDb=None,
+    def __init__(self, configPyFile, *, dataRootDir=None, srcHgDb=None, destHgDb=None,
                  annotationType=None, chainType=None, version=None, batchGen=None,
-                 prevVersion=None, prevDataRootDir=None):
+                 prevVersion=None, prevDataRootDir=None,
+                 srcTwoBitPathPat=None, srcChromSizesPat=None,
+                 destTwoBitPathPat=None, destChromSizesPat=None):
         self.configPyFile = configPyFile
         self.dataRootDir = dataRootDir
         self.srcHgDb = srcHgDb
@@ -31,9 +42,26 @@ class TransMapConf(object):
         self.batchGen = batchGen
         self.prevVersion = prevVersion
         self.prevDataRootDir = prevDataRootDir
+        self.srcTwoBitPathPat = srcTwoBitPathPat
+        self.srcChromSizesPat = srcChromSizesPat
+        self.destTwoBitPathPat = destTwoBitPathPat
+        self.destChromSizesPat = destChromSizesPat
 
         # ucsc browser data
         self.hgCentralDb = "hgcentraltest"
+
+        # genome data defaults
+        _defaultTwoBitPathPat = ("/scratch/data/{db}/{db}.2bit",
+                                 "/hive/data/genomes/{db}/{db}.2bit")
+        _defaultChromSizesPat = "/hive/data/genomes/{db}/chrom.sizes"
+        if self.srcTwoBitPathPat is None:
+            self.srcTwoBitPathPat = _defaultTwoBitPathPat
+        if self.srcChromSizesPat is None:
+            self.srcChromSizesPat = _defaultChromSizesPat
+        if self.destTwoBitPathPat is None:
+            self.destTwoBitPathPat = _defaultTwoBitPathPat
+        if self.destChromSizesPat is None:
+            self.destChromSizesPat = _defaultChromSizesPat
 
         # genbank
         self.genbankConfRa = GenbankConf.stdConfRaFile
@@ -144,13 +172,48 @@ class TransMapConf(object):
     @property
     def mappingChainsDir(self):
         self._needOptions("srcHgDb", "destHgDb")
-        return os.path.join(self.buildDir, "chains", self.destHgDb, self.srcHgDb)
+        return os.path.join(self.dataRootDir, "data/chains", self.destHgDb, self.srcHgDb)
 
     @property
     def mappingChains(self):
         self._needOptions("srcHgDb", "destHgDb", "chainType")
         chainFile = "{}.{}.{}.chain".format(self.srcHgDb, self.destHgDb, self.chainType)
         return os.path.join(self.mappingChainsDir, chainFile)
+
+    @staticmethod
+    def _twoBitSearch(twoBitPathPat, db):
+        paths = [pat.format(db=db) for pat in twoBitPathPat]
+        for twoBit in paths:
+            if os.path.exists(twoBit):
+                return twoBit
+        raise Exception("can't find 2bit file for {db} in {paths}".format(db=db, paths=paths))
+
+    @staticmethod
+    def _chromSizesGet(chromSizesPat, db):
+        path = chromSizesPat.format(db=db)
+        if os.path.exists(path):
+            return path
+        raise Exception("can't find chrom size file for {db}: {path}".format(db=db, path=path))
+
+    def getSrcTwoBit(self):
+        "search for the src twobit file"
+        self._needOptions("srcHgDb")
+        return self._twoBitSearch(self.srcTwoBitPathPat, self.srcHgDb)
+
+    def getSrcChromSizes(self):
+        "get the src chrmo size file"
+        self._needOptions("srcHgDb")
+        return self._chromSizesGet(self.srcChromSizesPat, self.srcHgDb)
+
+    def getDestTwoBit(self):
+        "search for the dest twobit file"
+        self._needOptions("destHgDb")
+        return self._twoBitSearch(self.destTwoBitPathPat, self.destHgDb)
+
+    def getDestChromSizes(self):
+        "get the dest chrmo size file"
+        self._needOptions("destHgDb")
+        return self._chromSizesGet(self.destChromSizesPat, self.destHgDb)
 
     @property
     def mappingChainsIndexDb(self):
