@@ -19,11 +19,11 @@ class TransMapConf(object):
     takes set values explicitly and from the command line.
     - srcTwoBitPath - a list of path names to search to find srcDb twobit, with the
       database formatted as {db}. A path allows for checking on cluster local
-      storage.
+      storage.  A single string may also be supplied.
     - srcChromSizes - location of srcDb chrom sizes file.
     - destTwoBitPathPat - a list of path names to search to find destDb twobit, with the
       database formatted as {db}. A path allows for checking on cluster local
-      storage.
+      storage.  A single string may also be supplied.
     - destChromSizesPat - location of destDb chrom sizes file.
 
     """
@@ -56,10 +56,14 @@ class TransMapConf(object):
         _defaultChromSizesPat = "/hive/data/genomes/{db}/chrom.sizes"
         if self.srcTwoBitPathPat is None:
             self.srcTwoBitPathPat = _defaultTwoBitPathPat
+        elif isinstance(self.srcTwoBitPathPat, str):
+            self.srcTwoBitPathPat = [self.srcTwoBitPathPat]
         if self.srcChromSizesPat is None:
             self.srcChromSizesPat = _defaultChromSizesPat
         if self.destTwoBitPathPat is None:
             self.destTwoBitPathPat = _defaultTwoBitPathPat
+        elif isinstance(self.destTwoBitPathPat, str):
+            self.destTwoBitPathPat = [self.destTwoBitPathPat]
         if self.destChromSizesPat is None:
             self.destChromSizesPat = _defaultChromSizesPat
 
@@ -172,7 +176,7 @@ class TransMapConf(object):
     @property
     def mappingChainsDir(self):
         self._needOptions("srcHgDb", "destHgDb")
-        return os.path.join(self.dataRootDir, "data/chains", self.destHgDb, self.srcHgDb)
+        return os.path.join(self.dataRootDir, "data/chains", self.srcHgDb, self.destHgDb)
 
     @property
     def mappingChains(self):

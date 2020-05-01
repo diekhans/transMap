@@ -187,11 +187,11 @@ mappingChainsBuildAllTest: mkdirs
 # sets up test files for batch/job tests
 define transMapEnvSetup
 rm -rf output/$@.root
-mkdir -p output/$@.root/data/src/hg19 output/$@.root/data/chains/mm10/hg19
+mkdir -p output/$@.root/data/src/hg19 output/$@.root/data/chains/hg19/mm10
 cat input/refseq_align.sql input/refseq_seq.sql input/refseq_metadata.sql | sqlite3 -batch output/$@.root/data/src/hg19/hg19.refseq.src.db
 sqlite3 -batch output/$@.root/data/genome.db < input/mappingGenomeDb.sql
-sqlite3 -batch output/$@.root/data/chains/mm10/hg19/hg19.mm10.all.chain.db < input/mappingChains.sql
-cp -f input/mm10.hg19.chain output/$@.root/data/chains/mm10/hg19/hg19.mm10.all.chain
+sqlite3 -batch output/$@.root/data/chains/hg19/mm10/hg19.mm10.all.chain.db < input/mappingChains.sql
+cp -f input/mm10.hg19.chain output/$@.root/data/chains/hg19/mm10/hg19.mm10.all.chain
 endef
 
 # setup hg19->mm10 test bigPsl

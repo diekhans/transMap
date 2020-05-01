@@ -85,8 +85,9 @@ def directRunBatch(conf, batchFile):
 
 
 def paraRunBatch(conf, batchFile):
-    para = Para(conf.paraHost, os.getcwd(), conf.batchParaDir, os.path.abspath(batchFile))
-    para.make()
+    paraBatch = Para(conf.paraHost, os.getcwd(), conf.batchParaDir, os.path.abspath(batchFile))
+    paraBatch.make()
+    paraBatch.free()
 
 
 def finishBatch(conf):
