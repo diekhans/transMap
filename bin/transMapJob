@@ -2,6 +2,7 @@
 
 import transMapProgSetup  # noqa: F401
 import sys
+import os
 import argparse
 import pipettor
 import logging
@@ -119,7 +120,7 @@ class MappingChains(object):
 
     def dumpToTmpFile(self, coords, tmpFile):
         with open(tmpFile, "w") as tmpFh:
-            self._dumpToTmpFile(coords, tmpFh)
+            return self._dumpToTmpFile(coords, tmpFh)
 
     def _dumpToTmpFile(self, coords, tmpFh):
         cnt = 0
@@ -127,6 +128,7 @@ class MappingChains(object):
             self._dumpOneChain(loc, tmpFh)
             cnt += 1
         logging.debug("chains: {} chains for {}".format(cnt, coords))
+        return cnt
 
     def _dumpOneChain(self, loc, tmpFh):
         self.fh.seek(loc.offset)
@@ -169,14 +171,18 @@ class PslMapper(object):
         return srcSeqsTmpFile
 
     def _writeMappingChains(self, srcPslsCoords):
+        "return None is no chains are written"
         chainsTmpFile = fileOps.tmpFileGet("transMap.mapping.", ".chain")
-        self.mappingChains.dumpToTmpFile(srcPslsCoords, chainsTmpFile)
-        return chainsTmpFile
+        cnt = self.mappingChains.dumpToTmpFile(srcPslsCoords, chainsTmpFile)
+        if cnt > 0:
+            return chainsTmpFile
+        else:
+            os.unlink(chainsTmpFile)
+            return None
 
-    def _mapPslsToDest(self, srcPslsCoords, srcPsls):
+    def _mapPslsToDestWithChains(self, srcPslsCoords, srcPsls, chainsTmpFile):
         srcPslTmpFile = self._writeSrcPsls(srcPsls)
         srcSeqsTmpFile = self._writeSrcSeqs(srcPsls)
-        chainsTmpFile = self._writeMappingChains(srcPslsCoords)
         mappedPslTmpFile = fileOps.tmpFileGet("transMap.mapped.", ".psl")
         pslMapCmd = ["pslMap", "-chainMapFile",
                      srcPslTmpFile, chainsTmpFile, "stdout"]
@@ -200,6 +206,14 @@ class PslMapper(object):
         else:
             fileOps.rmFiles(*tmpFiles)
         return mappedPsls
+
+    def _mapPslsToDest(self, srcPslsCoords, srcPsls):
+        chainsTmpFile = self._writeMappingChains(srcPslsCoords)
+        if chainsTmpFile is not None:
+            return self._mapPslsToDestWithChains(srcPslsCoords, srcPsls, chainsTmpFile)
+        else:
+            return []  # no chains
+
 
     @staticmethod
     def _findSrcPsl(srcPsls, mappedPsl):
