@@ -35,13 +35,17 @@ def haveGencode(hgDbConn, srcHgDb):
 
 
 class EnsemblHgData(object):
-    "obtain data UCSC browser data for GENCODE or Ensembl"
+    """Obtain data UCSC browser data for GENCODE or Ensembl.
+    Optionally force a specific GENCODE version to avoid pre-releases"""
 
-    def __init__(self, srcHgDb, annotationType):
+    def __init__(self, srcHgDb, annotationType, gencodeVersion):
         self.srcHgDb = srcHgDb
         self.annotationType = annotationType
         self.srcHgDbConn = hgDb.connect(srcHgDb, dictCursor=True)
-        self.gencodeVersion = self._getGencodeVersion()  # None if not GENCODE
+        if gencodeVersion is not None:
+            self.gencodeVersion = gencodeVersion
+        else:
+            self.gencodeVersion = self._findGencodeVersion()  # None if not GENCODE
 
     def _parseGenbankVersion(self, table):
         """parse numeric version from table name, avoiding V24lift37 like names"""
@@ -60,7 +64,7 @@ class EnsemblHgData(object):
                 tbls.append(tbl)
         return tbls
 
-    def _getGencodeVersion(self):
+    def _findGencodeVersion(self):
         "return latest gencode version, parse from table names, or None"
         tbls = self._getGencodeCompTables()
         if len(tbls) == 0:

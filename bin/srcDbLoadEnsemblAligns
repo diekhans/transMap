@@ -16,6 +16,8 @@ def parseArgs():
     transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--testAccvFile", default=None,
                         help="""limit to test accession, with version, in this file testing purposes""")
+    parser.add_argument("--gencodeVersion", default=None,
+                        help="""Use this GENCODE version to avoid pre-releases""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.ensembl,), type=AnnotationType,
@@ -27,9 +29,9 @@ def parseArgs():
     return opts
 
 
-def srcDbLoadEnsemblAligns(srcHgDb, annotationType, srcDb, testAccvFile):
+def srcDbLoadEnsemblAligns(srcHgDb, annotationType, srcDb, gencodeVersion, testAccvFile):
     testAccvSubset = fileOps.readFileLines(testAccvFile) if testAccvFile is not None else None
-    ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
+    ensemblHgData = EnsemblHgData(srcHgDb, annotationType, gencodeVersion)
     fileOps.ensureFileDir(srcDb)
     srcDbConn = sqliteOps.connect(srcDb, create=True)
     try:
@@ -41,4 +43,4 @@ def srcDbLoadEnsemblAligns(srcHgDb, annotationType, srcDb, testAccvFile):
 
 # entry
 opts = parseArgs()
-srcDbLoadEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testAccvFile)
+srcDbLoadEnsemblAligns(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.gencodeVersion, opts.testAccvFile)

@@ -16,6 +16,8 @@ def parseArgs():
     transMapProgSetup.addCmdOptions(parser)
     parser.add_argument("--testLimit", action="store_true", default=False,
                         help="""limit to alignments that are in srcAlign table for testing""")
+    parser.add_argument("--gencodeVersion", default=None,
+                        help="""Use this GENCODE version to avoid pre-releases""")
     parser.add_argument("srcHgDb",
                         help="""Genome database for assembly""")
     parser.add_argument("annotationType", choices=(AnnotationType.ensembl,), type=AnnotationType,
@@ -31,8 +33,8 @@ def getTestLimitAccv(srcDbConn):
     return SrcAlignSqliteTable(srcDbConn, SourceDbTables.srcAlignTbl).getAllAccv()
 
 
-def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
-    ensemblHgData = EnsemblHgData(srcHgDb, annotationType)
+def getEnsemblMetadata(srcHgDb, annotationType, srcDb, gencodeVersion, testLimit):
+    ensemblHgData = EnsemblHgData(srcHgDb, annotationType, gencodeVersion)
     fileOps.ensureFileDir(srcDb)
     srcDbConn = sqliteOps.connect(srcDb, create=True)
     try:
@@ -44,4 +46,4 @@ def getEnsemblMetadata(srcHgDb, annotationType, srcDb, testLimit):
 
 
 opts = parseArgs()
-getEnsemblMetadata(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.testLimit)
+getEnsemblMetadata(opts.srcHgDb, opts.annotationType, opts.srcDb, opts.gencodeVersion, opts.testLimit)
