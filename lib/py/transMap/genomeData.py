@@ -116,7 +116,7 @@ class GenomeAsm(namedtuple("GenomeAsm",
         return self
 
     def __str__(self):
-        return "{}\t{}\t{}\t{}\t".format(self.hgDb, self.clade, self.commonName, self.scientificName, str(self.annotationTypeSet))
+        return "{}\t{}\t{}\t{}\t{}".format(self.hgDb, self.clade, self.commonName, self.scientificName, str(self.annotationTypeSet))
 
     def isFinished(self):
         "is this genome considered finished"

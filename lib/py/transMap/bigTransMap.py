@@ -142,12 +142,11 @@ def _writeSortList(inFiles):
 
 def _bigTransMapSortMerge(inFiles, outPreBigPsl):
     tmpSortList = _writeSortList(inFiles)
-    outPreBigPslTmp = fileOps.atomicTmpFile(outPreBigPsl)
-    sortCmd = [getSortProg(), "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
-               "--merge", "--files0-from={}".format(tmpSortList),
-               "--output={}".format(outPreBigPslTmp)]
-    pipettor.run(sortCmd)
-    fileOps.atomicInstall(outPreBigPslTmp, outPreBigPsl)
+    with fileOps.AtomicFileCreate(outPreBigPsl) as outPreBigPslTmp:
+        sortCmd = [getSortProg(), "-k1,1", "-k2,2n", "-k3,3n", "-k4,4",
+                   "--merge", "--files0-from={}".format(tmpSortList),
+                   "--output={}".format(outPreBigPslTmp)]
+        pipettor.run(sortCmd)
     os.unlink(tmpSortList)
 
 

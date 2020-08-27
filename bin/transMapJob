@@ -214,7 +214,6 @@ class PslMapper(object):
         else:
             return []  # no chains
 
-
     @staticmethod
     def _findSrcPsl(srcPsls, mappedPsl):
         srcQName = alignIdDropOneUniq(mappedPsl.qName)
@@ -261,12 +260,11 @@ def transMapJob(opts):
     # fields 3,4 are for test stability
     sortBedCmd = ["sort", "-k1,1", "-k2,2n", "-k3,3n", "-k4,4"]
 
-    tmpMappedPreBigPsl = fileOps.atomicTmpFile(opts.mappedPreBigPsl)
-    fileOps.ensureFileDir(tmpMappedPreBigPsl)
-    with pipettor.Popen([sortBedCmd], "w", stdout=tmpMappedPreBigPsl) as mappedPreBigPslFh:
-        for srcPslsCoords in srcPslGroups.keys():
-            pslMapper.mapPslGroup(srcPslsCoords, srcPslGroups[srcPslsCoords], mappedPreBigPslFh)
-    fileOps.atomicInstall(tmpMappedPreBigPsl, opts.mappedPreBigPsl)
+    fileOps.ensureFileDir(opts.mappedPreBigPsl)
+    with fileOps.AtomicFileCreate(opts.mappedPreBigPsl) as tmpMappedPreBigPsl:
+        with pipettor.Popen([sortBedCmd], "w", stdout=tmpMappedPreBigPsl) as mappedPreBigPslFh:
+            for srcPslsCoords in srcPslGroups.keys():
+                pslMapper.mapPslGroup(srcPslsCoords, srcPslGroups[srcPslsCoords], mappedPreBigPslFh)
 
 
 setSortLocale()

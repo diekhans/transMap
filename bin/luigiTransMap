@@ -101,11 +101,10 @@ class SrcDataTask(luigi.Task):
         return cmds
 
     def run(self):
-        srcDbTmp = fileOps.atomicTmpFile(self.conf.srcDb)
-        progs = self._ensemblProgs() if self.annotationType in (AnnotationType.ensembl,) else self._genbankProgs()
-        for prog in progs:
-            self._runCmd(prog, srcDbTmp)
-        fileOps.atomicInstall(srcDbTmp, self.conf.srcDb)
+        with fileOps.AtomicFileCreate(self.conf.srcDb) as srcDbTmp:
+            progs = self._ensemblProgs() if self.annotationType in (AnnotationType.ensembl,) else self._genbankProgs()
+            for prog in progs:
+                self._runCmd(prog, srcDbTmp)
 
     def output(self):
         return luigi.LocalTarget(self.conf.srcDb)
@@ -122,14 +121,12 @@ class MappingChainBuildTask(luigi.Task):
                                      chainType=self.mapping.chains.chainType)
 
     def run(self):
-        mappingChainsTmp = fileOps.atomicTmpFile(self.conf.mappingChains)
-        mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
-
-        pipettor.run([os.path.join(self.conf.binDir, "mappingChainBuild"),
-                      self.conf.genomeDb, self.mapping.srcHgDb, self.mapping.destHgDb, self.mapping.chains.chainType, mappingChainsTmp])
-
-        fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.conf.mappingChains))
-        fileOps.atomicInstall(mappingChainsTmp, self.conf.mappingChains)
+        with fileOps.AtomicFileCreate(self.conf.mappingChains) as mappingChainsTmp:
+            mappingChainsIndexDbTmp = "{}.db".format(mappingChainsTmp)
+            pipettor.run([os.path.join(self.conf.binDir, "mappingChainBuild"),
+                          self.conf.genomeDb, self.mapping.srcHgDb, self.mapping.destHgDb,
+                          self.mapping.chains.chainType, mappingChainsTmp])
+            fileOps.atomicInstall(mappingChainsIndexDbTmp, "{}.db".format(self.conf.mappingChains))
 
     def output(self):
         return luigi.LocalTarget(self.conf.mappingChains)
@@ -213,10 +210,9 @@ class TransMapDetailedStatsTask(luigi.Task):
 
     def run(self):
         fileOps.ensureFileDir(self.conf.detailedStatsTsv)
-        detailedStatsTsvTmp = fileOps.atomicTmpFile(self.conf.detailedStatsTsv)
-        pipettor.run([os.path.join(self.conf.binDir, "transMapDetails"),
-                      self.configPyFile, self.destHgDb, detailedStatsTsvTmp])
-        fileOps.atomicInstall(detailedStatsTsvTmp, self.conf.detailedStatsTsv)
+        with fileOps.AtomicFileCreate(self.conf.detailedStatsTsv) as detailedStatsTsvTmp:
+            pipettor.run([os.path.join(self.conf.binDir, "transMapDetails"),
+                          self.configPyFile, self.destHgDb, detailedStatsTsvTmp])
 
     def requires(self):
         mappingsByAnnotType = splitMappingsByAnnotType(self.mappings)

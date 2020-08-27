@@ -47,17 +47,17 @@ def transMapBuildBigPsl(opts):
     mappedPreBigPsl = fileOps.tmpFileGet("transMap.dest.", "preBigPsl")
     bigTransMapSortMerge(inPreBigPsls, mappedPreBigPsl)
     fileOps.ensureFileDir(conf.mappedBigPslFile)
-    mappedBigPslTmpFile = fileOps.atomicTmpFile(conf.mappedBigPslFile)
-    pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
-                  "-as={}".format(conf.bigTransMapAsPath),
-                  "-extraIndex={}".format(",".join(getIndexFields(conf))),
-                  mappedPreBigPsl, conf.getDestChromSizes(),
-                  mappedBigPslTmpFile])
-    # validate
-    pipettor.run([["bigPslToPsl", mappedBigPslTmpFile, "stdout"],
-                  ["pslCheck", "stdin"]])
 
-    fileOps.atomicInstall(mappedBigPslTmpFile, conf.mappedBigPslFile)
+    with fileOps.AtomicFileCreate(conf.mappedBigPslFile) as mappedBigPslTmpFile:
+        pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
+                      "-as={}".format(conf.bigTransMapAsPath),
+                      "-extraIndex={}".format(",".join(getIndexFields(conf))),
+                      mappedPreBigPsl, conf.getDestChromSizes(),
+                      mappedBigPslTmpFile])
+        # validate
+        pipettor.run([["bigPslToPsl", mappedBigPslTmpFile, "stdout"],
+                      ["pslCheck", "stdin"]])
+
     os.unlink(mappedPreBigPsl)
 
 

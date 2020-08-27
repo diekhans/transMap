@@ -1,0 +1,2 @@
+
+* don't pass around destSizes, just get from 2bit as needed

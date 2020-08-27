@@ -73,11 +73,10 @@ def writeBatchJob(conf, batchFh, startOid, endOid, directRun):
 def createBatch(conf, directRun):
     batchFile = conf.batchParaFile
     fileOps.ensureFileDir(batchFile)
-    tmpBatchFile = fileOps.atomicTmpFile(batchFile)
-    with open(tmpBatchFile, "w") as batchFh:
-        for startOid, endOid in srcAlignPartitionGen(conf):
-            writeBatchJob(conf, batchFh, startOid, endOid, directRun)
-    fileOps.atomicInstall(tmpBatchFile, batchFile)
+    with fileOps.AtomicFileCreate(batchFile) as tmpBatchFile:
+        with open(tmpBatchFile, "w") as batchFh:
+            for startOid, endOid in srcAlignPartitionGen(conf):
+                writeBatchJob(conf, batchFh, startOid, endOid, directRun)
 
 
 def directRunBatch(conf, batchFile):

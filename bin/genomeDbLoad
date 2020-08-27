@@ -102,19 +102,22 @@ def loadGenomicChains(genomeDbConn, activeHgDbs):
     chainsTbl.index()
 
 
-def genomeDbLoad(opts):
-    conf = transMapConfLoad(opts.configPyFile)
-    genbankConf = GenbankConf(conf.genbankConfRa)
-    hgDbConn = hgDb.connect(dictCursor=True)
-    genomeDbTmp = fileOps.atomicTmpFile(conf.genomeDb)
-    fileOps.ensureFileDir(conf.genomeDb)
+def loadDb(genomeDbTmp, conf, hgDbConn, genbankConf, subsetHgDbs):
     genomeDbConn = sqliteOps.connect(genomeDbTmp, create=True)
-    activeDbDbs = getActiveDbDb(hgDbConn, conf.hgCentralDb, opts.subsetHgDbs)
+    activeDbDbs = getActiveDbDb(hgDbConn, conf.hgCentralDb, subsetHgDbs)
     activeHgDbs = [row["name"] for row in activeDbDbs]
     loadGenomeAsms(genomeDbConn, hgDbConn, activeDbDbs, genbankConf)
     loadGenomicChains(genomeDbConn, activeHgDbs)
     genomeDbConn.close()
-    fileOps.atomicInstall(genomeDbTmp, conf.genomeDb)
+
+
+def genomeDbLoad(opts):
+    conf = transMapConfLoad(opts.configPyFile)
+    genbankConf = GenbankConf(conf.genbankConfRa)
+    hgDbConn = hgDb.connect(dictCursor=True)
+    fileOps.ensureFileDir(conf.genomeDb)
+    with fileOps.AtomicFileCreate(conf.genomeDb) as genomeDbTmp:
+        loadDb(genomeDbTmp, conf, hgDbConn, genbankConf, opts.subsetHgDbs)
     hgDbConn.close()
 
 
