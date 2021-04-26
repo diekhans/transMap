@@ -15,12 +15,6 @@ def getSortProg():
     return "gsort" if sys.platform == 'darwin' else "sort"
 
 
-def getChromSizes(db):
-    # FIXME: this should go though conf, but one program uses it that
-    # doesn't use config
-    return "/hive/data/genomes/{db}/chrom.sizes".format(db=db)
-
-
 def parseAlignId(alignId):
     """parse a transmap id in the form srcDb:acc.ver-uniqmods... into a list of
     (srcDb, acc.ver, uniqmods).  This will parse a srouce or target alignment id

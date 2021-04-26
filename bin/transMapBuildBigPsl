@@ -49,10 +49,10 @@ def transMapBuildBigPsl(opts):
     fileOps.ensureFileDir(conf.mappedBigPslFile)
 
     with fileOps.AtomicFileCreate(conf.mappedBigPslFile) as mappedBigPslTmpFile:
-        pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab",
+        pipettor.run(["bedToBigBed", "-type=bed12+20", "-tab", "-sizesIs2Bit",
                       "-as={}".format(conf.bigTransMapAsPath),
                       "-extraIndex={}".format(",".join(getIndexFields(conf))),
-                      mappedPreBigPsl, conf.getDestChromSizes(),
+                      mappedPreBigPsl, conf.getDestTwoBit(),
                       mappedBigPslTmpFile])
         # validate
         pipettor.run([["bigPslToPsl", mappedBigPslTmpFile, "stdout"],
