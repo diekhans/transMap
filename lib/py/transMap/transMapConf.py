@@ -31,7 +31,8 @@ class TransMapConf(object):
                  annotationType=None, chainType=None, version=None, batchGen=None,
                  prevVersion=None, prevDataRootDir=None,
                  srcTwoBitPathPat=None, srcChromSizesPat=None,
-                 destTwoBitPathPat=None, destChromSizesPat=None):
+                 destTwoBitPathPat=None, destChromSizesPat=None, numSeqsPerJob=None,
+                 paraHost="ku"):
         self.configPyFile = configPyFile
         self.dataRootDir = dataRootDir
         self.srcHgDb = srcHgDb
@@ -46,6 +47,7 @@ class TransMapConf(object):
         self.srcChromSizesPat = srcChromSizesPat
         self.destTwoBitPathPat = destTwoBitPathPat
         self.destChromSizesPat = destChromSizesPat
+        self.fixedNumSeqsPerJob = numSeqsPerJob
 
         # ucsc browser data
         self.hgCentralDb = "hgcentraltest"
@@ -94,7 +96,7 @@ class TransMapConf(object):
         self.mappedMaxAligns = 20
         self.mappedGlobalNearBest = 0.01
 
-        self.paraHost = "ku"
+        self.paraHost = paraHost
 
     def _needOptions(self, *fields):
         for field in fields:
@@ -244,6 +246,8 @@ class TransMapConf(object):
     @property
     def numSeqsPerJob(self):
         "get the number of sequence per batch mapping job for this conf"
+        if self.fixedNumSeqsPerJob is not None:
+            return self.fixedNumSeqsPerJob
         self._needOptions("srcHgDb", "annotationType")
         if self.annotationType in (AnnotationType.rna, AnnotationType.est):
             return 2500
