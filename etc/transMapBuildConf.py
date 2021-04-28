@@ -7,11 +7,11 @@ from transMap.genomeData import ChainType
 
 def getConfig(configPyFile, dataRootDir=None, srcHgDb=None, destHgDb=None,
               annotationType=None, chainType=None):
-    version = "V5"
-    prevVersion = "V4"
+    version = "V6"
+    prevVersion = "V5"
 
     # increment to prevent reusing batch directories on restart
-    batchGen = 1
+    batchGen = 2
     dataRootDir = os.path.join("/hive/data/inside/transMap", version)
     prevDataRootDir = os.path.join("/hive/data/inside/transMap", prevVersion)
     conf = TransMapConf(configPyFile,

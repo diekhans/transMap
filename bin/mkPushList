@@ -12,7 +12,7 @@ from transMap.transMapConf import transMapConfLoad
 
 def parseArgs():
     desc = """Generate list of genome assemblies and /gbdb bigTransMap files to get list
-    of active databases.  Only those databases that are active on hgwbeta are and not
+    of active databases.  Only those databases that are active on hgwbeta and not
     already in hgwbeta trackDb are selected for push.  """
     parser = argparse.ArgumentParser(description=desc)
     transMapProgSetup.addCmdOptions(parser)

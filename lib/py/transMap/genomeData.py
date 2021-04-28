@@ -1,4 +1,5 @@
 """"Database with genomes and chains."""
+import logging
 from collections import namedtuple, defaultdict
 from pycbio.sys.symEnum import SymEnum
 from pycbio.sys import fileOps
@@ -260,8 +261,9 @@ class Genomes(object):
             candidateDestHgDbs.add(org.genomeAsms[0].hgDb)
         for hgDb in self.conf.requiredPreviousDestHgDbs:
             if self.getAsmByName(hgDb) is None:
-                raise Exception("config requiredPreviousDestHgDbs {} is not a valid hgDb".format(hgDb))
-            candidateDestHgDbs.add(hgDb)
+                logging.getLogger().warn("discovered requiredPreviousDestHgDbs {} is not a current hgDb, maybe have been dropped or set inactive".format(hgDb))
+            else:
+                candidateDestHgDbs.add(hgDb)
         return candidateDestHgDbs
 
     def _getDestDbChains(self, destHgDb):

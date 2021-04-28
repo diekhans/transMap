@@ -48,8 +48,11 @@ class TransMapConf(object):
         self.hgCentralDb = "hgcentraltest"
 
         # genome data defaults
-        _defaultTwoBitPathPat = ("/scratch/data/{db}/{db}.2bit",
-                                 "/hive/data/genomes/{db}/{db}.2bit")
+        # NB: V6 /scratch/data/hg19/hg19.2bit has not been updated to have chrMT
+        #
+        # _defaultTwoBitPathPat = ("/scratch/data/{db}/{db}.2bit",
+        #                          "/hive/data/genomes/{db}/{db}.2bit", )
+        _defaultTwoBitPathPat = ("/hive/data/genomes/{db}/{db}.2bit", )
         if self.srcTwoBitPathPat is None:
             self.srcTwoBitPathPat = _defaultTwoBitPathPat
         elif isinstance(self.srcTwoBitPathPat, str):
@@ -68,7 +71,7 @@ class TransMapConf(object):
         # selecting genomes
         self.clades = frozenset(["vertebrate", "mammal"])
 
-        # required older versions of some genomes.  This is load in a lacy manned and obtained
+        # required older versions of some genomes.  This is load in a lazy manned and obtained
         # from prevDataRootDir
         self.requiredPreviousDestHgDbsCache = None
 

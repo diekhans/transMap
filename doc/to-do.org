@@ -1,1 +1,14 @@
+* why so many discovered DBs dropped, like
+2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs phoRub1 is not a current hgDb, maybe have been dropped
+2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs carCri1 is not a current hgDb, maybe have been dropped
+2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs chlUnd1 is not a current hgDb, maybe have been dropped
+2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs fulGla1 is not a current hgDb, maybe have been dropped
+2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs tytAlb1 is not a current hgDb, maybe have been dropped
+2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs falPer1 is not a current hgDb, maybe have been dropped
 
+
++---------+-------------------------------+---------------+-------------------+---------------------+--------+----------+-------------------+----------------------------+-------------------------------------+----------+--------+---------------------+-------+
+| name    | description                   | nibPath       | organism          | defaultPos          | active | orderKey | genome            | scientificName             | htmlPath                            | hgNearOk | hgPbOk | sourceName          | taxId |
++---------+-------------------------------+---------------+-------------------+---------------------+--------+----------+-------------------+----------------------------+-------------------------------------+----------+--------+---------------------+-------+
+| phoRub1 | May 2014 (ASM68726v1/phoRub1) | /gbdb/phoRub1 | American flamingo | JJRE01011906:80-120 |      0 |     1445 | American flamingo | Phoenicopterus ruber ruber | /gbdb/phoRub1/html/description.html |        0 |      0 | BGI GCA_000687265.1 |  9218 |
++---------+-------------------------------+---------------+-------------------+---------------------+--------+----------+-------------------+----------------------------+-------------------------------------+----------+--------+---------------------+-------+

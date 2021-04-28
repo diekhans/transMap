@@ -174,7 +174,7 @@ class TransMapBuildBigPslTask(luigi.Task):
         self.conf = transMapConfLoad(self.configPyFile, destHgDb=self.destHgDb,
                                      annotationType=self.annotationType)
 
-    def __mappingExists(self):
+    def _mappingExists(self):
         "true if it's there, false if not"
         return os.path.exists(self.conf.getMappedBigPslFileForDestHgDb(self.destHgDb, self.annotationType))
 
