@@ -2,15 +2,12 @@
 
 import transMapProgSetup  # noqa: F401
 import os
-import re
 import argparse
 import pipettor
-import logging
 from collections import defaultdict
 from pycbio.sys import fileOps
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import Genomes, AnnotationType
-from transMap.srcData import SourceDbTables
 from transMap.bigTransMap import BigTransMap
 
 
@@ -32,15 +29,17 @@ def parseArgs():
 
 header = ("destHgDb", "srcHgDb", "srcCommonName", "srcScientificName", "annotationType", "count")
 
+
 def haveTransMap(conf, destHgDb, annotationType):
     return os.path.exists(conf.getMappedBigPslFileForDestHgDb(destHgDb, annotationType))
+
 
 def countBigTransMap(conf, destHgDb, annotationType):
     counts = defaultdict(int)  # by srcHgDb
     # only get srcDb column
     srcDbCol = BigTransMap._fields.index("srcDb")
     cmd = [["bigBedToBed", conf.getMappedBigPslFileForDestHgDb(destHgDb, annotationType), "/dev/stdout"],
-           ["cut", "-f", srcDbCol+1]]
+           ["cut", "-f", srcDbCol + 1]]
     with pipettor.Popen(cmd) as bedFh:
         for line in bedFh:
             counts[line.strip()] += 1
@@ -48,13 +47,14 @@ def countBigTransMap(conf, destHgDb, annotationType):
 
 
 def countBigTransMapFiles(conf, destHgDb):
-    counts = defaultdict(lambda : defaultdict(int))  # by annotation type, by srcDb
+    counts = defaultdict(lambda: defaultdict(int))  # by annotation type, by srcDb
     for annotationType in AnnotationType:
         if haveTransMap(conf, destHgDb, annotationType):
             counts[annotationType] = countBigTransMap(conf, destHgDb, annotationType)
     if len(counts) == 0:
-        raise Exceptions("no mappings for {}".format(destHgDb))
+        raise Exception("no mappings for {}".format(destHgDb))
     return counts
+
 
 def getAllSrcHgDb(counts):
     srcHgDbs = set()
@@ -70,10 +70,13 @@ def prStats(tsvFh, genomes, destHgDb, srcHgDb, annotationType, count):
     fileOps.prRowv(tsvFh, destHgDb, srcHgDb, srcHgDbAsm.commonName, srcHgDbAsm.scientificName,
                    annotationType, count)
 
+
 def writeDetails(tsvFh, genomes, destHgDb, counts):
+    fileOps.prRowv(tsvFh, "destHgDb", "srcHgDb", "srcCommonName", "srcScientificName", "annotationType", "count")
     for srcHgDb in getAllSrcHgDb(counts):
         for annotationType in AnnotationType:
             prStats(tsvFh, genomes, destHgDb, srcHgDb, annotationType, counts[annotationType][srcHgDb])
+
 
 def transMapDetails(opts):
     conf = transMapConfLoad(opts.configPyFile)
