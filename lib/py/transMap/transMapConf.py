@@ -268,6 +268,10 @@ class TransMapConf(object):
         self._needOptions("destHgDb")
         return self.getDetailedStatsTsv(self.destHgDb)
 
+    @property
+    def overallStatsTsv(self):
+        return os.path.join(self.statsDir, "overall.stats.tsv")
+
     def _loadRequiredPreviousDestHgDbs(self):
         if self.prevDataRootDir is None:
             return frozenset()

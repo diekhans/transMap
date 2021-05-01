@@ -215,15 +215,33 @@ class TransMapDetailedStatsTask(luigi.Task):
                           self.configPyFile, self.destHgDb, detailedStatsTsvTmp])
 
     def requires(self):
-        mappingsByAnnotType = splitMappingsByAnnotType(self.mappings)
-        for annotationType in list(mappingsByAnnotType.keys()):
-            yield TransMapBuildBigPslTask(configPyFile=self.conf.configPyFile,
-                                          destHgDb=self.destHgDb,
-                                          annotationType=annotationType,
-                                          mappings=mappingsByAnnotType[annotationType])
+        yield from getDestHgDbBigPslTasks(self.conf, self.destHgDb, self.mappings)
 
     def output(self):
         return luigi.LocalTarget(self.conf.detailedStatsTsv)
+
+
+class TransMapOverallStatsTask(luigi.Task):
+    task_namespace = 'transmap'
+    configPyFile = luigi.Parameter()
+    mappings = MappingListParameter()
+
+    def __init__(self, *args, **kwargs):
+        super(TransMapOverallStatsTask, self).__init__(*args, **kwargs)
+        self.conf = transMapConfLoad(self.configPyFile)
+
+    def run(self):
+        fileOps.ensureFileDir(self.conf.overallStatsTsv)
+        with fileOps.AtomicFileCreate(self.conf.overallStatsTsv) as overallStatsTsvTmp:
+            pipettor.run([os.path.join(self.conf.binDir, "transMapStats"),
+                          self.configPyFile, overallStatsTsvTmp])
+
+    def requires(self):
+        for mapping in self.mappings:
+            yield from getDestHgDbBigPslTasks(self.conf, mapping.destHgDb, self.mappings)
+
+    def output(self):
+        return luigi.LocalTarget(self.conf.overallStatsTsv)
 
 
 def splitMappingsByDestDb(mappings):
@@ -262,6 +280,15 @@ def genomeDbSetup(conf, opts):
         genomeDbBuild(conf, opts)
 
 
+def getDestHgDbBigPslTasks(conf, destHgDb, mappings):
+    mappingsByAnnotType = splitMappingsByAnnotType(mappings)
+    for annotationType in mappingsByAnnotType.keys():
+        yield TransMapBuildBigPslTask(configPyFile=conf.configPyFile,
+                                      destHgDb=destHgDb,
+                                      annotationType=annotationType,
+                                      mappings=mappingsByAnnotType[annotationType])
+
+
 def getDestHgDbMappingTasks(conf, destHgDb, mappings):
     srcHgDbs = set()
 
@@ -271,12 +298,7 @@ def getDestHgDbMappingTasks(conf, destHgDb, mappings):
         yield TransMapBatchTask(configPyFile=conf.configPyFile, mapping=mapping)
 
     # combine into big psls
-    mappingsByAnnotType = splitMappingsByAnnotType(mappings)
-    for annotationType in list(mappingsByAnnotType.keys()):
-        yield TransMapBuildBigPslTask(configPyFile=conf.configPyFile,
-                                      destHgDb=destHgDb,
-                                      annotationType=annotationType,
-                                      mappings=mappingsByAnnotType[annotationType])
+    yield from getDestHgDbBigPslTasks(conf, destHgDb, mappings)
 
     # build details stats
     yield TransMapDetailedStatsTask(configPyFile=conf.configPyFile,
@@ -301,11 +323,15 @@ class StartTask(luigi.WrapperTask):
     def requires(self):
         conf = transMapConfLoad(self.configPyFile)
         genomes = Genomes(conf)
-        mappingsByDestDb = splitMappingsByDestDb(mappingsFilter(genomes.getCandidateMappings(),
-                                                                noneIfEmpty(self.srcHgDbSubset),
-                                                                noneIfEmpty(self.destHgDbSubset)))
+        mappings = mappingsFilter(genomes.getCandidateMappings(),
+                                  noneIfEmpty(self.srcHgDbSubset),
+                                  noneIfEmpty(self.destHgDbSubset))
+        mappingsByDestDb = splitMappingsByDestDb(mappings)
         for task in getMappingTasks(conf, mappingsByDestDb):
             yield task
+
+        # requires everything
+        yield TransMapOverallStatsTask(configPyFile=conf.configPyFile, mappings=mappings)
 
 
 def checkResults(results):
