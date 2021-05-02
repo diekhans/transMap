@@ -1,0 +1,13 @@
+destHgDb	srcHgDb	srcCommonName	srcScientificName	annotationType	count
+anoCar2	galGal6	Chicken	Gallus gallus	refseq	28156
+anoCar2	galGal6	Chicken	Gallus gallus	rna	15985
+anoCar2	galGal6	Chicken	Gallus gallus	est	137377
+anoCar2	galGal6	Chicken	Gallus gallus	ensembl	19348
+anoCar2	gasAcu1	Stickleback	Gasterosteus aculeatus	refseq	0
+anoCar2	gasAcu1	Stickleback	Gasterosteus aculeatus	rna	2956
+anoCar2	gasAcu1	Stickleback	Gasterosteus aculeatus	est	155981
+anoCar2	gasAcu1	Stickleback	Gasterosteus aculeatus	ensembl	39922
+anoCar2	hg38	Human	Homo sapiens	refseq	58166
+anoCar2	hg38	Human	Homo sapiens	rna	274371
+anoCar2	hg38	Human	Homo sapiens	est	1757855
+anoCar2	hg38	Human	Homo sapiens	ensembl	70486

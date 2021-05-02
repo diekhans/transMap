@@ -1,0 +1,9 @@
+destHgDb	srcHgDb	srcCommonName	srcScientificName	annotationType	count
+allMis1	galGal6	Chicken	Gallus gallus	refseq	35126
+allMis1	galGal6	Chicken	Gallus gallus	rna	20464
+allMis1	galGal6	Chicken	Gallus gallus	est	151749
+allMis1	galGal6	Chicken	Gallus gallus	ensembl	24474
+allMis1	hg38	Human	Homo sapiens	refseq	63901
+allMis1	hg38	Human	Homo sapiens	rna	351324
+allMis1	hg38	Human	Homo sapiens	est	1913646
+allMis1	hg38	Human	Homo sapiens	ensembl	76055

@@ -1,0 +1,13 @@
+destHgDb	srcHgDb	srcCommonName	srcScientificName	annotationType	count
+ailMel1	hg38	Human	Homo sapiens	refseq	89659
+ailMel1	hg38	Human	Homo sapiens	rna	590956
+ailMel1	hg38	Human	Homo sapiens	est	2098551
+ailMel1	hg38	Human	Homo sapiens	ensembl	114764
+ailMel1	monDom5	Opossum	Monodelphis domestica	refseq	0
+ailMel1	monDom5	Opossum	Monodelphis domestica	rna	932
+ailMel1	monDom5	Opossum	Monodelphis domestica	est	109
+ailMel1	monDom5	Opossum	Monodelphis domestica	ensembl	15530
+ailMel1	musFur1	Ferret	Mustela putorius furo	refseq	37704
+ailMel1	musFur1	Ferret	Mustela putorius furo	rna	65018
+ailMel1	musFur1	Ferret	Mustela putorius furo	est	1851
+ailMel1	musFur1	Ferret	Mustela putorius furo	ensembl	27500

@@ -1,0 +1,5 @@
+destHgDb	srcHgDb	srcCommonName	srcScientificName	annotationType	count
+acaChl1	galGal6	Chicken	Gallus gallus	refseq	6353
+acaChl1	galGal6	Chicken	Gallus gallus	rna	21052
+acaChl1	galGal6	Chicken	Gallus gallus	est	150280
+acaChl1	galGal6	Chicken	Gallus gallus	ensembl	25214

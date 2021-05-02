@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+
+import transMapProgSetup  # noqa: F401
+import os
+import os.path as osp
+import argparse
+import pipettor
+import glob
+from pycbio.sys import fileOps
+from pycbio.tsv import TsvReader
+from collections import defaultdict
+from transMap.genomeData import AnnotationType
+
+
+def parseArgs():
+    desc = """Compare output of transMapDetails between two builds
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("prevDetailsDir",
+                        help="""directory with statistic for previous build, with files in the form $db.detailed.tsv """)
+    parser.add_argument("newDetailsDir",
+                        help="""directory with statistic for new build, with files in the form $db.detailed.tsv """)
+    parser.add_argument("outTsv",
+                        help="""write results to this file""")
+    opts = parser.parse_args()
+    return opts
+
+
+class DetailedStats:
+    typeMap = {"annotationType": AnnotationType,
+               "count": int}
+
+
+    def __init__(self, detailsDir):
+        self.byMapping = {}   # (srcHgDb, destHgDb, annotationType)
+        self.srcHgDbs = set()
+        self.destHgDbs = set()
+        self._loadFiles(detailsDir)
+
+    def _loadFiles(self, detailsDir):
+        for tsv in glob.glob(osp.join(detailsDir, '*.detailed.tsv')):
+            self._loadFile(tsv)
+
+    def _loadFile(self, tsv):
+        # destHgDb	srcHgDb	srcCommonName	srcScientificName	annotationType	count
+        for rec in TsvReader(tsv, typeMap=self.typeMap):
+            self._loadRec(rec)
+
+    def _loadRec(self, rec):
+        self.byMapping[(rec.srcHgDb, rec.destHgDb, rec.annotationType)] = rec
+        self.srcHgDbs.add(rec.srcHgDb)
+        self.destHgDbs.add(rec.destHgDb)
+
+    def getCount(self, srcHgDb, destHgDb, annotationType):
+        mappingKey = (srcHgDb, destHgDb, annotationType)
+        if mappingKey in self.byMapping:
+            return self.byMapping[mappingKey].count
+        else:
+            return 0
+
+def writeDetailsCmp(prevStats, newStats, allStatsKeys, fh):
+    fileOps.prRowv(fh, "srcHgDb", "destHgDb", "annotationType", "prevCount", "newCount", "change")
+    for srcHgDb, destHgDb, annotationType in allStatsKeys:
+        prevCnt = prevStats.getCount(srcHgDb, destHgDb, annotationType)
+        newCnt = newStats.getCount(srcHgDb, destHgDb, annotationType)
+        fileOps.prRowv(fh, srcHgDb, destHgDb, annotationType, prevCnt, newCnt, newCnt - prevCnt)
+
+def transMapDetailsCmp(opts):
+    prevStats = DetailedStats(opts.prevDetailsDir)
+    newStats = DetailedStats(opts.newDetailsDir)
+
+    allStatsKeys = sorted(set(prevStats.byMapping.keys()) | set(newStats.byMapping.keys()))
+
+    with open(opts.outTsv, "w") as tsvFh:
+        writeDetailsCmp(prevStats, newStats, allStatsKeys, tsvFh)
+
+
+# entry
+transMapDetailsCmp(parseArgs())

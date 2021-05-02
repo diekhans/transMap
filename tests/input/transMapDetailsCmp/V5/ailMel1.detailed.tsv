@@ -1,0 +1,21 @@
+destHgDb	srcHgDb	srcCommonName	srcScientificName	annotationType	count
+ailMel1	hg38	Human	Homo sapiens	refseq	88010
+ailMel1	hg38	Human	Homo sapiens	rna	571353
+ailMel1	hg38	Human	Homo sapiens	est	2098592
+ailMel1	hg38	Human	Homo sapiens	ensembl	109798
+ailMel1	mm10	Mouse	Mus musculus	refseq	56797
+ailMel1	mm10	Mouse	Mus musculus	rna	207158
+ailMel1	mm10	Mouse	Mus musculus	est	935144
+ailMel1	mm10	Mouse	Mus musculus	ensembl	65159
+ailMel1	monDom5	Opossum	Monodelphis domestica	refseq	0
+ailMel1	monDom5	Opossum	Monodelphis domestica	rna	919
+ailMel1	monDom5	Opossum	Monodelphis domestica	est	109
+ailMel1	monDom5	Opossum	Monodelphis domestica	ensembl	15530
+ailMel1	musFur1	Ferret	Mustela putorius furo	refseq	0
+ailMel1	musFur1	Ferret	Mustela putorius furo	rna	64893
+ailMel1	musFur1	Ferret	Mustela putorius furo	est	1851
+ailMel1	musFur1	Ferret	Mustela putorius furo	ensembl	27500
+ailMel1	rn6	Rat	Rattus norvegicus	refseq	38137
+ailMel1	rn6	Rat	Rattus norvegicus	rna	52900
+ailMel1	rn6	Rat	Rattus norvegicus	est	229349
+ailMel1	rn6	Rat	Rattus norvegicus	ensembl	22733

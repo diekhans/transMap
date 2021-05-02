@@ -15,8 +15,9 @@ transMapBatch = ../bin/transMapBatch
 transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
 transMapStats = ../bin/transMapStats
-transMapDetails = ../bin/transMapDetails
 transMapStatsQCPlot = ../bin/transMapStatsQCPlot
+transMapDetails = ../bin/transMapDetails
+transMapDetailsCmp = ../bin/transMapDetailsCmp
 luigiTransMap = ../bin/luigiTransMap
 linkToGbdb = ../bin/linkToGbdb
 mkPushList = ../bin/mkPushList
@@ -169,7 +170,7 @@ genomeDbLoadTest: mkdirs
 mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
 	transMapJobTest transMapBatchTest transMapBuildBigPslTest \
 	transMapInfoTest transMapStatsTest transMapDetailsTest \
-	transMapStatsQCPlotTest
+	transMapStatsQCPlotTest transMapDetailsCmpTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -244,6 +245,10 @@ transMapDetailsTest: mkdirs
 transMapStatsQCPlotTest: mkdirs
 	${transMapStatsQCPlot} --countChangeTsv=output/$@.change.tsv input/prevOverallStats.tsv input/prevPush.lst input/newOverallStats.tsv input/newPush.lst output/$@.pdf
 	${diff} expected/$@.change.tsv output/$@.change.tsv
+
+transMapDetailsCmpTest: mkdirs
+	${transMapDetailsCmp} input/transMapDetailsCmp/V5 input/transMapDetailsCmp/V6 output/$@.tsv
+	${diff} expected/$@.tsv output/$@.tsv
 
 #########################################################################################
 submitTests: linkToGbdbTest mkPushListTest
