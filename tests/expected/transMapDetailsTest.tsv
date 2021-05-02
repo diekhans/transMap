@@ -1,5 +1,5 @@
 destHgDb	srcHgDb	srcCommonName	srcScientificName	annotationType	count
 mm10	hg19	Human	Homo sapiens	refseq	9
+mm10	hg19	Human	Homo sapiens	ensembl	0
 mm10	hg19	Human	Homo sapiens	rna	0
 mm10	hg19	Human	Homo sapiens	est	0
-mm10	hg19	Human	Homo sapiens	ensembl	0
