@@ -17,9 +17,9 @@ class GenomesDbTables(object):
 class AnnotationType(SymEnum):
     "annotation type for a genome assembly"
     refseq = 0x01
-    rna = 0x02
-    est = 0x04
-    ensembl = 0x08   # includes gencode
+    ensembl = 0x02   # includes gencode
+    rna = 0x04
+    est = 0x08
 
 
 class AnnotationTypeSet(frozenset):

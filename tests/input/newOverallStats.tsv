@@ -1,0 +1,36 @@
+use	hgDb	commonName	scientificName	annotationType	count
+src	ailMel1	Panda	Ailuropoda melanoleuca	rna	185
+src	ailMel1	Panda	Ailuropoda melanoleuca	ensembl	25055
+src	allMis1	American alligator	Alligator mississippiensis	refseq	22447
+src	allMis1	American alligator	Alligator mississippiensis	rna	157
+src	allMis1	American alligator	Alligator mississippiensis	est	2871
+src	canFam5	Dog	Canis lupus familiaris	rna	3809
+src	canFam5	Dog	Canis lupus familiaris	est	191058
+src	canFam5	Dog	Canis lupus familiaris	ensembl	48737
+src	mm39	Mouse	Mus musculus	refseq	130343
+src	mm39	Mouse	Mus musculus	rna	2039934
+src	mm39	Mouse	Mus musculus	ensembl	127840
+dest	ailMel1	Panda	Ailuropoda melanoleuca	refseq	127363
+dest	ailMel1	Panda	Ailuropoda melanoleuca	rna	656906
+dest	ailMel1	Panda	Ailuropoda melanoleuca	est	2100511
+dest	ailMel1	Panda	Ailuropoda melanoleuca	ensembl	157794
+dest	allMis1	American alligator	Alligator mississippiensis	refseq	100895
+dest	allMis1	American alligator	Alligator mississippiensis	rna	416741
+dest	allMis1	American alligator	Alligator mississippiensis	est	2065390
+dest	allMis1	American alligator	Alligator mississippiensis	ensembl	104845
+dest	canFam3	Dog	Canis lupus familiaris	refseq	140597
+dest	canFam3	Dog	Canis lupus familiaris	rna	965008
+dest	canFam3	Dog	Canis lupus familiaris	est	2436413
+dest	canFam3	Dog	Canis lupus familiaris	ensembl	221001
+dest	canFam5	Dog	Canis lupus familiaris	refseq	169691
+dest	canFam5	Dog	Canis lupus familiaris	rna	1115298
+dest	canFam5	Dog	Canis lupus familiaris	est	2381028
+dest	canFam5	Dog	Canis lupus familiaris	ensembl	196274
+dest	mm10	Mouse	Mus musculus	refseq	1400757
+dest	mm10	Mouse	Mus musculus	rna	1436900
+dest	mm10	Mouse	Mus musculus	est	6289242
+dest	mm10	Mouse	Mus musculus	ensembl	1389489
+dest	mm39	Mouse	Mus musculus	refseq	736686
+dest	mm39	Mouse	Mus musculus	rna	1206165
+dest	mm39	Mouse	Mus musculus	est	4330867
+dest	mm39	Mouse	Mus musculus	ensembl	499486

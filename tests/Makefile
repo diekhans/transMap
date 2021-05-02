@@ -16,6 +16,7 @@ transMapBuildBigPsl = ../bin/transMapBuildBigPsl
 transMapInfo = ../bin/transMapInfo
 transMapStats = ../bin/transMapStats
 transMapDetails = ../bin/transMapDetails
+transMapStatsQCPlot = ../bin/transMapStatsQCPlot
 luigiTransMap = ../bin/luigiTransMap
 linkToGbdb = ../bin/linkToGbdb
 mkPushList = ../bin/mkPushList
@@ -167,7 +168,8 @@ genomeDbLoadTest: mkdirs
 #########################################################################################
 mappingTests: mappingChainsBuildSynTest mappingChainsBuildAllTest \
 	transMapJobTest transMapBatchTest transMapBuildBigPslTest \
-	transMapInfoTest transMapStatsTest transMapDetailsTest
+	transMapInfoTest transMapStatsTest transMapDetailsTest \
+	transMapStatsQCPlotTest
 
 mappingChainsBuildSynTest: mkdirs
 	rm -f output/$@.genome.db
@@ -238,6 +240,10 @@ transMapDetailsTest: mkdirs
 	${transMapBigPslSetup}
 	dataRootDir=output/$@.root ${transMapDetails} input/testTransMapConf.py mm10 output/$@.tsv
 	${diff} expected/$@.tsv output/$@.tsv
+
+transMapStatsQCPlotTest: mkdirs
+	${transMapStatsQCPlot} --countChangeTsv=output/$@.change.tsv input/prevOverallStats.tsv input/prevPush.lst input/newOverallStats.tsv input/newPush.lst output/$@.pdf
+	${diff} expected/$@.change.tsv output/$@.change.tsv
 
 #########################################################################################
 submitTests: linkToGbdbTest mkPushListTest

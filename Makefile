@@ -1,14 +1,5 @@
 
-progs = srcDbLoadGenbankAligns srcDbLoadGenbankMetadata srcDbLoadGenbankSeqs \
-	srcDbLoadEnsemblAligns srcDbLoadEnsemblMetadata srcDbLoadEnsemblSeqs \
-	srcDbCheck genomeDbLoad mappingChainBuild mappingChainIndex \
-	transMapJob transMapBatch transMapBuildBigPsl transMapInfo transMapStats \
-	luigiTransMap linkToGbdb mkPushList
-
-# getEnsemblMetadata
-# FIXME: change this to do all once cleaned out
-libs = __init__.py transMapConf.py genomeData.py srcData.py genbank.py ensembl.py \
-	phyloTrees.py chainsFinder.py genbankConf.py mappingChainData.py bigTransMap.py
+pyprogs = $(shell file -F $$'\t' bin/* tests/*/bin/* | awk '/Python script/{print $$1}')
 
 all:
 
@@ -16,7 +7,7 @@ test:
 	(cd tests && ${MAKE} test)
 
 lint:
-	python3 -m flake8 ${libs:%=lib/py/transMap/%} ${progs:%=bin/%}
+	python3 -m flake8 lib/py/transMap ${pyprogs}
 
 clean:
 	(cd tests && ${MAKE} clean)

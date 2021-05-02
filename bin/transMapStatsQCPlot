@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+
+import transMapProgSetup  # noqa: F401
+import argparse
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import numpy as np
+from pycbio.sys import fileOps
+from pycbio.tsv import TsvReader
+from transMap.genomeData import AnnotationType
+
+
+def parseArgs():
+    desc = """Compare previous and current data generate by transMapStats and
+    mkPushList to generate plots of the changes in number of transmap transcripts.
+    """
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument("--countChangeTsv",
+                        help="""write TSV of data being plotted""")
+    parser.add_argument("prevOverallTsv",
+                        help="""previous stats/overall.stats.tsv""")
+    parser.add_argument("prevPushList",
+                        help="""previous db.push.lst""")
+    parser.add_argument("newOverallTsv",
+                        help="""new stats/overall.stats.tsv""")
+    parser.add_argument("newPushList",
+                        help="""new db.push.lst""")
+    parser.add_argument("outPdf",
+                        help="""plots""")
+    opts = parser.parse_args()
+    return opts
+
+
+# annotation ordering
+annotationTypeOrder = (AnnotationType.refseq, AnnotationType.ensembl, AnnotationType.rna, AnnotationType.est)
+annotationTypeLabel = {
+    AnnotationType.refseq: "RefSeq",
+    AnnotationType.ensembl: "Ensembl",
+    AnnotationType.rna: "RNA",
+    AnnotationType.est: "EST"
+}
+
+def buildDestDbMap(pushListFile):
+    return {db: [] for db in fileOps.readNonCommentLines(pushListFile)}
+
+
+def loadByDestDb(pushListFile, statsTsv):
+    countsByDb = buildDestDbMap(pushListFile)
+    typeMap = {"annotationType": AnnotationType,
+               "count": int}
+    for row in TsvReader(statsTsv, typeMap=typeMap):
+        if (row.use == "dest") and (row.hgDb in countsByDb):
+            countsByDb[row.hgDb].append(row)
+    return countsByDb
+
+def countForAnnotationType(db, statsByDestDb, annotationType):
+    if db in statsByDestDb:
+        for rec in statsByDestDb[db]:
+            if rec.annotationType == annotationType:
+                return rec.count
+    return 0
+
+def countsForAnnotationType(dbs, statsByDestDb, annotationType):
+    """gets vector of counts for dbs for given type, setting missing to zero.  dbs may not be
+    the same as the dbs in statsByDestDb"""
+
+    countsVec = []
+    for db in dbs:
+        countsVec.append(countForAnnotationType(db, statsByDestDb, annotationType))
+    return countsVec
+
+def makePlotPage(dbs, dbsPerPage, annotationType, prevStatsByDb, newStatsByDb, partNum, pdf):
+    "make sets of bars for dbs"
+
+    dbLabels = dbs
+    prevCountsVec = countsForAnnotationType(dbs, prevStatsByDb, annotationType)
+    newCountsVec = countsForAnnotationType(dbs, newStatsByDb, annotationType)
+
+    # pad to match other pages
+    if len(dbs) < dbsPerPage:
+        need = dbsPerPage - len(dbs)
+        dbLabels += need * [""]
+        prevCountsVec += need * [0]
+        newCountsVec += need * [0]
+
+    x = np.arange(dbsPerPage)  # the label locations
+    width = 0.35
+
+    fig, ax = plt.subplots()
+    ax.bar(x - width/2, prevCountsVec, width, label='Previous')
+    ax.bar(x + width/2, newCountsVec, width, label='Current')
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel('Number of mappings')
+    ax.set_title('TransMap {} mappings [part {}]'.format(annotationTypeLabel[annotationType], partNum))
+    ax.set_xticks(x)
+    ax.set_xticklabels(dbLabels, rotation=90)
+    ax.legend()
+
+    fig.tight_layout()
+    pdf.savefig(fig)
+    plt.close()
+
+
+def makePlotsType(dbs, prevStatsByDb, newStatsByDb, annotationType, pdf):
+    dbsPerPage = 25
+    partNum = 1
+    for i in range(0, len(dbs), dbsPerPage):
+        makePlotPage(dbs[i:i + dbsPerPage], dbsPerPage, annotationType, prevStatsByDb, newStatsByDb, partNum, pdf)
+        partNum += 1
+
+def makePlots(dbs, prevStatsByDb, newStatsByDb, pdfFile):
+    with PdfPages(pdfFile) as pdf:
+        for annotationType in annotationTypeOrder:
+            makePlotsType(dbs, prevStatsByDb, newStatsByDb, annotationType, pdf)
+
+def writeCountChangeDestDbTsv(db, prevStatsByDb, newStatsByDb, fh):
+    for annotationType in annotationTypeOrder:
+        prevCnt = countForAnnotationType(db, prevStatsByDb, annotationType)
+        newCnt = countForAnnotationType(db, newStatsByDb, annotationType)
+        fileOps.prRowv(fh, db, annotationType, prevCnt, newCnt, newCnt - prevCnt)
+
+def writeCountChangeTsv(dbs, prevStatsByDb, newStatsByDb, fh):
+    fileOps.prRowv(fh, "destDb", "annotationType", "prevCount", "newCount", "change")
+    for db in dbs:
+        writeCountChangeDestDbTsv(db, prevStatsByDb, newStatsByDb, fh)
+
+def transMapStatsQCPlot(opts):
+    prevStatsByDb = loadByDestDb(opts.prevPushList, opts.prevOverallTsv)
+    newStatsByDb = loadByDestDb(opts.newPushList, opts.newOverallTsv)
+    dbs = sorted(set(prevStatsByDb.keys()) | newStatsByDb.keys())
+    makePlots(dbs, prevStatsByDb, newStatsByDb, opts.outPdf)
+    if opts.countChangeTsv is not None:
+        with open(opts.countChangeTsv, "w") as fh:
+            writeCountChangeTsv(dbs, prevStatsByDb, newStatsByDb, fh)
+
+# entry
+transMapStatsQCPlot(parseArgs())

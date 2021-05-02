@@ -1,0 +1,35 @@
+use	hgDb	commonName	scientificName	annotationType	count
+src	ailMel1	Panda	Ailuropoda melanoleuca	rna	182
+src	ailMel1	Panda	Ailuropoda melanoleuca	ensembl	25055
+src	allMis1	American alligator	Alligator mississippiensis	refseq	22447
+src	allMis1	American alligator	Alligator mississippiensis	rna	155
+src	allMis1	American alligator	Alligator mississippiensis	est	2871
+src	canFam3	Dog	Canis lupus familiaris	refseq	82537
+src	canFam3	Dog	Canis lupus familiaris	rna	3544
+src	canFam3	Dog	Canis lupus familiaris	est	201670
+src	canFam3	Dog	Canis lupus familiaris	ensembl	39074
+src	choHof1	Sloth	Choloepus hoffmanni	rna	7
+src	mm10	Mouse	Mus musculus	refseq	106520
+src	mm10	Mouse	Mus musculus	rna	879382
+src	mm10	Mouse	Mus musculus	est	1971056
+src	mm10	Mouse	Mus musculus	ensembl	127865
+dest	ailMel1	Panda	Ailuropoda melanoleuca	refseq	182944
+dest	ailMel1	Panda	Ailuropoda melanoleuca	rna	897223
+dest	ailMel1	Panda	Ailuropoda melanoleuca	est	3265045
+dest	ailMel1	Panda	Ailuropoda melanoleuca	ensembl	240720
+dest	allMis1	American alligator	Alligator mississippiensis	refseq	99027
+dest	allMis1	American alligator	Alligator mississippiensis	rna	371788
+dest	allMis1	American alligator	Alligator mississippiensis	est	2065395
+dest	allMis1	American alligator	Alligator mississippiensis	ensembl	100529
+dest	canFam3	Dog	Canis lupus familiaris	refseq	218422
+dest	canFam3	Dog	Canis lupus familiaris	rna	1206801
+dest	canFam3	Dog	Canis lupus familiaris	est	3991666
+dest	canFam3	Dog	Canis lupus familiaris	ensembl	309037
+dest	choHof1	Sloth	Choloepus hoffmanni	refseq	9102
+dest	choHof1	Sloth	Choloepus hoffmanni	rna	24558
+dest	choHof1	Sloth	Choloepus hoffmanni	est	100762
+dest	choHof1	Sloth	Choloepus hoffmanni	ensembl	9094
+dest	mm10	Mouse	Mus musculus	refseq	857630
+dest	mm10	Mouse	Mus musculus	rna	1413465
+dest	mm10	Mouse	Mus musculus	est	6316081
+dest	mm10	Mouse	Mus musculus	ensembl	1216136

@@ -10,13 +10,16 @@ import os
 import logging
 rootDir = os.path.dirname(os.path.abspath(os.path.dirname(sys.argv[0])))
 
+
 def _addExtern(module, relDir):
     modDir = os.path.join(rootDir, "extern", module, relDir)
     if not os.path.exists(modDir):
         raise Exception("can't find {} directory: {}".format(module, modDir))
     sys.path.insert(0, modDir)
+
+
 _addExtern("pycbio", "lib")
-sys.path.insert(0, os.path.join(rootDir,  "lib/py"))
+sys.path.insert(0, os.path.join(rootDir, "lib/py"))
 
 # executable PATH, make sure we can override kent commands
 os.environ["PATH"] = "{}:{}:{}:{}".format(os.path.join(rootDir, "bin"),
@@ -29,8 +32,10 @@ import pipettor
 
 fileOps.setTmpEnv()
 
+
 def addCmdOptions(parser):
     loggingOps.addCmdOptions(parser)
+
 
 def setupFromCmd(opts):
     loggingOps.setupFromCmd(opts, sys.argv[0])
