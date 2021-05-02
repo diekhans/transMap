@@ -38,7 +38,7 @@ def getActiveHgwbetaDbs(conn):
 
 
 def hasTransMapTrackDbs(conf, conn, destHgDb):
-    rows = list(mysqlOps.query(conn, "select count(*) from hg19.trackDb where tableName=%s;",
+    rows = list(mysqlOps.query(conn, "select count(*) from {}.trackDb where tableName=%s;".format(destHgDb),
                                ("transMap{}".format(conf.version),)))
     return (rows[0][0] != 0)
 
