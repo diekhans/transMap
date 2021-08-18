@@ -3,6 +3,7 @@ import sys
 import glob
 from transMap.genomeData import ChainType, Chains
 
+# FIXME: no data, this should not be a class
 
 debug = False
 
