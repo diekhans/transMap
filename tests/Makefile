@@ -353,7 +353,7 @@ mm10Sizes = /hive/data/genomes/mm10/chrom.sizes
 axtChainHg19Dir = /hive/data/genomes/hg19/bed/lastz.mm10/axtChain
 mappingChainsUpdate: ${genbankTypes:%=%_genbankAlignsUpdate} ${gencode_ensemblAlignsUpdate}
 	for db in ${genbankTypes:%=output/%_srcDbLoadGenbankAlignsTest.db} output/gencode_srcDbLoadEnsemblAlignsTest.db ; do \
-	    sqlite3 -batch $$db 'select * from srcAlign where tName="chr7"' | cut -f 2- ; \
+	    sqlite3 -noheader -batch $$db 'select * from srcAlign where tName="chr7"' | cut -f 2- ; \
 	done > output/$@.hg19.psl
 	chainFilter -t=chr7 ${axtChainHg19Dir}/hg19.mm10.all.chain.gz | overlapSelect output/$@.hg19.psl -inFmt=chain /dev/stdin output/hg19.mm10.chain
 	chainSwap output/hg19.mm10.chain input/mm10.hg19.chain

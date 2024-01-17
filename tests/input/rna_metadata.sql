@@ -23,5 +23,4 @@ INSERT INTO srcMetadata VALUES('hg19:AK098425.1','AK098425.1',NULL,NULL,NULL,'un
 INSERT INTO srcMetadata VALUES('hg19:AK124176.1','AK124176.1',NULL,NULL,NULL,'unknown','unknown');
 INSERT INTO srcMetadata VALUES('hg19:AK125579.1','AK125579.1',NULL,NULL,NULL,'unknown','unknown');
 INSERT INTO srcMetadata VALUES('hg19:AK126848.1','AK126848.1',NULL,NULL,NULL,'unknown','unknown');
-CREATE UNIQUE INDEX srcMetadata_srcId on srcMetadata (srcId);
 COMMIT;

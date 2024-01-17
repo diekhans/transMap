@@ -2,7 +2,7 @@
   - hg19.chr7:55428454-55651999 -  region without too many nets, loose JD* patent genes
 
     hgGetAnn hg19 wgEncodeGencodeCompV19 chr7:55428454-55651999 stdout | cut -f 1 >input/gencode.accv
-    hgGetAnn hg19 refSeqAli chr7:55428454-55651999 stdout | cut -f 10 | sort -u >input/refseq.acc
+    hgGetAnn hg19 ncbiRefSeqPsl chr7:55428454-55651999 stdout | cut -f 10 | sort -u >input/refseq.acc
     hgGetAnn hg19 all_mrna chr7:55428454-55651999 stdout | cut -f 10 | fgrep -v JD | sort -u | head -15 >input/rna.acc 
     hgGetAnn hg19 intronEst chr7:55428454-55651999 stdout | cut -f 10 | sort -u | head -20 >input/est.acc 
 
@@ -13,3 +13,6 @@
   match genes in database
   netFilter -q=chr7 -qOverlapStart=55428454 -qOverlapEnd=55651999 /hive/data/genomes/mm10/bed/lastz.hg19/axtChain/mm10.hg19.net.gz > input/mm10.hg19.net
   chainFilter -q=chr7 -qOverlapStart=55428454 -qOverlapEnd=55651999 /hive/data/genomes/mm10/bed/lastz.hg19/axtChain/mm10.hg19.all.chain.gz > input/mm10.hg19.chain
+
+- rebuild other input
+  mmake update
