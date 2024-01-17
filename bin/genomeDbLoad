@@ -4,7 +4,7 @@ import transMapProgSetup  # noqa: F401
 import argparse
 from pycbio.sys import fileOps
 from pycbio.hgdata import hgDb
-from pycbio.db import sqliteOps
+from pycbio.db import sqliteOps, mysqlOps
 from transMap import hgDbNameCheck
 from transMap.transMapConf import transMapConfLoad
 from transMap.genomeData import GenomesDbTables, ChainsSqliteTable, GenomeAsm, GenomeAsmsSqliteTable, AnnotationType, AnnotationTypeSet
@@ -114,7 +114,7 @@ def loadDb(genomeDbTmp, conf, hgDbConn, genbankConf, subsetHgDbs):
 def genomeDbLoad(opts):
     conf = transMapConfLoad(opts.configPyFile)
     genbankConf = GenbankConf(conf.genbankConfRa)
-    hgDbConn = hgDb.connect(dictCursor=True)
+    hgDbConn = hgDb.connect(cursorclass=mysqlOps.DictCursor)
     fileOps.ensureFileDir(conf.genomeDb)
     with fileOps.AtomicFileCreate(conf.genomeDb) as genomeDbTmp:
         loadDb(genomeDbTmp, conf, hgDbConn, genbankConf, opts.subsetHgDbs)

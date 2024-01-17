@@ -41,7 +41,7 @@ class EnsemblHgData(object):
     def __init__(self, srcHgDb, annotationType, gencodeVersion):
         self.srcHgDb = srcHgDb
         self.annotationType = annotationType
-        self.srcHgDbConn = hgDb.connect(srcHgDb, dictCursor=True)
+        self.srcHgDbConn = hgDb.connect(srcHgDb, cursorclass=mysqlOps.DictCursor)
         if gencodeVersion is not None:
             self.gencodeVersion = gencodeVersion
         else:
@@ -124,7 +124,7 @@ class EnsemblHgData(object):
             return cdsSpecs
 
     def _metadataRowGen(self, sql, cdsSpecs, rowFactory):
-        conn = hgDb.connect(self.srcHgDb, dictCursor=True)
+        conn = hgDb.connect(self.srcHgDb, cursorclass=mysqlOps.DictCursor)
         try:
             cur = conn.cursor()
             cur.execute(sql)

@@ -4,7 +4,7 @@ not loaded into
 """
 from collections import namedtuple
 from pycbio.hgdata.hgSqlite import HgSqliteTable
-from pycbio.hgdata.rangeFinder import Binner
+from pycbio.hgdata.rangeFinder import calcBin, getOverlappingSqlExpr
 
 
 class MappingChainsDbTables(object):
@@ -21,7 +21,7 @@ class MappingChainLoc(namedtuple("MappingChainsIndex",
     @staticmethod
     def factory(qName, qStart, qEnd, chainId, offset, length):
         "query coordinates must be positive strand."
-        bin = Binner.calcBin(qStart, qEnd)
+        bin = calcBin(qStart, qEnd)
         return MappingChainLoc(bin, qName, qStart, qEnd, chainId, offset, length)
 
 
@@ -61,6 +61,6 @@ class MappingChainsIndexSqliteTable(HgSqliteTable):
 
     def getRangeOverlap(self, qName, qStart, qEnd):
         """Get index entries for overlapping range"""
-        binWhere = Binner.getOverlappingSqlExpr("bin", "qName", "qStart", "qEnd", qName, qStart, qEnd)
+        binWhere = getOverlappingSqlExpr("bin", "qName", "qStart", "qEnd", qName, qStart, qEnd)
         sql = "SELECT {{columns}} FROM {{table}} WHERE {};".format(binWhere)
         return self.queryRows(sql, self.columnNames, lambda cur, row: MappingChainLoc(*row))

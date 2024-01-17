@@ -38,5 +38,5 @@ def addCmdOptions(parser):
 
 
 def setupFromCmd(opts):
-    loggingOps.setupFromCmd(opts, sys.argv[0])
+    loggingOps.setupFromCmd(opts, prog=sys.argv[0])
     pipettor.setDefaultLogging(logging.getLogger(), logging.DEBUG)

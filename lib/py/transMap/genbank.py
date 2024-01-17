@@ -113,7 +113,7 @@ class GenbankHgData(object):
             return "AND {}".format(getAccvSubselectClause(alignField, testAccvSubset))
 
     def _metadataRowGen(self, sql, rowFactory):
-        conn = hgDb.connect(self.srcHgDb, dictCursor=True)
+        conn = hgDb.connect(self.srcHgDb, cursorclass=mysqlOps.DictCursor)
         try:
             cur = conn.cursor()
             cur.execute(sql)
