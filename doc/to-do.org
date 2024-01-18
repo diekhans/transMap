@@ -1,3 +1,14 @@
+* transMapBatch has a lot of assumption about file structure that are not in other tools:
+
+ ../transMap/bin/mappingChainBuild build/2024-01/data/genome.db hg38 $dest syn build/2024-01/data/chains/hg38.${dest}.chain.gz
+../transMap/bin/transMapJobWrapper etc/transMapBuildConf.py hg38 chlSab2 ensembl syn 1 501 /hive/users/markd/projs/transMap/ian-primates-run/build/2024-01/build/batches/chlSab2/hg38/ensembl/results/parts/1.501.preBigPsl
+
+ gets build/2024-01/data/chains/hg38/chlSab2/hg38.chlSab2.syn.chain.db
+
+should be clear where required files should go or how to run this outside of a full run.
+
+* do the clear batch magic so don't have to keep creating new batch directorie
+
 * why so many discovered DBs dropped, like
 2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs phoRub1 is not a current hgDb, maybe have been dropped
 2021-04-26 12:45:34,574 root            WARNING  discovered requiredPreviousDestHgDbs carCri1 is not a current hgDb, maybe have been dropped

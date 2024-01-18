@@ -37,7 +37,7 @@ def parseArgs():
                         help="""destination browser database """)
     parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
                         help="""annotation set type""")
-    parser.add_argument("chainType", choices=(ChainType.all, ChainType.syn, ChainType.rbest), type=ChainType,
+    parser.add_argument("chainType", choices=ChainType, type=ChainType,
                         help="""type of chains to use""")
     parser.add_argument("startOid",
                         help="""object id of start row in srcDb.srcAligns""")

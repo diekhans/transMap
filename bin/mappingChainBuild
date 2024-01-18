@@ -20,8 +20,8 @@ def parseArgs():
                         help="""source database name""")
     parser.add_argument("destHgDb",
                         help="""destination database name""")
-    parser.add_argument("chainType", type=ChainType,
-                        help="""type of chain""")
+    parser.add_argument("chainType", type=ChainType, choices=ChainType,
+                        help="""type of chain """)
     parser.add_argument("mappingChains",
                         help="""output chain file, also creates an associated .db file""")
     opts = parser.parse_args()

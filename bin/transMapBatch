@@ -28,9 +28,9 @@ def parseArgs():
                         help="""mysql database for source assembly""")
     parser.add_argument("destHgDb",
                         help="""destination browser database """)
-    parser.add_argument("annotationType", choices=(AnnotationType.rna, AnnotationType.est, AnnotationType.refseq, AnnotationType.ensembl), type=AnnotationType,
+    parser.add_argument("annotationType", choices=AnnotationType, type=AnnotationType,
                         help="""annotation set type""")
-    parser.add_argument("chainType", choices=(ChainType.all, ChainType.syn, ChainType.rbest), type=ChainType,
+    parser.add_argument("chainType", choices=ChainType, type=ChainType,
                         help="""type of chains to use""")
     opts = parser.parse_args()
     transMapProgSetup.setupFromCmd(opts)
@@ -84,7 +84,7 @@ def directRunBatch(conf, batchFile):
 
 
 def paraRunBatch(conf, batchFile):
-    paraBatch = Para(conf.paraHost, os.getcwd(), conf.batchParaDir, os.path.abspath(batchFile))
+    paraBatch = Para(conf.paraHost, os.path.abspath(batchFile), runDir=os.getcwd(), paraDir=conf.batchParaDir)
     paraBatch.make()
     paraBatch.free()
 
