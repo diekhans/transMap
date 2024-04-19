@@ -2,3 +2,6 @@
 .emacs.bak
 tests/output
 extern
+
+doc/blurbs/transMap-transcriptome.pdf
+doc/blurbs/transMap-xspecies.pdf
